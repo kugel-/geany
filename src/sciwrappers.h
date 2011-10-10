@@ -107,6 +107,7 @@ void 				sci_set_line_numbers		(ScintillaObject *sci,  gboolean set);
 void				sci_set_mark_long_lines		(ScintillaObject *sci,	gint type, gint column, const gchar *color);
 
 void 				sci_add_text				(ScintillaObject *sci,  const gchar *text);
+void 				sci_add_text_with_len		(ScintillaObject *sci,  const gchar *text, const int len);
 gboolean			sci_can_redo				(ScintillaObject *sci);
 gboolean			sci_can_undo				(ScintillaObject *sci);
 void 				sci_undo					(ScintillaObject *sci);

@@ -169,6 +169,13 @@ void sci_convert_eols(ScintillaObject *sci, gint eolmode)
 	SSM(sci, SCI_CONVERTEOLS, (uptr_t) eolmode, 0);
 }
 
+void sci_add_text_with_len(ScintillaObject *sci, const gchar *text, const int len)
+{
+	if (text != NULL)
+	{ /* if null text is passed scintilla will segfault */
+		SSM(sci, SCI_ADDTEXT, len, (sptr_t) text);
+	}
+}
 
 void sci_add_text(ScintillaObject *sci, const gchar *text)
 {

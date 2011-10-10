@@ -1378,7 +1378,9 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 
 		/* add the text to the ScintillaObject */
 		sci_set_readonly(doc->editor->sci, FALSE);	/* to allow replacing text */
-		sci_set_text(doc->editor->sci, filedata.data);	/* NULL terminated data */
+		sci_set_text(doc->editor->sci, "");
+		sci_add_text_with_len(doc->editor->sci, filedata.data, filedata.len);
+		sci_set_current_position(doc->editor->sci, 0, TRUE);
 		queue_colourise(doc);	/* Ensure the document gets colourised. */
 
 		/* detect & set line endings */
