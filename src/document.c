@@ -73,6 +73,10 @@
 #include "filetypesprivate.h"
 #include "project.h"
 
+#if GTK_CHECK_VERSION(2, 18, 0)
+#	include "geanywraplabel.h" /* for document_show_message() using GtkInfoBar */
+#endif
+
 #include "SciLexer.h"
 
 
@@ -3206,4 +3210,179 @@ void document_grab_focus(GeanyDocument *doc)
 	g_return_if_fail(doc != NULL);
 
 	gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
+}
+
+
+/* Handles all response signals from the GtkInfoBar or GtkDialog widgets
+ * set up in document_show_message().  Client callback functions are
+ * called from here  before destroying the widget. */
+static void on_document_message_response(GtkWidget *info_widget, gint response_id,
+	GeanyDocument *doc)
+{
+	DocumentMessageResponseCallback cb;
+	gpointer cb_data;
+
+	cb = (DocumentMessageResponseCallback)g_object_get_data(G_OBJECT(info_widget), "user-callback");
+	if (cb)
+	{
+		cb_data = g_object_get_data(G_OBJECT(info_widget), "user-callback-data");
+		cb(doc, response_id, cb_data);
+	}
+
+	gtk_widget_destroy(GTK_WIDGET(info_widget));
+}
+
+
+/**
+ * Shows a message related to a document.
+ *
+ * Use this whenever the user needs to see a document-related message,
+ * for example when the file was externally modified.
+ *
+ * With GTK+ 2.18 or higher, a @c GtkInfoBar widget will be added to the
+ * document's notebook page above the editor.  Older versions will use
+ * a modal @c GtkDialog.
+ *
+ * Any of the buttons can be @c NULL.  If not @c NULL, @a btn_1's
+ * @a response_1 response will be the default for the @c GtkInfoBar or
+ * @c GtkDialog.
+ *
+ * @param doc @c GeanyDocument.
+ * @param msgtype The type of message.
+ * @param response_cb A callback function called when there's a response.
+ * @param response_cb_data Data to pass with @a response_cb.
+ * @param btn_1 The first action area button.
+ * @param response_1 The response for @a btn_1.
+ * @param btn_2 The second action area button.
+ * @param response_2 The response for @a btn_2.
+ * @param btn_3 The third action area button.
+ * @param response_3 The response for @a btn_3.
+ * @param extra_text Text to show below the main message.
+ * @param format The text format for the main message.
+ * @param ... Used with @a format as in @c printf.
+ */
+void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
+	DocumentMessageResponseCallback response_cb, gpointer response_cb_data,
+	const gchar *btn_1, GtkResponseType response_1,
+	const gchar *btn_2, GtkResponseType response_2,
+	const gchar *btn_3, GtkResponseType response_3,
+	const gchar *extra_text, const gchar *format, ...)
+{
+	va_list args;
+	gchar *text, *markup;
+	GtkWidget *hbox, *vbox, *icon, *label, *extra_label, *content_area;
+	GtkWidget *info_widget, *ok_button, *cancel_button, *parent;
+
+	va_start(args, format);
+	text = g_strdup_vprintf(format, args);
+	va_end(args);
+
+#if GTK_CHECK_VERSION(2, 18, 0)
+	markup = g_strdup_printf("<span size=\"larger\">%s</span>", text);
+	g_free(text);
+
+	info_widget = gtk_info_bar_new();
+
+	gtk_info_bar_set_message_type(GTK_INFO_BAR(info_widget), msgtype);
+
+	if (btn_1)
+	{
+		gtk_info_bar_add_button(GTK_INFO_BAR(info_widget), btn_1, response_1);
+		/* top button is default response in infobar */
+		gtk_info_bar_set_default_response(GTK_INFO_BAR(info_widget), response_1);
+	}
+	if (btn_2)
+		gtk_info_bar_add_button(GTK_INFO_BAR(info_widget), btn_2, response_2);
+	if (btn_3)
+		gtk_info_bar_add_button(GTK_INFO_BAR(info_widget), btn_3, response_3);
+
+	content_area = gtk_info_bar_get_content_area(GTK_INFO_BAR(info_widget));
+
+	label = geany_wrap_label_new(NULL);
+#else
+	markup = text;
+	info_widget = gtk_dialog_new();
+
+	if (btn_3)
+		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_3, response_3);
+	if (btn_2)
+		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_2, response_2);
+	if (btn_1)
+	{
+		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_1, response_1);
+		/* right-most button is the default response in dialog */
+		gtk_dialog_set_default_response(GTK_DIALOG(info_widget), response_3);
+	}
+
+	content_area = gtk_dialog_get_content_area(GTK_DIALOG(info_widget));
+
+	label = gtk_label_new(NULL);
+#endif
+
+	gtk_label_set_markup(GTK_LABEL(label), markup);
+	g_free(markup);
+
+	if (response_cb)
+	{
+		g_object_set_data(G_OBJECT(info_widget), "user-callback", response_cb);
+		if (response_cb_data)
+			g_object_set_data(G_OBJECT(info_widget), "user-callback-data", response_cb_data);
+	}
+
+	g_signal_connect(info_widget, "response", G_CALLBACK(on_document_message_response), doc);
+
+	hbox = gtk_hbox_new(FALSE, 12);
+	gtk_container_add(GTK_CONTAINER(content_area), hbox);
+
+	switch (msgtype)
+	{
+		case GTK_MESSAGE_INFO:
+			icon = gtk_image_new_from_stock(GTK_STOCK_DIALOG_INFO, GTK_ICON_SIZE_DIALOG);
+			break;
+		case GTK_MESSAGE_WARNING:
+			icon = gtk_image_new_from_stock(GTK_STOCK_DIALOG_WARNING, GTK_ICON_SIZE_DIALOG);
+			break;
+		case GTK_MESSAGE_QUESTION:
+			icon = gtk_image_new_from_stock(GTK_STOCK_DIALOG_QUESTION, GTK_ICON_SIZE_DIALOG);
+			break;
+		case GTK_MESSAGE_ERROR:
+			icon = gtk_image_new_from_stock(GTK_STOCK_DIALOG_ERROR, GTK_ICON_SIZE_DIALOG);
+			break;
+		default:
+			icon = NULL;
+			break;
+	}
+
+	if (icon)
+		gtk_box_pack_start(GTK_BOX(hbox), icon, FALSE, TRUE, 0);
+
+	if (extra_text)
+	{
+		vbox = gtk_vbox_new(FALSE, 6);
+#if GTK_CHECK_VERSION(2, 18, 0)
+		extra_label = geany_wrap_label_new(extra_text);
+		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+		gtk_box_pack_start(GTK_BOX(vbox), extra_label, TRUE, TRUE, 0);
+#else
+		extra_label = gtk_label_new(extra_text);
+		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+		gtk_misc_set_alignment(GTK_MISC(extra_label), 0.0, 0.5);
+		gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
+		gtk_box_pack_start(GTK_BOX(vbox), extra_label, FALSE, TRUE, 0);
+#endif
+		gtk_container_add(GTK_CONTAINER(hbox), vbox);
+	}
+	else
+		gtk_container_add(GTK_CONTAINER(hbox), label);
+
+#if GTK_CHECK_VERSION(2, 18, 0)
+	parent = gtk_notebook_get_nth_page(GTK_NOTEBOOK(main_widgets.notebook),
+		document_get_notebook_page(doc));
+	gtk_box_pack_start(GTK_BOX(parent), info_widget, FALSE, TRUE, 0);
+	gtk_box_reorder_child(GTK_BOX(parent), info_widget, 0);
+#else
+	gtk_container_set_border_width(GTK_CONTAINER(hbox), 12);
+#endif
+
+	gtk_widget_show_all(info_widget);
 }

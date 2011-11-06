@@ -322,6 +322,13 @@ typedef struct DocumentFuncs
 	gint		(*document_compare_by_display_name) (gconstpointer a, gconstpointer b);
 	gint		(*document_compare_by_tab_order) (gconstpointer a, gconstpointer b);
 	gint		(*document_compare_by_tab_order_reverse) (gconstpointer a, gconstpointer b);
+	void		(*document_show_message) (struct GeanyDocument *doc, GtkMessageType msgtype,
+		void (*response_cb) (struct GeanyDocument *Doc, gint response_id, gpointer user_data),
+		gpointer response_cb_data,
+		const gchar *btn_1, GtkResponseType response_1,
+		const gchar *btn_2, GtkResponseType response_2,
+		const gchar *btn_3, GtkResponseType response_3,
+		const gchar *extra_text, const gchar *format, ...);
 }
 DocumentFuncs;
 
