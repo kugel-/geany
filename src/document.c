@@ -3216,7 +3216,7 @@ void document_grab_focus(GeanyDocument *doc)
 
 /* Handles all response signals from the GtkInfoBar or GtkDialog widgets
  * set up in document_show_message().  Client callback functions are
- * called from here  before destroying the widget. */
+ * called from here before destroying the widget. */
 static void on_document_message_response(GtkWidget *info_widget, gint response_id,
 	GeanyDocument *doc)
 {
@@ -3259,6 +3259,8 @@ static void on_document_message_response(GtkWidget *info_widget, gint response_i
  * @param extra_text Text to show below the main message.
  * @param format The text format for the main message.
  * @param ... Used with @a format as in @c printf.
+ *
+ * @since 1.22 (GEANY_API_VERSION 211)
  */
 void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	DocumentMessageResponseCallback response_cb, gpointer response_cb_data,
