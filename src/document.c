@@ -3020,37 +3020,33 @@ static void monitor_reload_file(GeanyDocument *doc)
 }
 
 
-static gboolean monitor_resave_missing_file(GeanyDocument *doc)
+static void on_monitor_resave_missing_file_response(GeanyDocument *doc, gint response_id,
+	gpointer user_data)
 {
-	gboolean want_reload = FALSE;
 	gboolean file_saved = FALSE;
-	gint ret;
 
-	ret = dialogs_show_prompt(NULL,
-		_("Close _without saving"), GTK_RESPONSE_CLOSE,
-		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-		GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-		_("Try to resave the file?"),
-		_("File \"%s\" was not found on disk!"),
-		doc->file_name);
-	if (ret == GTK_RESPONSE_ACCEPT)
-	{
+	if (response_id == GTK_RESPONSE_ACCEPT)
 		file_saved = dialogs_show_save_as();
-		want_reload = TRUE;
-	}
-	else if (ret == GTK_RESPONSE_CLOSE)
+
+	if (!file_saved)
 	{
-		document_close(doc);
-	}
-	if (ret != GTK_RESPONSE_CLOSE && ! file_saved)
-	{
-		/* file is missing - set unsaved state */
 		document_set_text_changed(doc, TRUE);
 		/* don't prompt more than once */
 		SETPTR(doc->real_path, NULL);
 	}
+}
 
-	return want_reload;
+
+static void monitor_resave_missing_file(GeanyDocument *doc)
+{
+	document_show_message(doc, GTK_MESSAGE_QUESTION,
+		(DocumentMessageResponseCallback)on_monitor_resave_missing_file_response, NULL,
+		GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		NULL, GTK_RESPONSE_NONE,
+		_("Try to resave the file?"),
+		_("File \"%s\" was not found on disk!"),
+		doc->file_name);
 }
 
 
@@ -3248,9 +3244,7 @@ static void on_document_message_response(GtkWidget *info_widget, gint response_i
  * document's notebook page above the editor.  Older versions will use
  * a modal @c GtkDialog.
  *
- * Any of the buttons can be @c NULL.  If not @c NULL, @a btn_1's
- * @a response_1 response will be the default for the @c GtkInfoBar or
- * @c GtkDialog.
+ * Any of the buttons can be @c NULL.
  *
  * @param doc @c GeanyDocument.
  * @param msgtype The type of message.
@@ -3291,11 +3285,7 @@ void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	gtk_info_bar_set_message_type(GTK_INFO_BAR(info_widget), msgtype);
 
 	if (btn_1)
-	{
 		gtk_info_bar_add_button(GTK_INFO_BAR(info_widget), btn_1, response_1);
-		/* top button is default response in infobar */
-		gtk_info_bar_set_default_response(GTK_INFO_BAR(info_widget), response_1);
-	}
 	if (btn_2)
 		gtk_info_bar_add_button(GTK_INFO_BAR(info_widget), btn_2, response_2);
 	if (btn_3)
@@ -3313,11 +3303,7 @@ void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	if (btn_2)
 		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_2, response_2);
 	if (btn_1)
-	{
 		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_1, response_1);
-		/* right-most button is the default response in dialog */
-		gtk_dialog_set_default_response(GTK_DIALOG(info_widget), response_3);
-	}
 
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(info_widget));
 
