@@ -68,8 +68,6 @@ typedef struct GeanyInterfacePrefs
 	/** whether compiler messages window is automatically scrolled to show new messages */
 	gboolean		compiler_tab_autoscroll;
 	gint			msgwin_orientation;			/**< orientation of the message window */
-	/** whether to use GtkInfoBar to show document-related messages instead of modal dialogs **/
-	gboolean		use_document_messages;
 }
 GeanyInterfacePrefs;
 

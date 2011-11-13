@@ -73,10 +73,6 @@
 #include "filetypesprivate.h"
 #include "project.h"
 
-#if GTK_CHECK_VERSION(2, 18, 0)
-#	include "geanywraplabel.h" /* for document_show_message() using GtkInfoBar */
-#endif
-
 #include "SciLexer.h"
 
 
@@ -112,6 +108,16 @@ typedef struct
 static void document_undo_clear(GeanyDocument *doc);
 static void document_redo_add(GeanyDocument *doc, guint type, gpointer data);
 static gboolean remove_page(guint page_num);
+
+#if GTK_CHECK_VERSION(2, 18, 0)
+#include "geanywraplabel.h" /* for document_show_message() using GtkInfoBar */
+static void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
+	DocumentMessageResponseCallback response_cb, gpointer response_cb_data,
+	const gchar *btn_1, GtkResponseType response_1,
+	const gchar *btn_2, GtkResponseType response_2,
+	const gchar *btn_3, GtkResponseType response_3,
+	const gchar *extra_text, const gchar *format, ...);
+#endif
 
 
 /**
@@ -2993,51 +2999,64 @@ gboolean document_close_all(void)
 }
 
 
+#if GTK_CHECK_VERSION(2, 18, 0)
 static void on_monitor_reload_file_response(GeanyDocument *doc, gint response_id,
 	gpointer user_data)
 {
 	if (response_id == GTK_RESPONSE_ACCEPT)
 		document_reload_file(doc, doc->encoding);
 }
+#endif
 
 
 static void monitor_reload_file(GeanyDocument *doc)
 {
 	gchar *base_name = g_path_get_basename(doc->file_name);
 
-	if (interface_prefs.use_document_messages)
-	{
-		document_show_message(doc, GTK_MESSAGE_QUESTION,
-			(DocumentMessageResponseCallback) on_monitor_reload_file_response, NULL,
-			_("_Reload"), GTK_RESPONSE_ACCEPT,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			NULL, GTK_RESPONSE_NONE,
-			_("Do you want to reload it?"),
-			_("The file '%s' on the disk is more recent than the current buffer."),
-			base_name);
+#if GTK_CHECK_VERSION(2, 18, 0)
 
-		document_set_text_changed(doc, TRUE);
-	}
-	else
+	document_show_message(doc, GTK_MESSAGE_QUESTION,
+		(DocumentMessageResponseCallback) on_monitor_reload_file_response, NULL,
+		_("_Reload"), GTK_RESPONSE_ACCEPT,
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		NULL, GTK_RESPONSE_NONE,
+		_("Do you want to reload it?"),
+		_("The file '%s' on disk is more recent than the current buffer."),
+		base_name);
+
+	document_set_text_changed(doc, TRUE);
+
+#else
+
+	gint ret = dialogs_show_prompt(NULL,
+					GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE,
+					GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					_("_Reload"), GTK_RESPONSE_ACCEPT,
+					_("Do you want to reload it?"),
+					_("The file '%s' on disk is more recent than the current buffer."),
+					base_name);
+
+	switch (ret)
 	{
-		gint ret;
-		ret = dialogs_show_prompt(NULL,
-			GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			_("_Reload"), GTK_RESPONSE_ACCEPT,
-			_("Do you want to reload it?"),
-			_("The file '%s' on the disk is more recent than the current buffer."),
-			base_name);
-		if (ret == GTK_RESPONSE_ACCEPT)
+		case GTK_RESPONSE_ACCEPT:
 			document_reload_file(doc, doc->encoding);
-		else
+			break;
+		case GTK_RESPONSE_CLOSE:
 			document_close(doc);
+			break;
+		case GTK_RESPONSE_CANCEL:
+		default:
+			document_set_text_changed(doc, TRUE);
+			break;
 	}
+
+#endif /* GTK_CHECK_VERSION(2, 18, 0) */
 
 	g_free(base_name);
 }
 
 
+#if GTK_CHECK_VERSION(2, 18, 0)
 static void on_monitor_resave_missing_file_response(GeanyDocument *doc, gint response_id,
 	gpointer user_data)
 {
@@ -3053,47 +3072,57 @@ static void on_monitor_resave_missing_file_response(GeanyDocument *doc, gint res
 		SETPTR(doc->real_path, NULL);
 	}
 }
+#endif
 
 
 static void monitor_resave_missing_file(GeanyDocument *doc)
 {
-	if (interface_prefs.use_document_messages)
-	{
-		document_show_message(doc, GTK_MESSAGE_QUESTION,
-			(DocumentMessageResponseCallback)on_monitor_resave_missing_file_response, NULL,
-			GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			NULL, GTK_RESPONSE_NONE,
-			_("Try to resave the file?"),
-			_("File \"%s\" was not found on disk!"),
-			doc->file_name);
-	}
-	else
-	{
-		gboolean file_saved;
-		gint ret;
+#if GTK_CHECK_VERSION(2, 18, 0)
 
-		ret = dialogs_show_prompt(NULL,
+	document_show_message(doc, GTK_MESSAGE_QUESTION,
+		(DocumentMessageResponseCallback)on_monitor_resave_missing_file_response, NULL,
+		GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		NULL, GTK_RESPONSE_NONE,
+		_("Try to resave the file?"),
+		_("File \"%s\" was not found on disk!"),
+		doc->file_name);
+
+#else
+
+	gboolean file_saved = FALSE;
+	gint ret;
+
+	ret = dialogs_show_prompt(NULL,
 			_("Close _without saving"), GTK_RESPONSE_CLOSE,
 			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 			GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 			_("Try to resave the file?"),
-			_("File \"%s\" was not found on disk!"),
+			_("The file '%s' was not found on disk!"),
 			doc->file_name);
 
-		if (ret == GTK_RESPONSE_ACCEPT)
-			file_saved = dialogs_show_save_as();
-		else if (ret == GTK_RESPONSE_CLOSE)
+	switch (ret)
+	{
+		case GTK_RESPONSE_CLOSE:
 			document_close(doc);
-
-		if (ret != GTK_RESPONSE_CLOSE && !file_saved)
-		{
-			document_set_text_changed(doc, TRUE);
-			/* don't prompt more than once */
-			g_free(doc->real_path);
-			doc->real_path = NULL;
-		}
+			break;
+		case GTK_RESPONSE_ACCEPT:
+			file_saved = dialogs_show_save_as();
+			/* fall-through */
+		case GTK_RESPONSE_CANCEL:
+			if (file_saved)
+			{
+				document_set_text_changed(doc, TRUE);
+				/* don't prompt more than once */
+				g_free(doc->real_path);
+				doc->real_path = NULL;
+			}
+			/* fall-through */
+		default:
+			break;
 	}
+
+#endif /* GTK_CHECK_VERSION(2, 18, 0) */
 }
 
 
@@ -3261,9 +3290,11 @@ void document_grab_focus(GeanyDocument *doc)
 }
 
 
-/* Handles all response signals from the GtkInfoBar or GtkDialog widgets
- * set up in document_show_message().  Client callback functions are
- * called from here before destroying the widget. */
+#if GTK_CHECK_VERSION(2, 18, 0)
+
+/* Handles all response signals from the GtkInfoBar widgets set up in 
+ * document_show_message().  Client callback functions are called from 
+ * here before destroying the widget. */
 static void on_document_message_response(GtkWidget *info_widget, gint response_id,
 	GeanyDocument *doc)
 {
@@ -3281,15 +3312,11 @@ static void on_document_message_response(GtkWidget *info_widget, gint response_i
 }
 
 
-/**
+/*
  * Shows a message related to a document.
  *
  * Use this whenever the user needs to see a document-related message,
  * for example when the file was externally modified.
- *
- * With GTK+ 2.18 or higher, a @c GtkInfoBar widget will be added to the
- * document's notebook page above the editor.  Older versions will use
- * a modal @c GtkDialog.
  *
  * Any of the buttons can be @c NULL.
  *
@@ -3308,8 +3335,9 @@ static void on_document_message_response(GtkWidget *info_widget, gint response_i
  * @param ... Used with @a format as in @c printf.
  *
  * @since 1.25 (GEANY_API_VERSION 219)
+ * @note Only available with GTK+ 2.18 or greater.
  */
-void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
+static void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	DocumentMessageResponseCallback response_cb, gpointer response_cb_data,
 	const gchar *btn_1, GtkResponseType response_1,
 	const gchar *btn_2, GtkResponseType response_2,
@@ -3325,7 +3353,6 @@ void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	text = g_strdup_vprintf(format, args);
 	va_end(args);
 
-#if GTK_CHECK_VERSION(2, 18, 0)
 	markup = g_strdup_printf("<span size=\"larger\">%s</span>", text);
 	g_free(text);
 
@@ -3343,21 +3370,6 @@ void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	content_area = gtk_info_bar_get_content_area(GTK_INFO_BAR(info_widget));
 
 	label = geany_wrap_label_new(NULL);
-#else
-	markup = text;
-	info_widget = gtk_dialog_new();
-
-	if (btn_3)
-		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_3, response_3);
-	if (btn_2)
-		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_2, response_2);
-	if (btn_1)
-		gtk_dialog_add_button(GTK_DIALOG(info_widget), btn_1, response_1);
-
-	content_area = gtk_dialog_get_content_area(GTK_DIALOG(info_widget));
-
-	label = gtk_label_new(NULL);
-#endif
 
 	gtk_label_set_markup(GTK_LABEL(label), markup);
 	g_free(markup);
@@ -3399,30 +3411,20 @@ void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	if (extra_text)
 	{
 		vbox = gtk_vbox_new(FALSE, 6);
-#if GTK_CHECK_VERSION(2, 18, 0)
 		extra_label = geany_wrap_label_new(extra_text);
 		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
 		gtk_box_pack_start(GTK_BOX(vbox), extra_label, TRUE, TRUE, 0);
-#else
-		extra_label = gtk_label_new(extra_text);
-		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
-		gtk_misc_set_alignment(GTK_MISC(extra_label), 0.0, 0.5);
-		gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
-		gtk_box_pack_start(GTK_BOX(vbox), extra_label, FALSE, TRUE, 0);
-#endif
 		gtk_container_add(GTK_CONTAINER(hbox), vbox);
 	}
 	else
 		gtk_container_add(GTK_CONTAINER(hbox), label);
 
-#if GTK_CHECK_VERSION(2, 18, 0)
 	parent = gtk_notebook_get_nth_page(GTK_NOTEBOOK(main_widgets.notebook),
 		document_get_notebook_page(doc));
 	gtk_box_pack_start(GTK_BOX(parent), info_widget, FALSE, TRUE, 0);
 	gtk_box_reorder_child(GTK_BOX(parent), info_widget, 0);
-#else
-	gtk_container_set_border_width(GTK_CONTAINER(hbox), 12);
-#endif
 
 	gtk_widget_show_all(info_widget);
 }
+
+#endif /* GTK_CHECK_VERSION(2, 18, 0) */

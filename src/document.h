@@ -299,13 +299,6 @@ void document_grab_focus(GeanyDocument *doc);
 
 GeanyDocument *document_clone(GeanyDocument *old_doc);
 
-void document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
-	DocumentMessageResponseCallback response_cb, gpointer response_cb_data,
-	const gchar *btn_1, GtkResponseType response_1,
-	const gchar *btn_2, GtkResponseType response_2,
-	const gchar *btn_3, GtkResponseType response_3,
-	const gchar *extra_text, const gchar *format, ...);
-
 G_END_DECLS
 
 #endif
