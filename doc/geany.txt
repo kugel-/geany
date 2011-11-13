@@ -2566,6 +2566,9 @@ msgwin_messages_visible           Whether to show the Messages tab in the      t
                                   Messages Window
 msgwin_scribble_visible           Whether to show the Scribble tab in the      true        immediately
                                   Messages Window
+doc_messages_max                  The maximum number of document messages      4           to new
+                                  to show for a document.  Any new messages                document
+                                  above this maximum will be cancelled.                    messages
 **VTE related**
 emulation                         Terminal emulation mode. Only change this    xterm       immediately
                                   if you have VTE termcap files other than

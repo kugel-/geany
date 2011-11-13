@@ -68,6 +68,8 @@ typedef struct GeanyInterfacePrefs
 	/** whether compiler messages window is automatically scrolled to show new messages */
 	gboolean		compiler_tab_autoscroll;
 	gint			msgwin_orientation;			/**< orientation of the message window */
+	/** the maximum number of document messages to show at a time */
+	gint			doc_messages_max;
 }
 GeanyInterfacePrefs;
 
