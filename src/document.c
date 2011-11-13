@@ -45,7 +45,7 @@
 #include <glib/gstdio.h>
 
 /* uncomment to use GIO based file monitoring, though it is not completely stable yet */
-/*#define USE_GIO_FILEMON 1*/
+#define USE_GIO_FILEMON 1
 #include <gio/gio.h>
 
 #include "document.h"
@@ -470,10 +470,8 @@ static void monitor_file_changed_cb(G_GNUC_UNUSED GFileMonitor *monitor, G_GNUC_
 		default:
 			break;
 	}
-	if (doc->priv->file_disk_status != FILE_OK)
-	{
-		ui_update_tab_status(doc);
-	}
+
+	document_check_disk_status(doc, FALSE);
 }
 #endif
 
@@ -3015,16 +3013,18 @@ static void monitor_reload_file(GeanyDocument *doc)
 
 #if GTK_CHECK_VERSION(2, 18, 0)
 
+	gchar *msgfmt = _("The file '%s' on disk is more recent than the current buffer.");
+
 	document_show_message(doc, GTK_MESSAGE_QUESTION,
 		(DocumentMessageResponseCallback) on_monitor_reload_file_response, NULL,
 		_("_Reload"), GTK_RESPONSE_ACCEPT,
 		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 		NULL, GTK_RESPONSE_NONE,
 		_("Do you want to reload it?"),
-		_("The file '%s' on disk is more recent than the current buffer."),
-		base_name);
+		msgfmt,	base_name);
 
 	document_set_text_changed(doc, TRUE);
+	ui_set_statusbar(TRUE, msgfmt, doc->file_name);
 
 #else
 
@@ -3071,6 +3071,8 @@ static void on_monitor_resave_missing_file_response(GeanyDocument *doc, gint res
 		/* don't prompt more than once */
 		SETPTR(doc->real_path, NULL);
 	}
+	else
+		document_set_text_changed(doc, FALSE);
 }
 #endif
 
@@ -3079,14 +3081,18 @@ static void monitor_resave_missing_file(GeanyDocument *doc)
 {
 #if GTK_CHECK_VERSION(2, 18, 0)
 
+	gchar *msgfmt = _("File \"%s\" was not found on disk!");
+
 	document_show_message(doc, GTK_MESSAGE_QUESTION,
 		(DocumentMessageResponseCallback)on_monitor_resave_missing_file_response, NULL,
 		GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 		NULL, GTK_RESPONSE_NONE,
 		_("Try to resave the file?"),
-		_("File \"%s\" was not found on disk!"),
-		doc->file_name);
+		msgfmt,	doc->file_name);
+
+	document_set_text_changed(doc, TRUE);
+	ui_set_statusbar(TRUE, msgfmt, doc->file_name);
 
 #else
 
