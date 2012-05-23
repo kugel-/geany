@@ -976,6 +976,8 @@ static void recent_create_menu(GeanyRecentFiles *grf)
 	for (i = 0; i < len; i++)
 	{
 		filename = g_queue_peek_nth(grf->recent_queue, i);
+		if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+			continue;
 		/* create menu item for the recent files menu in the menu bar */
 		tmp = gtk_menu_item_new_with_label(filename);
 		gtk_widget_show(tmp);
