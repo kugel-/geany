@@ -694,10 +694,12 @@ void configuration_load_session_files(GKeyFile *config, gboolean read_recent_fil
 
 		if (tmp_array)
 		{
-			gchar *locale_filename;
+			gchar *locale_filename, *unescaped_filename;
 
 			locale_filename = utils_get_locale_from_utf8(tmp_array[7]);
-			if (!g_file_test(locale_filename, G_FILE_TEST_EXISTS))
+			unescaped_filename = g_uri_unescape_string(locale_filename, NULL);
+
+			if (!g_file_test(unescaped_filename, G_FILE_TEST_EXISTS))
 			{
 				g_free(tmp_array);
 				tmp_array = g_key_file_get_string_list(config, "files_relative", entry, NULL, NULL);
@@ -708,6 +710,7 @@ void configuration_load_session_files(GKeyFile *config, gboolean read_recent_fil
 				g_ptr_array_add(session_files, tmp_array);
 			}
 
+			g_free(unescaped_filename);
 			g_free(locale_filename);
 		}
 		else
