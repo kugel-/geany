@@ -1152,6 +1152,20 @@ static gint find_recent_file_item(gconstpointer list_data, gconstpointer user_da
 }
 
 
+void ui_enable_top_recent_project_file(void)
+{
+	GList *item, *children;
+	GeanyRecentFiles *grf;
+	
+	grf = recent_get_recent_projects();
+	children = gtk_container_get_children(GTK_CONTAINER(grf->menubar));
+	item = g_list_first(children);
+	if (item != NULL && GTK_IS_MENU_ITEM(item->data)) 
+		gtk_widget_set_sensitive(GTK_WIDGET(item->data), TRUE);
+	g_list_free(children);
+}
+
+
 static void recent_file_loaded(const gchar *utf8_filename, GeanyRecentFiles *grf)
 {
 	GList *item, *children;
@@ -1181,12 +1195,16 @@ static void recent_file_loaded(const gchar *utf8_filename, GeanyRecentFiles *grf
 			gtk_widget_destroy(GTK_WIDGET(item->data));
 		g_list_free(children);
 	}
+	if (grf->type == RECENT_FILE_PROJECT) 
+		ui_enable_top_recent_project_file();
 	/* now prepend a new menuitem for the filename,
 	 * first for the recent files menu in the menu bar */
 	tmp = gtk_menu_item_new_with_label(utf8_filename);
 	gtk_widget_show(tmp);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(grf->menubar), tmp);
 	g_signal_connect(tmp, "activate", G_CALLBACK(grf->activate_cb), NULL);
+	if (grf->type == RECENT_FILE_PROJECT && app->project != NULL && strcmp(utf8_filename, app->project->file_name) == 0) 
+		gtk_widget_set_sensitive(tmp, FALSE);
 	/* then for the recent files menu in the tool bar */
 	if (grf->toolbar != NULL)
 	{
@@ -1224,11 +1242,15 @@ static void update_recent_menu(GeanyRecentFiles *grf)
 	}
 	g_list_free(children);
 
+	if (grf->type == RECENT_FILE_PROJECT) 
+		ui_enable_top_recent_project_file();
 	/* create item for the menu bar menu */
 	tmp = gtk_menu_item_new_with_label(filename);
 	gtk_widget_show(tmp);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(grf->menubar), tmp);
 	g_signal_connect(tmp, "activate", G_CALLBACK(grf->activate_cb), NULL);
+	if (grf->type == RECENT_FILE_PROJECT && app->project != NULL && strcmp(filename, app->project->file_name) == 0) 
+		gtk_widget_set_sensitive(tmp, FALSE);
 
 	/* clean the MRU list before adding an item (toolbar) */
 	if (grf->toolbar != NULL)

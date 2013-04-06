@@ -408,6 +408,8 @@ void project_close(gboolean open_default)
 	}
 	g_signal_emit_by_name(geany_object, "project-close");
 
+	ui_enable_top_recent_project_file();
+
 	update_ui();
 }
 
