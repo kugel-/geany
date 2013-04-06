@@ -281,6 +281,8 @@ GDate *utils_parse_date(const gchar *input);
 
 gchar *utils_parse_and_format_build_date(const gchar *input);
 
+gchar *utils_relpath(const gchar *origin, const gchar *dest);
+
 G_END_DECLS
 
 #endif
