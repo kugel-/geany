@@ -43,6 +43,11 @@ public:
 	bool AllSame() const;
 	bool AllSameAs(int value) const;
 	int Find(int value, int start) const;
+/* CHANGEBAR begin */
+    char *PersistantForm() const; 
+    void FromPersistant(const char *form); 
+    static bool PersistantSame(const char *form1, const char *form2); 
+/* CHANGEBAR end */
 
 	void Check() const;
 };

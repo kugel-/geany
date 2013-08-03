@@ -207,7 +207,15 @@ int SCI_METHOD Document::Release() {
 }
 
 void Document::SetSavePoint() {
+/* CHANGEBAR begin */
+    int changesEdition = cb.GetChangesEdition(); 
+/* CHANGEBAR end */
 	cb.SetSavePoint();
+/* CHANGEBAR begin */
+    if (cb.GetChangesEdition() != changesEdition) { 
+        NotifyModified(DocModification(SC_MOD_CHANGEMARKER, 0, 0, 0, 0, -1)); 
+    } 
+/* CHANGEBAR end */
 	NotifySavePoint(true);
 }
 
@@ -886,6 +894,10 @@ bool Document::DeleteChars(int pos, int len) {
 			        SC_MOD_BEFOREDELETE | SC_PERFORMED_USER,
 			        pos, len,
 			        0, 0));
+ 
+/* CHANGEBAR begin */
+            int changesEdition = cb.GetChangesEdition(); 
+/* CHANGEBAR end */
 			int prevLinesTotal = LinesTotal();
 			bool startSavePoint = cb.IsSavePoint();
 			bool startSequence = false;
@@ -896,9 +908,15 @@ bool Document::DeleteChars(int pos, int len) {
 				ModifiedAt(pos);
 			else
 				ModifiedAt(pos-1);
+/* CHANGEBAR begin */
+            int changeBarFlags = (cb.GetChangesEdition() == changesEdition) ?  
+                0 : SC_MOD_CHANGEMARKER | SC_MOD_CHANGEFOLD; 
+/* CHANGEBAR end */
 			NotifyModified(
 			    DocModification(
-			        SC_MOD_DELETETEXT | SC_PERFORMED_USER | (startSequence?SC_STARTACTION:0),
+/* CHANGEBAR begin */
+                    SC_MOD_DELETETEXT | SC_PERFORMED_USER | (startSequence?SC_STARTACTION:0) | changeBarFlags, 
+/* CHANGEBAR end */
 			        pos, len,
 			        LinesTotal() - prevLinesTotal, text));
 		}
@@ -925,6 +943,10 @@ bool Document::InsertString(int position, const char *s, int insertLength) {
 			        SC_MOD_BEFOREINSERT | SC_PERFORMED_USER,
 			        position, insertLength,
 			        0, s));
+ 
+/* CHANGEBAR begin */
+            int changesEdition = cb.GetChangesEdition(); 
+/* CHANGEBAR end */
 			int prevLinesTotal = LinesTotal();
 			bool startSavePoint = cb.IsSavePoint();
 			bool startSequence = false;
@@ -932,9 +954,15 @@ bool Document::InsertString(int position, const char *s, int insertLength) {
 			if (startSavePoint && cb.IsCollectingUndo())
 				NotifySavePoint(!startSavePoint);
 			ModifiedAt(position);
+/* CHANGEBAR begin */
+            int changeBarFlags = (cb.GetChangesEdition() == changesEdition) ?  
+                0 : SC_MOD_CHANGEMARKER | SC_MOD_CHANGEFOLD; 
+/* CHANGEBAR end */
 			NotifyModified(
 			    DocModification(
-			        SC_MOD_INSERTTEXT | SC_PERFORMED_USER | (startSequence?SC_STARTACTION:0),
+/* CHANGEBAR begin */
+                    SC_MOD_INSERTTEXT | SC_PERFORMED_USER | (startSequence?SC_STARTACTION:0) | changeBarFlags, 
+/* CHANGEBAR end */
 			        position, insertLength,
 			        LinesTotal() - prevLinesTotal, text));
 		}
@@ -967,6 +995,9 @@ int Document::Undo() {
 		if (!cb.IsReadOnly()) {
 			bool startSavePoint = cb.IsSavePoint();
 			bool multiLine = false;
+/* CHANGEBAR begin */
+            int changesEdition = cb.GetChangesEdition(); 
+/* CHANGEBAR end */
 			int steps = cb.StartUndo();
 			//Platform::DebugPrintf("Steps=%d\n", steps);
 			int coalescedRemovePos = -1;
@@ -1031,6 +1062,11 @@ int Document::Undo() {
 					if (multiLine)
 						modFlags |= SC_MULTILINEUNDOREDO;
 				}
+/* CHANGEBAR begin */
+                int changeBarFlags = (cb.GetChangesEdition() == changesEdition) ?
+                    0 : SC_MOD_CHANGEMARKER | SC_MOD_CHANGEFOLD;
+                modFlags |= changeBarFlags;
+/* CHANGEBAR end */
 				NotifyModified(DocModification(modFlags, action.position, action.lenData,
 											   linesAdded, action.data));
 			}
@@ -1052,6 +1088,9 @@ int Document::Redo() {
 		if (!cb.IsReadOnly()) {
 			bool startSavePoint = cb.IsSavePoint();
 			bool multiLine = false;
+/* CHANGEBAR begin */
+            int changesEdition = cb.GetChangesEdition(); 
+/* CHANGEBAR end */
 			int steps = cb.StartRedo();
 			for (int step = 0; step < steps; step++) {
 				const int prevLinesTotal = LinesTotal();
@@ -1090,6 +1129,11 @@ int Document::Redo() {
 					if (multiLine)
 						modFlags |= SC_MULTILINEUNDOREDO;
 				}
+/* CHANGEBAR begin */
+                int changeBarFlags = (cb.GetChangesEdition() == changesEdition) ?  
+                    0 : SC_MOD_CHANGEMARKER | SC_MOD_CHANGEFOLD; 
+                modFlags |= changeBarFlags; 
+/* CHANGEBAR end */
 				NotifyModified(
 					DocModification(modFlags, action.position, action.lenData,
 									linesAdded, action.data));
