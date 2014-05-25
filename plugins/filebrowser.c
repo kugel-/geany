@@ -186,7 +186,7 @@ static void add_item(const gchar *name)
 	const gchar *sep;
 	gboolean dir;
 
-	if (G_UNLIKELY(! NZV(name)))
+	if (G_UNLIKELY(EMPTY(name)))
 		return;
 
 	/* root directory doesn't need separator */
@@ -237,7 +237,7 @@ static void add_top_level_entry(void)
 	GtkTreeIter iter;
 	gchar *utf8_dir;
 
-	if (! NZV(g_path_skip_root(current_dir)))
+	if (EMPTY(g_path_skip_root(current_dir)))
 		return;	/* ignore 'C:\' or '/' */
 
 	utf8_dir = g_path_get_dirname(current_dir);
@@ -321,7 +321,7 @@ static gchar *get_default_dir(void)
 	else
 		dir = geany->prefs->default_open_path;
 
-	if (NZV(dir))
+	if (!EMPTY(dir))
 		return utils_get_locale_from_utf8(dir);
 
 	return g_get_current_dir();
@@ -606,7 +606,7 @@ static GtkWidget *create_popup_menu(void)
 
 	menu = gtk_menu_new();
 
-	item = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
+	item = ui_image_menu_item_new(GTK_STOCK_OPEN, _("Open in _Geany"));
 	gtk_widget_show(item);
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_open_clicked), NULL);
@@ -762,7 +762,7 @@ static void on_path_entry_activate(GtkEntry *entry, gpointer user_data)
 {
 	gchar *new_dir = (gchar*) gtk_entry_get_text(entry);
 
-	if (NZV(new_dir))
+	if (!EMPTY(new_dir))
 	{
 		if (g_str_has_suffix(new_dir, ".."))
 		{
@@ -1006,7 +1006,7 @@ static void project_change_cb(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GKeyFile
 	gchar *new_dir;
 	GeanyProject *project = geany->app->project;
 
-	if (! fb_set_project_base_path || project == NULL || ! NZV(project->base_path))
+	if (! fb_set_project_base_path || project == NULL || EMPTY(project->base_path))
 		return;
 
 	/* TODO this is a copy of project_get_base_path(), add it to the plugin API */

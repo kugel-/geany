@@ -75,6 +75,7 @@ LexOthers.o \
 LexPascal.o \
 LexPerl.o \
 LexPO.o \
+LexPowerShell.o \
 LexPython.o \
 LexSQL.o \
 LexCaml.o \
@@ -95,6 +96,7 @@ LexLua.o \
 LexHaskell.o \
 LexBasic.o \
 LexR.o \
+LexRust.o \
 LexYAML.o \
 LexCmake.o \
 LexNsis.o

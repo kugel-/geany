@@ -24,7 +24,33 @@
  *  Also Scintilla search actions.
  */
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "document.h"
+
+#include "app.h"
+#include "callbacks.h" /* for ignore_callback */
+#include "dialogs.h"
+#include "documentprivate.h"
+#include "encodings.h"
+#include "filetypesprivate.h"
+#include "geany.h" /* FIXME: why is this needed for DOC_FILENAME()? should come from documentprivate.h/document.h */
+#include "geanyobject.h"
+#include "highlighting.h"
+#include "main.h"
+#include "msgwindow.h"
+#include "navqueue.h"
+#include "notebook.h"
+#include "project.h"
+#include "sciwrappers.h"
+#include "sidebar.h"
+#include "support.h"
+#include "symbols.h"
+#include "ui_utils.h"
+#include "utils.h"
+#include "vte.h"
 
 #ifdef HAVE_SYS_TIME_H
 # include <sys/time.h>
@@ -48,47 +74,24 @@
 /*#define USE_GIO_FILEMON 1*/
 #include <gio/gio.h>
 
-#include "document.h"
-#include "documentprivate.h"
-#include "filetypes.h"
-#include "support.h"
-#include "sciwrappers.h"
-#include "editor.h"
-#include "dialogs.h"
-#include "msgwindow.h"
-#include "templates.h"
-#include "sidebar.h"
-#include "ui_utils.h"
-#include "utils.h"
-#include "encodings.h"
-#include "notebook.h"
-#include "main.h"
-#include "vte.h"
-#include "build.h"
-#include "symbols.h"
-#include "highlighting.h"
-#include "navqueue.h"
-#include "win32.h"
-#include "search.h"
-#include "filetypesprivate.h"
-#include "project.h"
-
-#include "SciLexer.h"
-
 
 GeanyFilePrefs file_prefs;
 
-/** Dynamic array of GeanyDocument pointers holding information about the notebook tabs.
+
+/** Dynamic array of GeanyDocument pointers.
  * Once a pointer is added to this, it is never freed. This means you can keep a pointer
- * to a document over time, but it might no longer represent a notebook tab. To check this,
- * check @c doc_ptr->is_valid. Of course, the pointer may represent a different
- * file by then.
+ * to a document over time, but it may represent a different
+ * document later on, or may have been closed and become invalid.
  *
- * You also need to check @c GeanyDocument::is_valid when iterating over this array,
- * although usually you would just use the foreach_document() macro.
+ * @warning You must check @c GeanyDocument::is_valid when iterating over this array.
+ * This is done automatically if you use the foreach_document() macro.
  *
+ * @note
  * Never assume that the order of document pointers is the same as the order of notebook tabs.
- * Notebook tabs can be reordered. Use @c document_get_from_page(). */
+ * One reason is that notebook tabs can be reordered.
+ * Use @c document_get_from_page() to lookup a document from a notebook tab number.
+ *
+ * @see documents. */
 GPtrArray *documents_array = NULL;
 
 
@@ -266,13 +269,13 @@ GeanyDocument *document_get_current(void)
 }
 
 
-void document_init_doclist()
+void document_init_doclist(void)
 {
 	documents_array = g_ptr_array_new();
 }
 
 
-void document_finalize()
+void document_finalize(void)
 {
 	guint i;
 
@@ -592,7 +595,14 @@ static gboolean remove_page(guint page_num)
 
 	doc->is_valid = FALSE;
 
-	if (! main_status.quitting)
+	if (main_status.quitting)
+	{
+		/* we need to destroy the ScintillaWidget so our handlers on it are
+		 * disconnected before we free any data they may use (like the editor).
+		 * when not quitting, this is handled by removing the notebook page. */
+		gtk_widget_destroy(GTK_WIDGET(doc->editor->sci));
+	}
+	else
 	{
 		notebook_remove_page(page_num);
 		sidebar_remove_document(doc);
@@ -1098,6 +1108,8 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 	gchar *locale_filename = NULL;
 	GeanyFiletype *use_ft;
 	FileData filedata;
+
+	g_return_val_if_fail(doc == NULL || doc->is_valid, NULL);
 
 	if (reload)
 	{
@@ -1675,7 +1687,7 @@ static gchar *save_doc(GeanyDocument *doc, const gchar *locale_filename,
  *  Also shows the Save As dialog if necessary.
  *  If the file is not modified, this function may do nothing unless @a force is set to @c TRUE.
  *
- *  Saving may include replacing tabs by spaces,
+ *  Saving may include replacing tabs with spaces,
  *  stripping trailing spaces and adding a final new line at the end of the file, depending
  *  on user preferences. Then the @c "document-before-save" signal is emitted,
  *  allowing plugins to modify the document before it is saved, and data is
@@ -1717,7 +1729,7 @@ gboolean document_save_file(GeanyDocument *doc, gboolean force)
 		return FALSE;
 
 	fp = project_get_file_prefs();
-	/* replaces tabs by spaces but only if the current file is not a Makefile */
+	/* replaces tabs with spaces but only if the current file is not a Makefile */
 	if (fp->replace_tabs && doc->file_type->id != GEANY_FILETYPES_MAKE)
 		editor_replace_tabs(doc->editor);
 	/* strip trailing spaces */
@@ -2317,6 +2329,7 @@ void document_highlight_tags(GeanyDocument *doc)
 		case GEANY_FILETYPES_JAVA:
 		case GEANY_FILETYPES_OBJECTIVEC:
 		case GEANY_FILETYPES_VALA:
+		case GEANY_FILETYPES_RUST:
 		{
 
 			/* index of the keyword set in the Scintilla lexer, for
@@ -2435,7 +2448,7 @@ void document_set_filetype(GeanyDocument *doc, GeanyFiletype *type)
 
 		/* assume that if previous filetype was none and the settings are the default ones, this
 		 * is the first time the filetype is carefully set, so we should apply indent settings */
-		if (old_ft && old_ft->id == GEANY_FILETYPES_NONE &&
+		if ((! old_ft || old_ft->id == GEANY_FILETYPES_NONE) &&
 			doc->editor->indent_type == iprefs->type &&
 			doc->editor->indent_width == iprefs->width)
 		{
@@ -2819,7 +2832,7 @@ const GdkColor *document_get_status_color(GeanyDocument *doc)
 }
 
 
-/** Accessor function for @ref GeanyData::documents_array items.
+/** Accessor function for @ref documents_array items.
  * @warning Always check the returned document is valid (@c doc->is_valid).
  * @param idx @c documents_array index.
  * @return The document, or @c NULL if @a idx is out of range.

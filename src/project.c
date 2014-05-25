@@ -23,29 +23,31 @@
  * Project Management.
  */
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "project.h"
+
+#include "app.h"
+#include "build.h"
+#include "dialogs.h"
+#include "document.h"
+#include "editor.h"
+#include "filetypesprivate.h"
+#include "geanyobject.h"
+#include "keyfile.h"
+#include "main.h"
+#include "projectprivate.h"
+#include "sidebar.h"
+#include "stash.h"
+#include "support.h"
+#include "ui_utils.h"
+#include "utils.h"
 
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-
-#include "project.h"
-#include "projectprivate.h"
-
-#include "dialogs.h"
-#include "support.h"
-#include "utils.h"
-#include "ui_utils.h"
-#include "document.h"
-#include "msgwindow.h"
-#include "main.h"
-#include "keyfile.h"
-#include "win32.h"
-#include "build.h"
-#include "editor.h"
-#include "stash.h"
-#include "sidebar.h"
-#include "filetypes.h"
 
 
 ProjectPrefs project_prefs = { NULL, FALSE, FALSE };
@@ -338,10 +340,10 @@ static void remove_foreach_project_filetype(gpointer data, gpointer user_data)
 	GeanyFiletype *ft = data;
 	if (ft != NULL)
 	{
-		SETPTR(ft->projfilecmds, NULL);
-		SETPTR(ft->projexeccmds, NULL);
-		SETPTR(ft->projerror_regex_string, NULL);
-		ft->project_list_entry = -1;
+		SETPTR(ft->priv->projfilecmds, NULL);
+		SETPTR(ft->priv->projexeccmds, NULL);
+		SETPTR(ft->priv->projerror_regex_string, NULL);
+		ft->priv->project_list_entry = -1;
 	}
 }
 
@@ -366,10 +368,10 @@ void project_close(gboolean open_default)
 	ui_set_statusbar(TRUE, _("Project \"%s\" closed."), app->project->name);
 
 	/* remove project filetypes build entries */
-	if (app->project->build_filetypes_list != NULL)
+	if (app->project->priv->build_filetypes_list != NULL)
 	{
-		g_ptr_array_foreach(app->project->build_filetypes_list, remove_foreach_project_filetype, NULL);
-		g_ptr_array_free(app->project->build_filetypes_list, FALSE);
+		g_ptr_array_foreach(app->project->priv->build_filetypes_list, remove_foreach_project_filetype, NULL);
+		g_ptr_array_free(app->project->priv->build_filetypes_list, FALSE);
 	}
 
 	/* remove project non filetype build menu items */
@@ -523,7 +525,7 @@ static void show_project_properties(gboolean show_build)
 	gtk_entry_set_text(GTK_ENTRY(e.base_path), p->base_path);
 
 	radio_long_line_custom = ui_lookup_widget(e.dialog, "radio_long_line_custom_project");
-	switch (p->long_line_behaviour)
+	switch (p->priv->long_line_behaviour)
 	{
 		case 0: widget = ui_lookup_widget(e.dialog, "radio_long_line_disabled_project"); break;
 		case 1: widget = ui_lookup_widget(e.dialog, "radio_long_line_default_project"); break;
@@ -532,7 +534,7 @@ static void show_project_properties(gboolean show_build)
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), TRUE);
 
 	widget = ui_lookup_widget(e.dialog, "spin_long_line_project");
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), (gdouble)p->long_line_column);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), (gdouble)p->priv->long_line_column);
 	on_radio_long_line_custom_toggled(GTK_TOGGLE_BUTTON(radio_long_line_custom), widget);
 
 	if (p->description != NULL)
@@ -627,8 +629,8 @@ static GeanyProject *create_project(void)
 
 	project->file_patterns = NULL;
 
-	project->long_line_behaviour = 1 /* use global settings */;
-	project->long_line_column = editor_prefs.long_line_column;
+	project->priv->long_line_behaviour = 1 /* use global settings */;
+	project->priv->long_line_column = editor_prefs.long_line_column;
 
 	app->project = project;
 	return project;
@@ -667,7 +669,7 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
 	else
 		file_name = gtk_label_get_text(GTK_LABEL(e->file_name));
 
-	if (G_UNLIKELY(! NZV(file_name)))
+	if (G_UNLIKELY(EMPTY(file_name)))
 	{
 		SHOW_ERR(_("You have specified an invalid project filename."));
 		gtk_widget_grab_focus(e->file_name);
@@ -676,7 +678,7 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
 
 	locale_filename = utils_get_locale_from_utf8(file_name);
 	base_path = gtk_entry_get_text(GTK_ENTRY(e->base_path));
-	if (NZV(base_path))
+	if (!EMPTY(base_path))
 	{	/* check whether the given directory actually exists */
 		gchar *locale_path = utils_get_locale_from_utf8(base_path);
 
@@ -732,7 +734,7 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
 	SETPTR(p->name, g_strdup(name));
 	SETPTR(p->file_name, g_strdup(file_name));
 	/* use "." if base_path is empty */
-	SETPTR(p->base_path, g_strdup(NZV(base_path) ? base_path : "./"));
+	SETPTR(p->base_path, g_strdup(!EMPTY(base_path) ? base_path : "./"));
 
 	if (! new_project)	/* save properties specific fields */
 	{
@@ -756,33 +758,33 @@ static gboolean update_config(const PropertyDialogElements *e, gboolean new_proj
 			stash_group_update(node->data, e->dialog);
 
 		/* read the project build menu */
-		oldvalue = ft ? ft->projfilecmds : NULL;
+		oldvalue = ft ? ft->priv->projfilecmds : NULL;
 		build_read_project(ft, e->build_properties);
 
-		if (ft != NULL && ft->projfilecmds != oldvalue && ft->project_list_entry < 0)
+		if (ft != NULL && ft->priv->projfilecmds != oldvalue && ft->priv->project_list_entry < 0)
 		{
-			if (p->build_filetypes_list == NULL)
-				p->build_filetypes_list = g_ptr_array_new();
-			ft->project_list_entry = p->build_filetypes_list->len;
-			g_ptr_array_add(p->build_filetypes_list, ft);
+			if (p->priv->build_filetypes_list == NULL)
+				p->priv->build_filetypes_list = g_ptr_array_new();
+			ft->priv->project_list_entry = p->priv->build_filetypes_list->len;
+			g_ptr_array_add(p->priv->build_filetypes_list, ft);
 		}
 		build_menu_update(doc);
 
 		widget = ui_lookup_widget(e->dialog, "radio_long_line_disabled_project");
 		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
-			p->long_line_behaviour = 0;
+			p->priv->long_line_behaviour = 0;
 		else
 		{
 			widget = ui_lookup_widget(e->dialog, "radio_long_line_default_project");
 			if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
-				p->long_line_behaviour = 1;
+				p->priv->long_line_behaviour = 1;
 			else
 				/* "Custom" radio button must be checked */
-				p->long_line_behaviour = 2;
+				p->priv->long_line_behaviour = 2;
 		}
 
 		widget = ui_lookup_widget(e->dialog, "spin_long_line_project");
-		p->long_line_column = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
+		p->priv->long_line_column = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 		apply_editor_prefs();
 
 		/* get and set the project file patterns */
@@ -897,7 +899,7 @@ static void on_name_entry_changed(GtkEditable *editable, PropertyDialogElements 
 		return;
 
 	name = gtk_editable_get_chars(editable, 0, -1);
-	if (NZV(name))
+	if (!EMPTY(name))
 	{
 		base_path = g_strconcat(project_dir, G_DIR_SEPARATOR_S,
 			name, G_DIR_SEPARATOR_S, NULL);
@@ -993,9 +995,9 @@ static gboolean load_config(const gchar *filename)
 	p->base_path = utils_get_setting_string(config, "project", "base_path", "");
 	p->file_patterns = g_key_file_get_string_list(config, "project", "file_patterns", NULL, NULL);
 
-	p->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
+	p->priv->long_line_behaviour = utils_get_setting_integer(config, "long line marker",
 		"long_line_behaviour", 1 /* follow global */);
-	p->long_line_column = utils_get_setting_integer(config, "long line marker",
+	p->priv->long_line_column = utils_get_setting_integer(config, "long line marker",
 		"long_line_column", editor_prefs.long_line_column);
 	apply_editor_prefs();
 
@@ -1062,8 +1064,8 @@ static gboolean write_config(gboolean emit_signal)
 		g_key_file_set_string_list(config, "project", "file_patterns",
 			(const gchar**) p->file_patterns, g_strv_length(p->file_patterns));
 
-	g_key_file_set_integer(config, "long line marker", "long_line_behaviour", p->long_line_behaviour);
-	g_key_file_set_integer(config, "long line marker", "long_line_column", p->long_line_column);
+	g_key_file_set_integer(config, "long line marker", "long_line_behaviour", p->priv->long_line_behaviour);
+	g_key_file_set_integer(config, "long line marker", "long_line_column", p->priv->long_line_column);
 
 	/* store the session files into the project too */
 	if (project_prefs.project_session)
@@ -1094,7 +1096,7 @@ gchar *project_get_base_path(void)
 {
 	GeanyProject *project = app->project;
 
-	if (project && NZV(project->base_path))
+	if (project && !EMPTY(project->base_path))
 	{
 		if (g_path_is_absolute(project->base_path))
 			return g_strdup(project->base_path);
@@ -1127,7 +1129,7 @@ void project_save_prefs(GKeyFile *config)
 		g_key_file_set_string(config, "project", "session_file", utf8_filename);
 	}
 	g_key_file_set_string(config, "project", "project_file_path",
-		NVL(local_prefs.project_file_path, ""));
+		FALLBACK(local_prefs.project_file_path, ""));
 }
 
 

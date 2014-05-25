@@ -27,14 +27,20 @@
 #ifndef GEANY_UTILS_H
 #define GEANY_UTILS_H 1
 
-G_BEGIN_DECLS
-
+#include <glib.h>
+#include <gdk/gdk.h> /* for GdkColor */
 #include <time.h>
 
+G_BEGIN_DECLS
 
-/** Returns TRUE if @a ptr points to a non-zero value. */
-#define NZV(ptr) \
-	((ptr) && (ptr)[0])
+/** Returns @c TRUE if @a ptr is @c NULL or @c *ptr is @c FALSE. */
+#define EMPTY(ptr) \
+	(!(ptr) || !*(ptr))
+
+/** @deprecated 2013/08 - use @c !EMPTY() instead. */
+#ifndef GEANY_DISABLE_DEPRECATED
+#define NZV(ptr) (!EMPTY(ptr))
+#endif
 
 /** Assigns @a result to @a ptr, then frees the old value.
  * @a result can be an expression using the 'old' value of @a ptr.
@@ -177,8 +183,6 @@ gchar *utils_remove_ext_from_filename(const gchar *filename);
 
 gchar utils_brace_opposite(gchar ch);
 
-gchar *utils_get_hostname(void);
-
 gint utils_string_find(GString *haystack, gint start, gint end, const gchar *needle);
 
 gint utils_string_replace(GString *str, gint pos, gint len, const gchar *replace);
@@ -206,8 +210,6 @@ gchar *utils_get_setting_string(GKeyFile *config, const gchar *section, const gc
 
 gchar *utils_get_hex_from_color(GdkColor *color);
 
-guint utils_invert_color(guint color);
-
 const gchar *utils_get_default_dir_utf8(void);
 
 gchar *utils_get_current_file_dir_utf8(void);
@@ -217,7 +219,11 @@ void utils_beep(void);
 gchar *utils_make_human_readable_str(guint64 size, gulong block_size,
 									 gulong display_unit);
 
-gint utils_strtod(const gchar *source, gchar **end, gboolean with_route);
+gboolean utils_parse_color(const gchar *spec, GdkColor *color);
+
+gint utils_color_to_bgr(const GdkColor *color);
+
+gint utils_parse_color_to_bgr(const gchar *spec);
 
 gchar *utils_get_current_time_string(void);
 
@@ -283,4 +289,4 @@ gchar *utils_parse_and_format_build_date(const gchar *input);
 
 G_END_DECLS
 
-#endif
+#endif /* GEANY_UTILS_H */

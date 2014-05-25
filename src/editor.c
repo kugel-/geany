@@ -33,40 +33,43 @@
  * Also some general Scintilla-related functions.
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "editor.h"
+
+#include "app.h"
+#include "callbacks.h"
+#include "dialogs.h"
+#include "documentprivate.h"
+#include "filetypesprivate.h"
+#include "geanyobject.h"
+#include "highlighting.h"
+#include "keybindings.h"
+#include "main.h"
+#include "prefs.h"
+#include "projectprivate.h"
+#include "sciwrappers.h"
+#include "support.h"
+#include "symbols.h"
+#include "templates.h"
+#include "ui_utils.h"
+#include "utils.h"
+
+#include "SciLexer.h"
+
+#include "gtkcompat.h"
 
 #include <ctype.h>
 #include <string.h>
 
 #include <gdk/gdkkeysyms.h>
 
-#include "SciLexer.h"
-#include "geany.h"
-
-#include "support.h"
-#include "editor.h"
-#include "document.h"
-#include "documentprivate.h"
-#include "filetypes.h"
-#include "filetypesprivate.h"
-#include "sciwrappers.h"
-#include "ui_utils.h"
-#include "utils.h"
-#include "dialogs.h"
-#include "symbols.h"
-#include "callbacks.h"
-#include "templates.h"
-#include "keybindings.h"
-#include "project.h"
-#include "projectprivate.h"
-#include "main.h"
-#include "highlighting.h"
-#include "gtkcompat.h"
-
 
 /* Note: use sciwrappers.h instead where possible.
  * Do not use SSM in files unrelated to scintilla. */
 #define SSM(s, m, w, l) scintilla_send_message(s, m, w, l)
-
 
 static GHashTable *snippet_hash = NULL;
 static GQueue *snippet_offsets = NULL;
@@ -375,7 +378,7 @@ static gboolean is_style_php(gint style)
 static gint editor_get_long_line_type(void)
 {
 	if (app->project)
-		switch (app->project->long_line_behaviour)
+		switch (app->project->priv->long_line_behaviour)
 		{
 			case 0: /* marker disabled */
 				return 2;
@@ -394,8 +397,8 @@ static gint editor_get_long_line_type(void)
 
 static gint editor_get_long_line_column(void)
 {
-	if (app->project && app->project->long_line_behaviour != 1 /* use global settings */)
-		return app->project->long_line_column;
+	if (app->project && app->project->priv->long_line_behaviour != 1 /* use global settings */)
+		return app->project->priv->long_line_column;
 	else
 		return editor_prefs.long_line_column;
 }
@@ -442,6 +445,7 @@ const GeanyEditorPrefs *editor_get_prefs(GeanyEditor *editor)
 void editor_toggle_fold(GeanyEditor *editor, gint line, gint modifiers)
 {
 	ScintillaObject *sci;
+	gint header;
 
 	g_return_if_fail(editor != NULL);
 
@@ -460,39 +464,21 @@ void editor_toggle_fold(GeanyEditor *editor, gint line, gint modifiers)
 		if (first > parent)
 			SSM(sci, SCI_SETFIRSTVISIBLELINE, parent, 0);
 	}
-	sci_toggle_fold(sci, line);
 
-	/* extra toggling of child fold points
-	 * use when editor_prefs.unfold_all_children is set and Shift is NOT pressed or when
-	 * editor_prefs.unfold_all_children is NOT set but Shift is pressed */
+	/* find the fold header of the given line in case the one clicked isn't a fold point */
+	if (sci_get_fold_level(sci, line) & SC_FOLDLEVELHEADERFLAG)
+		header = line;
+	else
+		header = sci_get_fold_parent(sci, line);
+
 	if ((editor_prefs.unfold_all_children && ! (modifiers & SCMOD_SHIFT)) ||
 		(! editor_prefs.unfold_all_children && (modifiers & SCMOD_SHIFT)))
 	{
-		gint last_line = SSM(sci, SCI_GETLASTCHILD, line, -1);
-		gint i;
-
-		if (sci_get_line_is_visible(sci, line + 1))
-		{	/* unfold all children of the current fold point */
-			for (i = line; i < last_line; i++)
-			{
-				if (! sci_get_line_is_visible(sci, i))
-				{
-					sci_toggle_fold(sci, sci_get_fold_parent(sci, i));
-				}
-			}
-		}
-		else
-		{	/* fold all children of the current fold point */
-			for (i = line; i < last_line; i++)
-			{
-				gint level = sci_get_fold_level(sci, i);
-				if (level & SC_FOLDLEVELHEADERFLAG)
-				{
-					if (sci_get_fold_expanded(sci, i))
-						sci_toggle_fold(sci, i);
-				}
-			}
-		}
+		SSM(sci, SCI_FOLDCHILDREN, header, SC_FOLDACTION_TOGGLE);
+	}
+	else
+	{
+		SSM(sci, SCI_FOLDLINE, header, SC_FOLDACTION_TOGGLE);
 	}
 }
 
@@ -647,7 +633,7 @@ static void show_tags_list(GeanyEditor *editor, const GPtrArray *tags, gsize roo
 			g_string_append(words, tag->name);
 
 			/* for now, tag types don't all follow C, so just look at arglist */
-			if (NZV(tag->atts.entry.arglist))
+			if (!EMPTY(tag->atts.entry.arglist))
 				g_string_append(words, "?2");
 			else
 				g_string_append(words, "?1");
@@ -665,7 +651,7 @@ static gboolean match_last_chars(ScintillaObject *sci, gint pos, const gchar *st
 	gchar *buf;
 
 	g_return_val_if_fail(len < 100, FALSE);
-	g_return_val_if_fail(len <= pos, FALSE);
+	g_return_val_if_fail((gint)len <= pos, FALSE);
 
 	buf = g_alloca(len + 1);
 	sci_get_text_range(sci, pos - len, pos, buf);
@@ -1273,6 +1259,8 @@ static gboolean lexer_has_braces(ScintillaObject *sci)
 		case SCLEX_BASH:
 		case SCLEX_PERL:
 		case SCLEX_TCL:
+		case SCLEX_R:
+		case SCLEX_RUST:
 			return TRUE;
 		default:
 			return FALSE;
@@ -1389,7 +1377,7 @@ static gint get_xml_indent(ScintillaObject *sci, gint line)
 			gchar *line_contents = sci_get_contents_range(sci, start, end + 1);
 			gchar *opened_tag_name = utils_find_open_xml_tag(line_contents, end + 1 - start);
 
-			if (NZV(opened_tag_name))
+			if (!EMPTY(opened_tag_name))
 			{
 				need_close = TRUE;
 				if (sci_get_lexer(sci) == SCLEX_HTML && utils_is_short_html_tag(opened_tag_name))
@@ -1700,8 +1688,8 @@ void editor_find_current_word_sciwc(GeanyEditor *editor, gint pos, gchar *word, 
 	if (pos == -1)
 		pos = sci_get_current_position(editor->sci);
 
-	start = SSM(editor->sci, SCI_WORDSTARTPOSITION, pos, TRUE);
-	end = SSM(editor->sci, SCI_WORDENDPOSITION, pos, TRUE);
+	start = sci_word_start_position(editor->sci, pos, TRUE);
+	end = sci_word_end_position(editor->sci, pos, TRUE);
 
 	if (start == end) /* caret in whitespaces sequence */
 		*word = 0;
@@ -1823,7 +1811,7 @@ static gboolean append_calltip(GString *str, const TMTag *tag, filetype_id ft_id
 		g_string_append_c(str, ' ');
 		g_string_append(str, tag->atts.entry.arglist);
 
-		if (NZV(tag->atts.entry.var_type))
+		if (!EMPTY(tag->atts.entry.var_type))
 		{
 			g_string_append(str, " : ");
 			g_string_append(str, tag->atts.entry.var_type);
@@ -2114,14 +2102,14 @@ static GSList *get_doc_words(ScintillaObject *sci, gchar *root, gsize rootlen)
 		word_end = pos_find + rootlen;
 		if (pos_find != current)
 		{
-			word_end = SSM(sci, SCI_WORDENDPOSITION, word_end, TRUE);
+			word_end = sci_word_end_position(sci, word_end, TRUE);
 
 			word_length = word_end - pos_find;
 			if (word_length > rootlen)
 			{
 				word = sci_get_contents_range(sci, pos_find, word_end);
 				/* search whether we already have the word in, otherwise add it */
-				if (g_slist_find_custom(words, word, (GCompareFunc)utils_str_casecmp) != NULL)
+				if (g_slist_find_custom(words, word, (GCompareFunc)strcmp) != NULL)
 					g_free(word);
 				else
 				{
@@ -2155,7 +2143,7 @@ static gboolean autocomplete_doc_word(GeanyEditor *editor, gchar *root, gsize ro
 		return FALSE;
 	}
 
-	str = g_string_sized_new(editor_prefs.autocompletion_max_entries * (rootlen + 1));
+	str = g_string_sized_new(rootlen * 2 * 10);
 	foreach_slist(node, words)
 	{
 		g_string_append(str, node->data);
@@ -2593,7 +2581,7 @@ gboolean editor_complete_snippet(GeanyEditor *editor, gint pos)
 	word = editor_read_word_stem(editor, pos, wc);
 
 	/* prevent completion of "for " */
-	if (NZV(word) &&
+	if (!EMPTY(word) &&
 		! isspace(sci_get_char_at(sci, pos - 1))) /* pos points to the line end char so use pos -1 */
 	{
 		sci_start_undo_action(sci);	/* needed because we insert a space separately from construct */
@@ -2699,7 +2687,7 @@ static gboolean handle_xml(GeanyEditor *editor, gint pos, gchar ch)
 	{
 		/* ignore tag */
 	}
-	else if (NZV(str_found))
+	else if (!EMPTY(str_found))
 	{
 		insert_closing_tag(editor, pos, ch, str_found);
 		result = TRUE;
@@ -2900,13 +2888,16 @@ static gint get_multiline_comment_style(GeanyEditor *editor, gint line_start)
 				style_comment = SCE_H_COMMENT;
 			break;
 		}
-		case SCLEX_HASKELL: style_comment = SCE_HA_COMMENTBLOCK; break;
+		case SCLEX_HASKELL:
+		case SCLEX_LITERATEHASKELL:
+			style_comment = SCE_HA_COMMENTBLOCK; break;
 		case SCLEX_LUA: style_comment = SCE_LUA_COMMENT; break;
 		case SCLEX_CSS: style_comment = SCE_CSS_COMMENT; break;
 		case SCLEX_SQL: style_comment = SCE_SQL_COMMENT; break;
 		case SCLEX_CAML: style_comment = SCE_CAML_COMMENT; break;
 		case SCLEX_D: style_comment = SCE_D_COMMENT; break;
 		case SCLEX_PASCAL: style_comment = SCE_PAS_COMMENT; break;
+		case SCLEX_RUST: style_comment = SCE_RUST_COMMENTBLOCK; break;
 		default: style_comment = SCE_C_COMMENT;
 	}
 
@@ -2979,7 +2970,7 @@ gint editor_do_uncomment(GeanyEditor *editor, gint line, gboolean toggle)
 		if (x < line_len && sel[x] != '\0')
 		{
 			/* use single line comment */
-			if (! NZV(cc))
+			if (EMPTY(cc))
 			{
 				single_line = TRUE;
 
@@ -3100,7 +3091,7 @@ void editor_do_comment_toggle(GeanyEditor *editor)
 		while (isspace(sel[x])) x++;
 
 		/* use single line comment */
-		if (! NZV(cc))
+		if (EMPTY(cc))
 		{
 			gboolean do_continue = FALSE;
 			single_line = TRUE;
@@ -3122,8 +3113,7 @@ void editor_do_comment_toggle(GeanyEditor *editor)
 			}
 
 			/* we are still here, so the above lines were not already comments, so comment it */
-			editor_do_comment(editor, i, TRUE, TRUE, TRUE);
-			count_commented++;
+			count_commented += editor_do_comment(editor, i, FALSE, TRUE, TRUE);
 		}
 		/* use multi line comment */
 		else
@@ -3214,18 +3204,19 @@ void editor_do_comment_toggle(GeanyEditor *editor)
 
 
 /* set toggle to TRUE if the caller is the toggle function, FALSE otherwise */
-void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_lines, gboolean toggle,
+gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_lines, gboolean toggle,
 		gboolean single_comment)
 {
 	gint first_line, last_line;
 	gint x, i, line_start, line_len;
 	gint sel_start, sel_end, co_len;
+	gint count = 0;
 	gchar sel[256];
 	const gchar *co, *cc;
 	gboolean break_loop = FALSE, single_line = FALSE;
 	GeanyFiletype *ft;
 
-	g_return_if_fail(editor != NULL && editor->document->file_type != NULL);
+	g_return_val_if_fail(editor != NULL && editor->document->file_type != NULL, 0);
 
 	if (line < 0)
 	{	/* use selection or current line */
@@ -3247,11 +3238,11 @@ void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 	ft = editor_get_filetype_at_line(editor, first_line);
 
 	if (! filetype_get_comment_open_close(ft, single_comment, &co, &cc))
-		return;
+		return 0;
 
 	co_len = strlen(co);
 	if (co_len == 0)
-		return;
+		return 0;
 
 	sci_start_undo_action(editor->sci);
 
@@ -3275,7 +3266,7 @@ void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 		if (allow_empty_lines || (x < line_len && sel[x] != '\0'))
 		{
 			/* use single line comment */
-			if (! NZV(cc))
+			if (EMPTY(cc))
 			{
 				gint start = line_start;
 				single_line = TRUE;
@@ -3291,6 +3282,7 @@ void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 				}
 				else
 					sci_insert_text(editor->sci, start, co);
+				count++;
 			}
 			/* use multi line comment */
 			else
@@ -3303,6 +3295,7 @@ void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 					continue;
 
 				real_comment_multiline(editor, line_start, last_line);
+				count = 1;
 
 				/* break because we are already on the last line */
 				break_loop = TRUE;
@@ -3319,7 +3312,7 @@ void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 		if (single_line)
 		{
 			sci_set_selection_start(editor->sci, sel_start + co_len);
-			sci_set_selection_end(editor->sci, sel_end + ((i - first_line) * co_len));
+			sci_set_selection_end(editor->sci, sel_end + (count * co_len));
 		}
 		else
 		{
@@ -3328,6 +3321,7 @@ void editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 			sci_set_selection_end(editor->sci, sel_end + co_len + eol_len);
 		}
 	}
+	return count;
 }
 
 
@@ -3428,6 +3422,10 @@ static gboolean in_block_comment(gint lexer, gint style)
 
 		case SCLEX_CSS:
 			return (style == SCE_CSS_COMMENT);
+
+		case SCLEX_RUST:
+			return (style == SCE_RUST_COMMENTBLOCK ||
+				style == SCE_RUST_COMMENTBLOCKDOC);
 
 		default:
 			return FALSE;
@@ -3542,7 +3540,7 @@ void editor_insert_multiline_comment(GeanyEditor *editor)
 
 	if (! filetype_get_comment_open_close(editor->document->file_type, FALSE, &co, &cc))
 		g_return_if_reached();
-	if (NZV(cc))
+	if (!EMPTY(cc))
 		have_multiline_comment = TRUE;
 
 	sci_start_undo_action(editor->sci);
@@ -3655,15 +3653,15 @@ void editor_select_word(GeanyEditor *editor)
 	g_return_if_fail(editor != NULL);
 
 	pos = SSM(editor->sci, SCI_GETCURRENTPOS, 0, 0);
-	start = SSM(editor->sci, SCI_WORDSTARTPOSITION, pos, TRUE);
-	end = SSM(editor->sci, SCI_WORDENDPOSITION, pos, TRUE);
+	start = sci_word_start_position(editor->sci, pos, TRUE);
+	end = sci_word_end_position(editor->sci, pos, TRUE);
 
 	if (start == end) /* caret in whitespaces sequence */
 	{
 		/* look forward but reverse the selection direction,
 		 * so the caret end up stay as near as the original position. */
-		end = SSM(editor->sci, SCI_WORDENDPOSITION, pos, FALSE);
-		start = SSM(editor->sci, SCI_WORDENDPOSITION, end, TRUE);
+		end = sci_word_end_position(editor->sci, pos, FALSE);
+		start = sci_word_end_position(editor->sci, end, TRUE);
 		if (start == end)
 			return;
 	}
@@ -3971,7 +3969,7 @@ void editor_indentation_by_one_space(GeanyEditor *editor, gint pos, gboolean dec
 }
 
 
-void editor_finalize()
+void editor_finalize(void)
 {
 	scintilla_release_resources();
 }
@@ -4172,8 +4170,12 @@ void editor_insert_color(GeanyEditor *editor, const gchar *colour)
 		if (sci_get_char_at(editor->sci, start) == '0' &&
 			sci_get_char_at(editor->sci, start + 1) == 'x')
 		{
+			gint end = sci_get_selection_end(editor->sci);
+
 			sci_set_selection_start(editor->sci, start + 2);
-			sci_set_selection_end(editor->sci, start + 8);
+			/* we need to also re-set the selection end in case the anchor was located before
+			 * the cursor, since set_selection_start() always moves the cursor, not the anchor */
+			sci_set_selection_end(editor->sci, end);
 			replacement++; /* skip the leading "0x" */
 		}
 		else if (sci_get_char_at(editor->sci, start - 1) == '#')
@@ -4353,6 +4355,7 @@ void editor_replace_spaces(GeanyEditor *editor)
 	gint search_pos;
 	static gdouble tab_len_f = -1.0; /* keep the last used value */
 	gint tab_len;
+	gchar *text;
 	struct Sci_TextToFind ttf;
 
 	g_return_if_fail(editor != NULL);
@@ -4368,11 +4371,12 @@ void editor_replace_spaces(GeanyEditor *editor)
 		return;
 	}
 	tab_len = (gint) tab_len_f;
+	text = g_strnfill(tab_len, ' ');
 
 	sci_start_undo_action(editor->sci);
 	ttf.chrg.cpMin = 0;
 	ttf.chrg.cpMax = sci_get_length(editor->sci);
-	ttf.lpstrText = g_strnfill(tab_len, ' ');
+	ttf.lpstrText = text;
 
 	while (TRUE)
 	{
@@ -4394,7 +4398,7 @@ void editor_replace_spaces(GeanyEditor *editor)
 		ttf.chrg.cpMax -= tab_len - 1;
 	}
 	sci_end_undo_action(editor->sci);
-	g_free(ttf.lpstrText);
+	g_free(text);
 }
 
 
@@ -4859,8 +4863,6 @@ static void on_document_save(GObject *obj, GeanyDocument *doc)
 {
 	gchar *f = g_build_filename(app->configdir, "snippets.conf", NULL);
 
-	g_return_if_fail(NZV(doc->real_path));
-
 	if (utils_str_equal(doc->real_path, f))
 	{
 		/* reload snippets */
@@ -4967,6 +4969,7 @@ void editor_set_indentation_guides(GeanyEditor *editor)
 		case SCLEX_FREEBASIC:
 		case SCLEX_D:
 		case SCLEX_OCTAVE:
+		case SCLEX_RUST:
 			mode = SC_IV_LOOKBOTH;
 			break;
 

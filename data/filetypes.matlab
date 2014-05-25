@@ -13,11 +13,14 @@ doublequotedstring=string_2
 
 [keywords]
 # all items must be in one line
-primary=break case catch continue else elseif end for function global if otherwise persistent return switch try while
+primary=break case catch classdef continue else elseif end enumeration events for function global if methods otherwise persistent properties return switch try while
 
 [settings]
 # default extension used when saving files
 extension=m
+
+# MIME type
+mime_type=text/x-matlab
 
 # the following characters are these which a "word" can contains, see documentation
 #wordchars=_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789

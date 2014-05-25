@@ -19,9 +19,17 @@
  *      51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#ifndef GEANY_WIN32_H
+#define GEANY_WIN32_H 1
+
+#include "document.h"
+
+#include "gtkcompat.h"
+
 
 #ifdef G_OS_WIN32
 
+G_BEGIN_DECLS
 
 void win32_show_pref_file_dialog(GtkEntry *item);
 
@@ -30,7 +38,7 @@ gchar *win32_show_file_dialog(GtkWindow *parent, const gchar *title, const gchar
 gboolean win32_show_document_open_dialog(GtkWindow *parent, const gchar *title, const gchar *initial_dir);
 
 gchar *win32_show_document_save_as_dialog(GtkWindow *parent, const gchar *title,
-										  const gchar *initial_file);
+										  GeanyDocument *doc);
 
 void win32_show_font_dialog(void);
 
@@ -52,8 +60,6 @@ void win32_init_debug_code(void);
 
 void win32_set_working_directory(const gchar *dir);
 
-gchar *win32_get_hostname(void);
-
 gboolean win32_get_exit_status(GPid child_pid);
 
 gboolean win32_spawn(const gchar *dir, gchar **argv, gchar **env, GSpawnFlags flags,
@@ -65,4 +71,8 @@ gchar *win32_get_installation_dir(void);
 
 gchar *win32_expand_environment_variables(const gchar *str);
 
-#endif
+G_END_DECLS
+
+#endif /* G_OS_WIN32 */
+
+#endif /* GEANY_WIN32_H */

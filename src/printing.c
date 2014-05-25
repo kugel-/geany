@@ -26,22 +26,26 @@
  * (basic code layout were adopted from Sylpheed's printing implementation, thanks)
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "printing.h"
+
+#include "app.h"
+#include "dialogs.h"
+#include "document.h"
+#include "geany.h"
+#include "highlighting.h"
+#include "msgwindow.h"
+#include "sciwrappers.h"
+#include "support.h"
+#include "utils.h"
+#include "ui_utils.h"
+
 #include <math.h>
 #include <time.h>
 #include <string.h>
-
-#include "geany.h"
-#include "printing.h"
-#include "document.h"
-#include "sciwrappers.h"
-#include "editor.h"
-#include "utils.h"
-#include "support.h"
-#include "dialogs.h"
-#include "ui_utils.h"
-#include "msgwindow.h"
-#include "highlighting.h"
-#include "Scintilla.h"
 
 
 PrintingPrefs printing_prefs;
@@ -164,7 +168,7 @@ static void add_page_header(DocInfo *dinfo, cairo_t *cr, gint width, gint page_n
 	g_free(data);
 
 	datetime = utils_get_date_time(printing_prefs.page_header_datefmt, &(dinfo->print_time));
-	if (G_LIKELY(NZV(datetime)))
+	if (G_LIKELY(!EMPTY(datetime)))
 	{
 		data = g_strdup_printf("<b>%s</b>", datetime);
 		pango_layout_set_markup(layout, data, -1);
@@ -334,6 +338,7 @@ static void begin_print(GtkPrintOperation *operation, GtkPrintContext *context, 
 	DocInfo *dinfo = user_data;
 	PangoContext *pango_ctx, *widget_pango_ctx;
 	PangoFontDescription *desc;
+	gdouble pango_res, widget_res;
 
 	if (dinfo == NULL)
 		return;
@@ -358,9 +363,18 @@ static void begin_print(GtkPrintOperation *operation, GtkPrintContext *context, 
 	 * Pango context out of the Cairo target, and the resolution is in the GtkPrintOperation's
 	 * Pango context */
 	pango_ctx = gtk_print_context_create_pango_context(context);
-	widget_pango_ctx = gtk_widget_get_pango_context(GTK_WIDGET(dinfo->sci));
-	dinfo->sci_scale = pango_cairo_context_get_resolution(pango_ctx) / pango_cairo_context_get_resolution(widget_pango_ctx);
+	pango_res = pango_cairo_context_get_resolution(pango_ctx);
 	g_object_unref(pango_ctx);
+	widget_pango_ctx = gtk_widget_get_pango_context(GTK_WIDGET(dinfo->sci));
+	widget_res = pango_cairo_context_get_resolution(widget_pango_ctx);
+	/* On Windows, for some reason the widget's resolution is -1, so follow
+	 * Pango docs and peek the font map's one. */
+	if (widget_res < 0)
+	{
+		widget_res = pango_cairo_font_map_get_resolution(
+			(PangoCairoFontMap*) pango_context_get_font_map(widget_pango_ctx));
+	}
+	dinfo->sci_scale = pango_res / widget_res;
 
 	dinfo->pages = g_array_new(FALSE, FALSE, sizeof(gint));
 
@@ -571,7 +585,7 @@ static void print_external(GeanyDocument *doc)
 	if (doc->file_name == NULL)
 		return;
 
-	if (! NZV(printing_prefs.external_print_cmd))
+	if (EMPTY(printing_prefs.external_print_cmd))
 	{
 		dialogs_show_msgbox(GTK_MESSAGE_ERROR,
 			_("Please set a print command in the preferences dialog first."));
@@ -614,8 +628,7 @@ static void print_external(GeanyDocument *doc)
 
 void printing_print_doc(GeanyDocument *doc)
 {
-	if (doc == NULL)
-		return;
+	g_return_if_fail(DOC_VALID(doc));
 
 	if (printing_prefs.use_gtk_printing)
 		printing_print_gtk(doc);

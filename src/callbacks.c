@@ -24,7 +24,46 @@
  * main window. Callbacks not used by Glade should go elsewhere.
  */
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "callbacks.h"
+
+#include "about.h"
+#include "app.h"
+#include "build.h"
+#include "dialogs.h"
+#include "documentprivate.h"
+#include "encodings.h"
+#include "filetypes.h"
+#include "geanyobject.h"
+#include "highlighting.h"
+#include "keybindings.h"
+#include "keyfile.h"
+#include "log.h"
+#include "main.h"
+#include "msgwindow.h"
+#include "navqueue.h"
+#include "plugins.h"
+#include "pluginutils.h"
+#include "prefs.h"
+#include "printing.h"
+#include "sciwrappers.h"
+#include "sidebar.h"
+#ifdef HAVE_SOCKET
+# include "socket.h"
+#endif
+#include "support.h"
+#include "symbols.h"
+#include "templates.h"
+#include "toolbar.h"
+#include "tools.h"
+#include "ui_utils.h"
+#include "utils.h"
+#include "vte.h"
+
+#include "gtkcompat.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,50 +71,6 @@
 #include <gdk/gdkkeysyms.h>
 #include <glib/gstdio.h>
 #include <time.h>
-
-#include "callbacks.h"
-#include "support.h"
-
-#include "keyfile.h"
-#include "document.h"
-#include "documentprivate.h"
-#include "filetypes.h"
-#include "sciwrappers.h"
-#include "editor.h"
-#include "ui_utils.h"
-#include "utils.h"
-#include "dialogs.h"
-#include "about.h"
-#include "msgwindow.h"
-#include "build.h"
-#include "prefs.h"
-#include "templates.h"
-#include "sidebar.h"
-#include "keybindings.h"
-#include "encodings.h"
-#include "search.h"
-#include "main.h"
-#include "symbols.h"
-#include "tools.h"
-#include "project.h"
-#include "navqueue.h"
-#include "printing.h"
-#include "plugins.h"
-#include "log.h"
-#include "toolbar.h"
-#include "highlighting.h"
-#include "pluginutils.h"
-#include "gtkcompat.h"
-
-
-#ifdef HAVE_VTE
-# include "vte.h"
-#endif
-
-#ifdef HAVE_SOCKET
-# include "socket.h"
-#endif
-
 
 
 /* flag to indicate that an insert callback was triggered from the file menu,
@@ -1646,7 +1641,7 @@ G_MODULE_EXPORT void on_menu_open_selected_file1_activate(GtkMenuItem *menuitem,
 			filename = g_build_path(G_DIR_SEPARATOR_S, path, sel, NULL);
 
 			if (! g_file_test(filename, G_FILE_TEST_EXISTS) &&
-				app->project != NULL && NZV(app->project->base_path))
+				app->project != NULL && !EMPTY(app->project->base_path))
 			{
 				/* try the project's base path */
 				SETPTR(path, project_get_base_path());
@@ -1713,7 +1708,7 @@ G_MODULE_EXPORT void on_context_action1_activate(GtkMenuItem *menuitem, gpointer
 
 	/* use the filetype specific command if available, fallback to global command otherwise */
 	if (doc->file_type != NULL &&
-		NZV(doc->file_type->context_action_cmd))
+		!EMPTY(doc->file_type->context_action_cmd))
 	{
 		command = g_strdup(doc->file_type->context_action_cmd);
 	}
@@ -1723,7 +1718,7 @@ G_MODULE_EXPORT void on_context_action1_activate(GtkMenuItem *menuitem, gpointer
 	}
 
 	/* substitute the wildcard %s and run the command if it is non empty */
-	if (G_LIKELY(NZV(command)))
+	if (G_LIKELY(!EMPTY(command)))
 	{
 		utils_str_replace_all(&command, "%s", word);
 

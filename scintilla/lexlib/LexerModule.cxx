@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <assert.h>
-#include <ctype.h>
 
 #include <string>
 
@@ -79,7 +79,7 @@ const char *LexerModule::GetWordListDescription(int index) const {
 		return "";
 	} else {
 		return wordListDescriptions[index];
- 	}
+	}
 }
 
 int LexerModule::GetStyleBitsNeeded() const {

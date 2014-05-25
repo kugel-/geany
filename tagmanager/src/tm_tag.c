@@ -681,9 +681,9 @@ int tm_tag_compare(const void *ptr1, const void *ptr2)
 	if (NULL == s_sort_attrs)
 	{
 		if (s_partial)
-			return strncmp(NVL(t1->name, ""), NVL(t2->name, ""), strlen(NVL(t1->name, "")));
+			return strncmp(FALLBACK(t1->name, ""), FALLBACK(t2->name, ""), strlen(FALLBACK(t1->name, "")));
 		else
-			return strcmp(NVL(t1->name, ""), NVL(t2->name, ""));
+			return strcmp(FALLBACK(t1->name, ""), FALLBACK(t2->name, ""));
 	}
 
 	for (sort_attr = s_sort_attrs; *sort_attr != tm_tag_attr_none_t; ++ sort_attr)
@@ -692,9 +692,9 @@ int tm_tag_compare(const void *ptr1, const void *ptr2)
 		{
 			case tm_tag_attr_name_t:
 				if (s_partial)
-					returnval = strncmp(NVL(t1->name, ""), NVL(t2->name, ""), strlen(NVL(t1->name, "")));
+					returnval = strncmp(FALLBACK(t1->name, ""), FALLBACK(t2->name, ""), strlen(FALLBACK(t1->name, "")));
 				else
-					returnval = strcmp(NVL(t1->name, ""), NVL(t2->name, ""));
+					returnval = strcmp(FALLBACK(t1->name, ""), FALLBACK(t2->name, ""));
 				if (0 != returnval)
 					return returnval;
 				break;
@@ -707,11 +707,11 @@ int tm_tag_compare(const void *ptr1, const void *ptr2)
 					return returnval;
 				break;
 			case tm_tag_attr_scope_t:
-				if (0 != (returnval = strcmp(NVL(t1->atts.entry.scope, ""), NVL(t2->atts.entry.scope, ""))))
+				if (0 != (returnval = strcmp(FALLBACK(t1->atts.entry.scope, ""), FALLBACK(t2->atts.entry.scope, ""))))
 					return returnval;
 				break;
 			case tm_tag_attr_arglist_t:
-				if (0 != (returnval = strcmp(NVL(t1->atts.entry.arglist, ""), NVL(t2->atts.entry.arglist, ""))))
+				if (0 != (returnval = strcmp(FALLBACK(t1->atts.entry.arglist, ""), FALLBACK(t2->atts.entry.arglist, ""))))
 				{
 					int line_diff = (t1->atts.entry.line - t2->atts.entry.line);
 
@@ -719,7 +719,7 @@ int tm_tag_compare(const void *ptr1, const void *ptr2)
 				}
 				break;
 			case tm_tag_attr_vartype_t:
-				if (0 != (returnval = strcmp(NVL(t1->atts.entry.var_type, ""), NVL(t2->atts.entry.var_type, ""))))
+				if (0 != (returnval = strcmp(FALLBACK(t1->atts.entry.var_type, ""), FALLBACK(t2->atts.entry.var_type, ""))))
 					return returnval;
 				break;
 			case tm_tag_attr_line_t:
@@ -878,14 +878,37 @@ void tm_tags_array_free(GPtrArray *tags_array, gboolean free_all)
 	}
 }
 
-TMTag **tm_tags_find(const GPtrArray *sorted_tags_array, const char *name,
-		gboolean partial, int * tagCount)
+static TMTag **tags_search(const GPtrArray *tags_array, TMTag *tag, gboolean partial,
+		gboolean tags_array_sorted)
+{
+	if (tags_array_sorted)
+	{	/* fast binary search on sorted tags array */
+		return (TMTag **) bsearch(&tag, tags_array->pdata, tags_array->len
+		  , sizeof(gpointer), tm_tag_compare);
+	}
+	else
+	{	/* the slow way: linear search (to make it a bit faster, search reverse assuming
+		 * that the tag to search was added recently) */
+		int i;
+		TMTag **t;
+		for (i = tags_array->len - 1; i >= 0; i--)
+		{
+			t = (TMTag **) &tags_array->pdata[i];
+			if (0 == tm_tag_compare(&tag, t))
+				return t;
+		}
+	}
+	return NULL;
+}
+
+TMTag **tm_tags_find(const GPtrArray *tags_array, const char *name,
+		gboolean partial, gboolean tags_array_sorted, int * tagCount)
 {
 	static TMTag *tag = NULL;
 	TMTag **result;
 	int tagMatches=0;
 
-	if ((!sorted_tags_array) || (!sorted_tags_array->len))
+	if ((!tags_array) || (!tags_array->len))
 		return NULL;
 
 	if (NULL == tag)
@@ -893,12 +916,12 @@ TMTag **tm_tags_find(const GPtrArray *sorted_tags_array, const char *name,
 	tag->name = (char *) name;
 	s_sort_attrs = NULL;
 	s_partial = partial;
-	result = (TMTag **) bsearch(&tag, sorted_tags_array->pdata, sorted_tags_array->len
-	  , sizeof(gpointer), tm_tag_compare);
+
+	result = tags_search(tags_array, tag, partial, tags_array_sorted);
 	/* There can be matches on both sides of result */
 	if (result)
 	{
-		TMTag **last = (TMTag **) &sorted_tags_array->pdata[sorted_tags_array->len - 1];
+		TMTag **last = (TMTag **) &tags_array->pdata[tags_array->len - 1];
 		TMTag **adv;
 
 		/* First look for any matches after result */
@@ -911,7 +934,7 @@ TMTag **tm_tags_find(const GPtrArray *sorted_tags_array, const char *name,
 			++tagMatches;
 		}
 		/* Now look for matches from result and below */
-		for (; result >= (TMTag **) sorted_tags_array->pdata; -- result)
+		for (; result >= (TMTag **) tags_array->pdata; -- result)
 		{
 			if (0 != tm_tag_compare(&tag, (TMTag **) result))
 				break;

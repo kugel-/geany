@@ -25,30 +25,31 @@
  * Syntax highlighting for the different filetypes, using the Scintilla lexers.
  */
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+ 
+#include "highlighting.h"
+#include "highlightingmappings.h"
+
+#include "app.h"
+#include "dialogs.h"
+#include "document.h"
+#include "editor.h"
+#include "filetypesprivate.h"
+#include "sciwrappers.h"
+#include "support.h"
+#include "symbols.h"
+#include "ui_utils.h"
+#include "utils.h"
+
+#include "SciLexer.h"
 
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <glib.h>
 #include <glib/gprintf.h>
-
-#include "SciLexer.h"
-#include "highlighting.h"
-#include "editor.h"
-#include "utils.h"
-#include "filetypes.h"
-#include "symbols.h"
-#include "ui_utils.h"
-#include "utils.h"
-#include "main.h"
-#include "support.h"
-#include "sciwrappers.h"
-#include "document.h"
-#include "dialogs.h"
-#include "filetypesprivate.h"
-
-#include "highlightingmappings.h"
 
 
 #define GEANY_COLORSCHEMES_SUBDIR "colorschemes"
@@ -219,48 +220,24 @@ static gboolean read_named_style(const gchar *named_style, GeanyLexerStyle *styl
 static void parse_color(GKeyFile *kf, const gchar *str, gint *clr)
 {
 	gint c;
-	gchar hex_clr[9] = { 0 };
 	gchar *named_color = NULL;
-	const gchar *start;
 
 	g_return_if_fail(clr != NULL);
 
-	if (G_UNLIKELY(! NZV(str)))
+	if (G_UNLIKELY(EMPTY(str)))
 		return;
 
 	named_color = g_key_file_get_string(kf, "named_colors", str, NULL);
-	if  (named_color)
+	if (named_color)
 		str = named_color;
 
-	if (str[0] == '#')
-		start = str + 1;
-	else if (strlen(str) > 1 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
-		start = str + 2;
-	else
-	{
+	c = utils_parse_color_to_bgr(str);
+	if (c == -1)
 		geany_debug("Bad color '%s'", str);
-		g_free(named_color);
-		return;
-	}
-
-	if (strlen(start) == 3)
-	{
-		g_snprintf(hex_clr, 9, "0x%c%c%c%c%c%c", start[0], start[0],
-			start[1], start[1], start[2], start[2]);
-	}
 	else
-		g_snprintf(hex_clr, 9, "0x%s", start);
+		*clr = c;
 
 	g_free(named_color);
-
-	c = utils_strtod(hex_clr, NULL, FALSE);
-
-	if (c > -1)
-	{
-		*clr = c;
-		return;
-	}
-	geany_debug("Bad color '%s'", str);
 }
 
 
@@ -343,15 +320,6 @@ static void get_keyfile_style(GKeyFile *config, GKeyFile *configh,
 }
 
 
-/* Convert 0xRRGGBB to 0xBBGGRR, which scintilla expects. */
-static gint rotate_rgb(gint color)
-{
-	return ((color & 0xFF0000) >> 16) +
-		(color & 0x00FF00) +
-		((color & 0x0000FF) << 16);
-}
-
-
 static void convert_int(const gchar *int_str, gint *val)
 {
 	gchar *end;
@@ -415,7 +383,7 @@ static void get_keyfile_ints(GKeyFile *config, GKeyFile *configh, const gchar *s
 static guint invert(guint icolour)
 {
 	if (interface_prefs.highlighting_invert_all)
-		return utils_invert_color(icolour);
+		return 0xffffff - icolour;
 
 	return icolour;
 }
@@ -451,7 +419,7 @@ static void set_sci_style(ScintillaObject *sci, guint style, guint ft_id, guint 
 }
 
 
-void highlighting_free_styles()
+void highlighting_free_styles(void)
 {
 	guint i;
 
@@ -554,7 +522,7 @@ static void load_named_styles(GKeyFile *config, GKeyFile *config_home)
 
 	named_style_hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
-	if (NZV(scheme))
+	if (!EMPTY(scheme))
 	{
 		gchar *path, *path_home;
 
@@ -695,7 +663,7 @@ static void styleset_common(ScintillaObject *sci, guint ft_id)
 
 	/* Error indicator */
 	SSM(sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_ERROR, INDIC_SQUIGGLEPIXMAP);
-	SSM(sci, SCI_INDICSETFORE, GEANY_INDICATOR_ERROR, invert(rotate_rgb(0xff0000)));
+	SSM(sci, SCI_INDICSETFORE, GEANY_INDICATOR_ERROR, invert(0x0000FF /* red, in BGR */));
 
 	/* Search indicator, used for 'Mark' matches */
 	SSM(sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_SEARCH, INDIC_ROUNDBOX);
@@ -1012,7 +980,7 @@ static void read_properties(GeanyFiletype *ft, GKeyFile *config, GKeyFile *confi
 
 static guint get_lexer_filetype(GeanyFiletype *ft)
 {
-	ft = NVL(ft->lexer_filetype, ft);
+	ft = FALLBACK(ft->lexer_filetype, ft);
 	return ft->id;
 }
 
@@ -1062,6 +1030,7 @@ void highlighting_init_styles(guint filetype_idx, GKeyFile *config, GKeyFile *co
 		init_styleset_case(ADA);
 		init_styleset_case(ASM);
 		init_styleset_case(BASIC);
+		init_styleset_case(BATCH);
 		init_styleset_case(C);
 		init_styleset_case(CAML);
 		init_styleset_case(CMAKE);
@@ -1094,9 +1063,11 @@ void highlighting_init_styles(guint filetype_idx, GKeyFile *config, GKeyFile *co
 		init_styleset_case(PERL);
 		init_styleset_case(PHP);
 		init_styleset_case(PO);
+		init_styleset_case(POWERSHELL);
 		init_styleset_case(PYTHON);
 		init_styleset_case(R);
 		init_styleset_case(RUBY);
+		init_styleset_case(RUST);
 		init_styleset_case(SH);
 		init_styleset_case(SQL);
 		init_styleset_case(TCL);
@@ -1142,6 +1113,7 @@ void highlighting_set_styles(ScintillaObject *sci, GeanyFiletype *ft)
 		styleset_case(ADA);
 		styleset_case(ASM);
 		styleset_case(BASIC);
+		styleset_case(BATCH);
 		styleset_case(C);
 		styleset_case(CAML);
 		styleset_case(CMAKE);
@@ -1174,9 +1146,11 @@ void highlighting_set_styles(ScintillaObject *sci, GeanyFiletype *ft)
 		styleset_case(PERL);
 		styleset_case(PHP);
 		styleset_case(PO);
+		styleset_case(POWERSHELL);
 		styleset_case(PYTHON);
 		styleset_case(R);
 		styleset_case(RUBY);
+		styleset_case(RUST);
 		styleset_case(SH);
 		styleset_case(SQL);
 		styleset_case(TCL);
@@ -1285,7 +1259,7 @@ static gchar *utils_get_setting_locale_string(GKeyFile *keyfile,
 {
 	gchar *result = g_key_file_get_locale_string(keyfile, group, key, NULL, NULL);
 
-	return NVL(result, g_strdup(default_value));
+	return FALLBACK(result, g_strdup(default_value));
 }
 
 
@@ -1446,7 +1420,8 @@ gboolean highlighting_is_string_style(gint lexer, gint style)
 				style == SCE_C_STRINGRAW ||
 				style == SCE_C_VERBATIM ||
 				style == SCE_C_TRIPLEVERBATIM ||
-				style == SCE_C_HASHQUOTEDSTRING);
+				style == SCE_C_HASHQUOTEDSTRING ||
+				style == SCE_C_ESCAPESEQUENCE);
 
 		case SCLEX_PASCAL:
 			return (style == SCE_PAS_CHARACTER ||
@@ -1526,6 +1501,7 @@ gboolean highlighting_is_string_style(gint lexer, gint style)
 				style == SCE_LUA_STRING);
 
 		case SCLEX_HASKELL:
+		case SCLEX_LITERATEHASKELL:
 			return (style == SCE_HA_CHARACTER ||
 				style == SCE_HA_STRINGEOL ||
 				style == SCE_HA_STRING);
@@ -1588,6 +1564,12 @@ gboolean highlighting_is_string_style(gint lexer, gint style)
 
 		case SCLEX_ABAQUS:
 			return (style == SCE_ABAQUS_STRING);
+
+		case SCLEX_RUST:
+			return (style == SCE_RUST_CHARACTER ||
+				style == SCE_RUST_STRING ||
+				style == SCE_RUST_STRINGR ||
+				style == SCE_RUST_LEXERROR);
 	}
 	return FALSE;
 }
@@ -1613,7 +1595,8 @@ gboolean highlighting_is_comment_style(gint lexer, gint style)
 				style == SCE_C_PREPROCESSORCOMMENTDOC ||
 				style == SCE_C_COMMENTLINEDOC ||
 				style == SCE_C_COMMENTDOCKEYWORD ||
-				style == SCE_C_COMMENTDOCKEYWORDERROR);
+				style == SCE_C_COMMENTDOCKEYWORDERROR ||
+				style == SCE_C_TASKMARKER);
 
 		case SCLEX_PASCAL:
 			return (style == SCE_PAS_COMMENT ||
@@ -1686,14 +1669,20 @@ gboolean highlighting_is_comment_style(gint lexer, gint style)
 				style == SCE_LUA_COMMENTDOC);
 
 		case SCLEX_HASKELL:
+		case SCLEX_LITERATEHASKELL:
 			return (style == SCE_HA_COMMENTLINE ||
 				style == SCE_HA_COMMENTBLOCK ||
 				style == SCE_HA_COMMENTBLOCK2 ||
 				style == SCE_HA_COMMENTBLOCK3 ||
-				style == SCE_HA_LITERATE_COMMENT);
+				style == SCE_HA_LITERATE_COMMENT ||
+				style == SCE_HA_LITERATE_CODEDELIM);
 
 		case SCLEX_FREEBASIC:
-			return (style == SCE_B_COMMENT);
+			return (style == SCE_B_COMMENT ||
+				style == SCE_B_COMMENTBLOCK ||
+				style == SCE_B_DOCLINE ||
+				style == SCE_B_DOCBLOCK ||
+				style == SCE_B_DOCKEYWORD);
 
 		case SCLEX_YAML:
 			return (style == SCE_YAML_COMMENT);
@@ -1735,6 +1724,12 @@ gboolean highlighting_is_comment_style(gint lexer, gint style)
 			return (style == SCE_ASM_COMMENT ||
 				style == SCE_ASM_COMMENTBLOCK ||
 				style == SCE_ASM_COMMENTDIRECTIVE);
+
+		case SCLEX_RUST:
+			return (style == SCE_RUST_COMMENTBLOCK ||
+				style == SCE_RUST_COMMENTLINE ||
+				style == SCE_RUST_COMMENTBLOCKDOC ||
+				style == SCE_RUST_COMMENTLINEDOC);
 	}
 	return FALSE;
 }
@@ -1752,14 +1747,18 @@ gboolean highlighting_is_code_style(gint lexer, gint style)
 	switch (lexer)
 	{
 		case SCLEX_CPP:
+		{
 			if (style == SCE_C_PREPROCESSOR)
 				return FALSE;
 			break;
-
+		}
 		case SCLEX_HASKELL:
+		case SCLEX_LITERATEHASKELL:
+		{
 			if (style == SCE_HA_PREPROCESSOR)
 				return FALSE;
 			break;
+		}
 	}
 	return !(highlighting_is_comment_style(lexer, style) ||
 		highlighting_is_string_style(lexer, style));

@@ -25,18 +25,22 @@
  */
 /* Utility functions to create the toolbar */
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "toolbar.h"
+
+#include "app.h"
+#include "build.h"
+#include "callbacks.h"
+#include "document.h"
+#include "geanyentryaction.h"
+#include "geanymenubuttonaction.h"
+#include "main.h"
 #include "support.h"
 #include "ui_utils.h"
-#include "toolbar.h"
-#include "callbacks.h"
 #include "utils.h"
-#include "dialogs.h"
-#include "document.h"
-#include "build.h"
-#include "main.h"
-#include "geanymenubuttonaction.h"
-#include "geanyentryaction.h"
 
 #include <string.h>
 #include <glib/gstdio.h>
@@ -793,8 +797,11 @@ static void tb_editor_drag_data_get_cb(GtkWidget *widget, GdkDragContext *contex
 		return;
 
 	gtk_tree_model_get(model, &iter, TB_EDITOR_COL_ACTION, &name, -1);
-	if (G_UNLIKELY(! NZV(name)))
+	if (G_UNLIKELY(EMPTY(name)))
+	{
+		g_free(name);
 		return;
+	}
 
 	atom = gdk_atom_intern(tb_editor_dnd_targets[0].target, FALSE);
 	gtk_selection_data_set(data, atom, 8, (guchar*) name, strlen(name));
@@ -869,7 +876,7 @@ static gboolean tb_editor_foreach_used(GtkTreeModel *model, GtkTreePath *path,
 
 	if (utils_str_equal(action_name, TB_EDITOR_SEPARATOR))
 		g_string_append_printf(data, "\t\t<separator/>\n");
-	else if (G_LIKELY(NZV(action_name)))
+	else if (G_LIKELY(!EMPTY(action_name)))
 		g_string_append_printf(data, "\t\t<toolitem action='%s' />\n", action_name);
 
 	g_free(action_name);

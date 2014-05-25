@@ -24,23 +24,28 @@
  * About dialog and credits.
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include "about.h"
+
+#include "app.h"
+#include "gb.c"
 #include "geany.h"
-#include "utils.h"
-#include "ui_utils.h"
-#include "support.h"
 #include "geanywraplabel.h"
 #include "main.h"
-#include "templates.h"
+#include "support.h"
+#include "ui_utils.h"
+#include "utils.h"
 
-#include "gb.c"
-
+#include "gtkcompat.h"
 
 #define HEADER "<span size=\"larger\" weight=\"bold\">Geany %s</span>"
 #define INFO "<span size=\"larger\" weight=\"bold\">%s</span>"
 #define CODENAME "<span weight=\"bold\">\"" GEANY_CODENAME "\"</span>"
 #define BUILDDATE "<span size=\"smaller\">%s</span>"
-#define COPYRIGHT _("Copyright (c)  2005-2012\nColomban Wendling\nNick Treleaven\nMatthew Brush\nEnrico Tröger\nFrank Lanitz\nAll rights reserved.")
+#define COPYRIGHT _("Copyright (c)  2005-2014\nColomban Wendling\nNick Treleaven\nMatthew Brush\nEnrico Tröger\nFrank Lanitz\nAll rights reserved.")
 
 const gchar *translators[][2] = {
 	{ "ar", "Fayssal Chamekh &lt;chamfay@gmail.com&gt;"},

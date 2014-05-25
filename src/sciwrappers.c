@@ -31,15 +31,18 @@
  * @see scintilla_send_message().
  */
 
-#include <string.h>
-
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "sciwrappers.h"
+
 #include "utils.h"
 
-#define SSM(s, m, w, l) scintilla_send_message(s, m, w, l)
+#include <string.h>
 
+
+#define SSM(s, m, w, l) scintilla_send_message(s, m, w, l)
 
 /* line numbers visibility */
 void sci_set_line_numbers(ScintillaObject *sci, gboolean set, gint extra_width)
@@ -69,7 +72,7 @@ void sci_set_line_numbers(ScintillaObject *sci, gboolean set, gint extra_width)
 
 void sci_set_mark_long_lines(ScintillaObject *sci, gint type, gint column, const gchar *colour)
 {
-	glong colour_val = utils_strtod(colour, NULL, TRUE); /* Scintilla uses a "long" value */
+	glong colour_val = utils_parse_color_to_bgr(colour); /* Scintilla uses a "long" value */
 
 	if (column == 0)
 		type = 2;
@@ -1264,12 +1267,27 @@ gint sci_text_width(ScintillaObject *sci, gint styleNumber, const gchar *text)
 	return (gint) SSM(sci, SCI_TEXTWIDTH, (uptr_t) styleNumber, (sptr_t) text);
 }
 
+
 void sci_move_selected_lines_down(ScintillaObject *sci)
 {
 	SSM(sci, SCI_MOVESELECTEDLINESDOWN, 0, 0);
 }
 
+
 void sci_move_selected_lines_up(ScintillaObject *sci)
 {
 	SSM(sci, SCI_MOVESELECTEDLINESUP, 0, 0);
 }
+
+
+gint sci_word_start_position(ScintillaObject *sci, gint position, gboolean onlyWordCharacters)
+{
+	return SSM(sci, SCI_WORDSTARTPOSITION, position, onlyWordCharacters);
+}
+
+
+gint sci_word_end_position(ScintillaObject *sci, gint position, gboolean onlyWordCharacters)
+{
+	return SSM(sci, SCI_WORDENDPOSITION, position, onlyWordCharacters);
+}
+

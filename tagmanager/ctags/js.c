@@ -68,7 +68,8 @@ typedef enum eKeywordId {
 	KEYWORD_switch,
 	KEYWORD_try,
 	KEYWORD_catch,
-	KEYWORD_finally
+	KEYWORD_finally,
+	KEYWORD_return
 } keywordId;
 
 /*	Used to determine whether keyword is valid for the token language and
@@ -156,7 +157,8 @@ static const keywordDesc JsKeywordTable [] = {
 	{ "switch",		KEYWORD_switch				},
 	{ "try",		KEYWORD_try					},
 	{ "catch",		KEYWORD_catch				},
-	{ "finally",	KEYWORD_finally				}
+	{ "finally",	KEYWORD_finally				},
+	{ "return",		KEYWORD_return				}
 };
 
 /*
@@ -459,7 +461,6 @@ getNextChar:
 						  switch (LastTokenType)
 						  {
 							  case TOKEN_CHARACTER:
-							  case TOKEN_KEYWORD:
 							  case TOKEN_IDENTIFIER:
 							  case TOKEN_STRING:
 							  case TOKEN_CLOSE_CURLY:
@@ -499,6 +500,22 @@ getNextChar:
 					  }
 					  break;
 				  }
+
+		case '#':
+				  /* skip shebang in case of e.g. Node.js scripts */
+				  if (token->lineNumber > 1)
+					  token->type = TOKEN_UNDEFINED;
+				  else if ((c = fileGetc ()) != '!')
+				  {
+					  fileUngetc (c);
+					  token->type = TOKEN_UNDEFINED;
+				  }
+				  else
+				  {
+					  skipToCharacter ('\n');
+					  goto getNextChar;
+				  }
+				  break;
 
 		default:
 				  if (! isIdentChar (c))
@@ -1643,7 +1660,7 @@ static boolean parseLine (tokenInfo *const token, boolean is_inside_class)
 				parseSwitch (token);
 				break;
 			default:
-				parseStatement (token, is_inside_class);
+				is_terminated = parseStatement (token, is_inside_class);
 				break;
 		}
 	}

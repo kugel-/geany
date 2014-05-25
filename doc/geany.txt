@@ -1,4 +1,4 @@
-.. |(version)| replace:: 1.24
+.. |(version)| replace:: 1.25
 .. -*- reStructuredText -*-
 
 =======
@@ -14,10 +14,10 @@
           Frank Lanitz,
           Colomban Wendling,
           Matthew Brush
-:Date: 2013-03-10
+:Date: 2014-04-16
 :Version: |(version)|
 
-Copyright © 2005-2012
+Copyright © 2005-2014
 
 This document is distributed under the terms of the GNU General Public
 License as published by the Free Software Foundation; either version 2
@@ -215,6 +215,7 @@ list, type::
     $ ./configure --help
 
 or::
+
     $ ./waf --help
 
 (depending on which build system you use).
@@ -786,21 +787,21 @@ Indentation
 ^^^^^^^^^^^
 
 Geany allows each document to indent either with a tab character,
-multiple spaces or a combination of both. 
+multiple spaces or a combination of both.
 
-The *Tabs* setting indents with one tab character per indent level, and 
+The *Tabs* setting indents with one tab character per indent level, and
 displays tabs as the indent width.
 
-The *Spaces* setting indents with the number of spaces set in the indent 
+The *Spaces* setting indents with the number of spaces set in the indent
 width for each level.
 
-The *Tabs and Spaces* setting indents with spaces as above, then converts 
-as many spaces as it can to tab characters at the rate of one tab for 
-each multiple of the `Various preference` setting 
-*indent_hard_tab_width* (default 8) and displays tabs as the 
+The *Tabs and Spaces* setting indents with spaces as above, then converts
+as many spaces as it can to tab characters at the rate of one tab for
+each multiple of the `Various preference` setting
+*indent_hard_tab_width* (default 8) and displays tabs as the
 *indent_hard_tab_width* value.
 
-The default indent settings are set in `Editor Indentation 
+The default indent settings are set in `Editor Indentation
 preferences`_ (see the link for more information).
 
 The default settings can be overridden per-document using the
@@ -854,9 +855,9 @@ Current chars
     previous line.
 Match braces
     Similar to *Current chars* but the closing brace will be aligned to
-    match the indentation of the line with the opening brace.  This 
-    requires the filetype to be one where Geany knows that the Scintilla 
-    lexer understands matching braces (C, C++, D, HTML, Pascal, Bash, 
+    match the indentation of the line with the opening brace.  This
+    requires the filetype to be one where Geany knows that the Scintilla
+    lexer understands matching braces (C, C++, D, HTML, Pascal, Bash,
     Perl, TCL).
 
 There is also XML-tag auto-indentation. This is enabled when the
@@ -936,6 +937,12 @@ Normal shell quoting is supported, so you can do things like:
 
 The above example would normally be done with the `Replace all`_
 function, but it can be handy to have common commands already set up.
+
+Note that the command is not run in a shell, so if you want to use
+shell features like pipes and command chains, you need to explicitly
+launch the shell and pass it your command:
+
+* ``sh -c 'sort | uniq'``
 
 
 Context actions
@@ -2358,7 +2365,7 @@ Strip trailing spaces
     .. note::
         This does not apply to Diff documents, e.g. patch files.
 
-Replace tabs by space
+Replace tabs with spaces
     Replace all tabs in the document with the equivalent number of spaces.
 
     .. note::
@@ -3466,7 +3473,7 @@ Toggle line commentation        Ctrl-E                    Comments a line if it 
                                                           a comment if the line is commented.
 
 Increase indent                 Ctrl-I                    Indents the current line or selection by one tab
-                                                          or by spaces in the amount of the tab width
+                                                          or with spaces in the amount of the tab width
                                                           setting.
 
 Decrease indent                 Ctrl-U                    Removes one tab or the amount of spaces of
@@ -3700,9 +3707,9 @@ Action                               Default shortcut     Description
 ==================================== ==================== ==================================================
 Clone                                                     See `Cloning documents`_.
 
-Replace tabs by space                                     Replaces all tabs with the right amount of spaces.
+Replace tabs with space                                   Replaces all tabs with the right amount of spaces.
 
-Replace spaces by tabs                                    Replaces leading spaces with tab characters.
+Replace spaces with tabs                                  Replaces leading spaces with tab characters.
 
 Toggle current fold                                       Toggles the folding state of the current code block.
 
@@ -3833,6 +3840,8 @@ on Windows.
 
 The user configuration directory might vary, but on Windows XP it's:
 ``C:\Documents and Settings\UserName\Application Data\geany``
+On Windows 7 and above you most likely will find it at:
+``C:\users\UserName\Roaming\geany``
 
 
 Tools menu items
@@ -3950,13 +3959,14 @@ the '``*``' wildcard - e.g. ``filetypes.Bar.conf``.
 Custom filetypes are not as powerful as built-in filetypes, but
 support for the following has been implemented:
 
-* Recognizing and setting the filetype (after the user has manually edited
-  ``filetype_extensions.conf``).
+* Recognizing and setting the filetype (after the user has manually updated
+  the `filetype extensions`_ file).
+* `Filetype group membership`_.
 * Reading filetype settings in the ``[settings]`` section, including:
     * Using an existing syntax highlighting lexer (`lexer_filetype`_ key).
-    * Using an existing tag parser (``tag_parser`` key).
+    * Using an existing tag parser (`tag_parser`_ key).
 * Build commands (``[build-menu]`` section).
-* Loading global tags files (sharing the ``tag_parser`` namespace).
+* Loading global tags files (sharing the ``tag_parser`` filetype's namespace).
 
 See `Filetype configuration`_ for details on each setting.
 
@@ -4164,6 +4174,8 @@ context_action_cmd
 
     *Example:* ``context_action_cmd=devhelp -s "%s"``
 
+.. _tag_parser:
+
 tag_parser
     The TagManager language name, e.g. "C". Usually the same as the
     filetype name.
@@ -4198,6 +4210,10 @@ xml_indent_tags
     unclosed XML/HTML tag will be automatically indented. This only applies
     to filetypes for which the HTML or XML lexer is used. Such filetypes have
     this setting in their system configuration files.
+
+mime_type
+    The MIME type for this file type, e.g. "text/x-csrc".  This is used
+    for example to chose the icon to display for this file type.
 
 
 [indentation] section
@@ -4574,8 +4590,9 @@ whitespace_chars
 Filetype extensions
 -------------------
 
-To change the default filetype extension used when saving a new file,
-see `Filetype definition files`_.
+.. note::
+    To change the default filetype extension used when saving a new file,
+    see `Filetype definition files`_.
 
 You can override the list of file extensions that Geany uses to detect
 filetypes using the user ``filetype_extensions.conf`` file. Use the
@@ -4595,7 +4612,7 @@ should look like::
     Make=Makefile*;*.mk;Buildfile;
 
 Filetype group membership
--------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^
 Group membership is also stored in ``filetype_extensions.conf``. This
 file is used to store information Geany needs at startup, whereas the
 separate filetype definition files hold information only needed when
@@ -5060,6 +5077,22 @@ configure a keybinding for the plugin.
 
 Save Actions
 ------------
+
+Auto Save
+^^^^^^^^^
+
+This plugin provides an option to automatically save documents.
+You can choose to save the current document, or all of your documents, at
+a given delay.
+
+
+Save on focus out
+^^^^^^^^^^^^^^^^^
+
+You can save the current document when the editor's focus goes out.
+Every pop-up, menu dialogs, or anything else that can make the editor lose the focus,
+will make the current document to be saved.
+
 
 Instant Save
 ^^^^^^^^^^^^

@@ -231,13 +231,13 @@ static langType Lang_php;
 static boolean InPhp = FALSE; /* whether we are between <? ?> */
 
 /* current statement details */
-struct {
+static struct {
 	accessType access;
 	implType impl;
 } CurrentStatement;
 
 /* Current namespace */
-vString *CurrentNamesapce;
+static vString *CurrentNamesapce;
 
 
 static void buildPhpKeywordHash (void)
@@ -672,9 +672,15 @@ static keywordId analyzeToken (vString *const name, langType language)
 	return result;
 }
 
+static boolean isSpace (int c)
+{
+	return (c == '\t' || c == ' ' || c == '\v' ||
+			c == '\n' || c == '\r' || c == '\f');
+}
+
 static int skipWhitespaces (int c)
 {
-	while (c == '\t' || c == ' ' || c == '\n' || c == '\r')
+	while (isSpace (c))
 		c = fileGetc ();
 	return c;
 }
@@ -695,10 +701,7 @@ static boolean isOpenScriptLanguagePhp (int c)
 		tolower ((c = fileGetc ()))         != 'i' ||
 		tolower ((c = fileGetc ()))         != 'p' ||
 		tolower ((c = fileGetc ()))         != 't' ||
-		((c = fileGetc ()) != '\t' &&
-		  c                != ' '  &&
-		  c                != '\n' &&
-		  c                != '\r')                ||
+		! isSpace ((c = fileGetc ()))              ||
 		tolower ((c = skipWhitespaces (c))) != 'l' ||
 		tolower ((c = fileGetc ()))         != 'a' ||
 		tolower ((c = fileGetc ()))         != 'n' ||
@@ -806,10 +809,7 @@ getNextChar:
 	else
 		c = fileGetc ();
 
-	while (c == '\t' || c == ' ' || c == '\n' || c == '\r')
-	{
-		c = fileGetc ();
-	}
+	c = skipWhitespaces (c);
 
 	token->lineNumber   = getSourceLineNumber ();
 	token->filePosition = getInputFilePosition ();
@@ -1084,7 +1084,9 @@ static boolean parseTrait (tokenInfo *const token)
  * 	function &myfunc($foo, $bar) {}
  *
  * if @name is not NULL, parses an anonymous function with name @name
- * 	$foo = function($foo, $bar) {} */
+ * 	$foo = function($foo, $bar) {}
+ * 	$foo = function&($foo, $bar) {}
+ * 	$foo = function($foo, $bar) use ($x, &$y) {} */
 static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 {
 	boolean readNext = TRUE;
@@ -1092,20 +1094,21 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 	implType impl = CurrentStatement.impl;
 	tokenInfo *nameFree = NULL;
 
+	readToken (token);
+	/* skip a possible leading ampersand (return by reference) */
+	if (token->type == TOKEN_AMPERSAND)
+		readToken (token);
+
 	if (! name)
 	{
-		readToken (token);
-		/* skip a possible leading ampersand (return by reference) */
-		if (token->type == TOKEN_AMPERSAND)
-			readToken (token);
 		if (token->type != TOKEN_IDENTIFIER)
 			return FALSE;
 
 		name = nameFree = newToken ();
 		copyToken (nameFree, token, TRUE);
+		readToken (token);
 	}
 
-	readToken (token);
 	if (token->type == TOKEN_OPEN_PAREN)
 	{
 		vString *arglist = vStringNew ();
@@ -1174,8 +1177,33 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 		makeFunctionTag (name, arglist, access, impl);
 		vStringDelete (arglist);
 
-		readToken (token); /* normally it's an open brace or a semicolon */
+		readToken (token); /* normally it's an open brace or "use" keyword */
 	}
+
+	/* skip use(...) */
+	if (token->type == TOKEN_KEYWORD && token->keyword == KEYWORD_use)
+	{
+		readToken (token);
+		if (token->type == TOKEN_OPEN_PAREN)
+		{
+			int depth = 1;
+
+			do
+			{
+				readToken (token);
+				switch (token->type)
+				{
+					case TOKEN_OPEN_PAREN:  depth++; break;
+					case TOKEN_CLOSE_PAREN: depth--; break;
+					default: break;
+				}
+			}
+			while (token->type != TOKEN_EOF && depth > 0);
+
+			readToken (token);
+		}
+	}
+
 	if (token->type == TOKEN_OPEN_CURLY)
 		enterScope (token, name->string, K_FUNCTION);
 	else

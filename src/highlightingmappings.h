@@ -21,11 +21,16 @@
  */
 
 
-#ifndef GEANY_HIGHLIGHTINGMAPPINGS_H
-#define GEANY_HIGHLIGHTINGMAPPINGS_H 1
+#ifndef GEANY_HIGHLIGHTING_MAPPINGS_H
+#define GEANY_HIGHLIGHTING_MAPPINGS_H 1
 
 #include "Scintilla.h"
+#include "SciLexer.h"
 
+#include <glib.h>
+
+
+G_BEGIN_DECLS
 
 /* contains all filtypes informations in the form of:
  *  - highlighting_lexer_LANG:		the SCI lexer
@@ -168,6 +173,10 @@ static const HLStyle highlighting_styles_BASIC[] =
 {
 	{ SCE_B_DEFAULT,		"default",			FALSE },
 	{ SCE_B_COMMENT,		"comment",			FALSE },
+	{ SCE_B_COMMENTBLOCK,	"commentblock",		FALSE },
+	{ SCE_B_DOCLINE,		"docline",			FALSE },
+	{ SCE_B_DOCBLOCK,		"docblock",			FALSE },
+	{ SCE_B_DOCKEYWORD,		"dockeyword",		FALSE },
 	{ SCE_B_NUMBER,			"number",			FALSE },
 	{ SCE_B_KEYWORD,		"word",				FALSE },
 	{ SCE_B_STRING,			"string",			FALSE },
@@ -196,6 +205,27 @@ static const HLKeyword highlighting_keywords_BASIC[] =
 #define highlighting_properties_BASIC	EMPTY_PROPERTIES
 
 
+/* BATCH */
+#define highlighting_lexer_BATCH		SCLEX_BATCH
+static const HLStyle highlighting_styles_BATCH[] =
+{
+	{ SCE_BAT_DEFAULT,		"default",		FALSE },
+	{ SCE_BAT_COMMENT,		"comment",		FALSE },
+	{ SCE_BAT_LABEL,		"label",		FALSE },
+	{ SCE_BAT_WORD,			"word",			FALSE },
+	{ SCE_BAT_HIDE,			"hide",			FALSE },
+	{ SCE_BAT_COMMAND,		"command",		FALSE },
+	{ SCE_BAT_IDENTIFIER,	"identifier",	FALSE },
+	{ SCE_BAT_OPERATOR,		"operator",		FALSE }
+};
+static const HLKeyword highlighting_keywords_BATCH[] =
+{
+	{ 0, "keywords",			FALSE },
+	{ 1, "keywords_optional",	FALSE }
+};
+#define highlighting_properties_BATCH	EMPTY_PROPERTIES
+
+
 /* C */
 /* Also used by some other SCLEX_CPP-based filetypes */
 #define highlighting_lexer_C		SCLEX_CPP
@@ -213,6 +243,7 @@ static const HLStyle highlighting_styles_C[] =
 	{ SCE_C_STRING,					"string",					FALSE },
 	{ SCE_C_STRINGRAW,				"stringraw",				FALSE },
 	{ SCE_C_CHARACTER,				"character",				FALSE },
+	{ SCE_C_USERLITERAL,			"userliteral",				FALSE },
 	{ SCE_C_UUID,					"uuid",						FALSE },
 	{ SCE_C_PREPROCESSOR,			"preprocessor",				FALSE },
 	{ SCE_C_OPERATOR,				"operator",					FALSE },
@@ -227,7 +258,9 @@ static const HLStyle highlighting_styles_C[] =
 	{ SCE_C_COMMENTDOCKEYWORD,		"commentdockeyword",		FALSE },
 	{ SCE_C_COMMENTDOCKEYWORDERROR,	"commentdockeyworderror",	FALSE },
 	/* used for local structs and typedefs */
-	{ SCE_C_GLOBALCLASS,			"globalclass",				FALSE }
+	{ SCE_C_GLOBALCLASS,			"globalclass",				FALSE },
+	{ SCE_C_TASKMARKER,				"taskmarker",				FALSE },
+	{ SCE_C_ESCAPESEQUENCE,			"escapesequence",			FALSE }
 };
 static const HLKeyword highlighting_keywords_C[] =
 {
@@ -621,7 +654,9 @@ static const HLStyle highlighting_styles_HASKELL[] =
 };
 static const HLKeyword highlighting_keywords_HASKELL[] =
 {
-	{ 0, "keywords",	FALSE }
+	{ 0, "keywords",		   FALSE },
+	{ 1, "ffi",				   FALSE },
+	{ 2, "reserved_operators", FALSE }
 };
 #define highlighting_properties_HASKELL		EMPTY_PROPERTIES
 
@@ -1133,6 +1168,40 @@ static const HLStyle highlighting_styles_PO[] =
 #define highlighting_properties_PO	EMPTY_PROPERTIES
 
 
+/* PowerShell */
+#define highlighting_lexer_POWERSHELL		SCLEX_POWERSHELL
+static const HLStyle highlighting_styles_POWERSHELL[] =
+{
+	{ SCE_POWERSHELL_DEFAULT,			"default",				FALSE },
+	{ SCE_POWERSHELL_COMMENT,			"comment",				FALSE },
+	{ SCE_POWERSHELL_STRING,			"string",				FALSE },
+	{ SCE_POWERSHELL_CHARACTER,			"character",			FALSE },
+	{ SCE_POWERSHELL_NUMBER,			"number",				FALSE },
+	{ SCE_POWERSHELL_VARIABLE,			"variable",				FALSE },
+	{ SCE_POWERSHELL_OPERATOR,			"operator",				FALSE },
+	{ SCE_POWERSHELL_IDENTIFIER,		"identifier",			FALSE },
+	{ SCE_POWERSHELL_KEYWORD,			"keyword",				FALSE },
+	{ SCE_POWERSHELL_CMDLET,			"cmdlet",				FALSE },
+	{ SCE_POWERSHELL_ALIAS,				"alias",				FALSE },
+	{ SCE_POWERSHELL_FUNCTION,			"function",				FALSE },
+	{ SCE_POWERSHELL_USER1,				"user1",				FALSE },
+	{ SCE_POWERSHELL_COMMENTSTREAM,		"commentstream",		FALSE },
+	{ SCE_POWERSHELL_HERE_STRING,		"here_string",			FALSE },
+	{ SCE_POWERSHELL_HERE_CHARACTER,	"here_character",		FALSE },
+	{ SCE_POWERSHELL_COMMENTDOCKEYWORD,	"commentdockeyword",	FALSE },
+};
+static const HLKeyword highlighting_keywords_POWERSHELL[] =
+{
+	{ 0, "keywords",	FALSE },
+	{ 1, "cmdlets",		FALSE },
+	{ 2, "aliases",		FALSE },
+	{ 3, "functions",	FALSE },
+	{ 4, "user1",		FALSE },
+	{ 5, "docComment",	FALSE },
+};
+#define highlighting_properties_POWERSHELL	EMPTY_PROPERTIES
+
+
 /* Python */
 #define highlighting_lexer_PYTHON		SCLEX_PYTHON
 static const HLStyle highlighting_styles_PYTHON[] =
@@ -1233,6 +1302,41 @@ static const HLKeyword highlighting_keywords_RUBY[] =
 };
 #define highlighting_properties_RUBY	EMPTY_PROPERTIES
 
+/* Rust */
+#define highlighting_lexer_RUST		SCLEX_RUST
+static const HLStyle highlighting_styles_RUST[] =
+{
+	{ SCE_RUST_DEFAULT,				"default",					FALSE },
+	{ SCE_RUST_COMMENTBLOCK,		"commentblock",				FALSE },
+	{ SCE_RUST_COMMENTLINE,			"commentline",				FALSE },
+	{ SCE_RUST_COMMENTBLOCKDOC,		"commentblockdoc",			FALSE },
+	{ SCE_RUST_COMMENTLINEDOC,		"commentlinedoc",			FALSE },
+	{ SCE_RUST_NUMBER,				"number",					FALSE },
+	{ SCE_RUST_WORD,				"word",						FALSE },
+	{ SCE_RUST_WORD2,				"word2",					FALSE },
+	{ SCE_RUST_WORD3,				"word3",					FALSE },
+	{ SCE_RUST_WORD4,				"word4",					FALSE },
+	{ SCE_RUST_WORD5,				"word5",					FALSE },
+	{ SCE_RUST_WORD6,				"word6",					FALSE },
+	{ SCE_RUST_WORD7,				"word7",					FALSE },
+	{ SCE_RUST_STRING,				"string",					FALSE },
+	{ SCE_RUST_STRINGR,				"stringraw",				FALSE },
+	{ SCE_RUST_CHARACTER,			"character",				FALSE },
+	{ SCE_RUST_OPERATOR,			"operator",					FALSE },
+	{ SCE_RUST_IDENTIFIER,			"identifier",				FALSE },
+	{ SCE_RUST_LIFETIME,			"lifetime",					FALSE },
+	{ SCE_RUST_MACRO,				"macro",					FALSE },
+	{ SCE_RUST_LEXERROR,			"lexerror",					FALSE }
+};
+static const HLKeyword highlighting_keywords_RUST[] =
+{
+	{ 0, "primary",		FALSE },
+	/* SCI_SETKEYWORDS = 1 - secondary + global tags file types */
+	{ 1, "secondary",	TRUE },
+	{ 2, "tertiary",	FALSE },
+	/* SCI_SETKEYWORDS = 3 is for current session types - see editor_lexer_get_type_keyword_idx() */
+};
+#define highlighting_properties_RUST		EMPTY_PROPERTIES
 
 /* SH */
 #define highlighting_lexer_SH		SCLEX_BASH
@@ -1461,5 +1565,6 @@ static const HLKeyword highlighting_keywords_YAML[] =
 };
 #define highlighting_properties_YAML	EMPTY_PROPERTIES
 
+G_END_DECLS
 
-#endif /* guard */
+#endif /* GEANY_HIGHLIGHTING_MAPPINGS_H */

@@ -23,22 +23,25 @@
  * Notebook tab Drag 'n' Drop reordering and tab management.
  */
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "notebook.h"
+
+#include "callbacks.h"
+#include "documentprivate.h"
+#include "geanyobject.h"
+#include "keybindings.h"
+#include "main.h"
+#include "support.h"
+#include "ui_utils.h"
+#include "utils.h"
+
+#include "gtkcompat.h"
 
 #include <gdk/gdkkeysyms.h>
 
-#include "notebook.h"
-#include "document.h"
-#include "editor.h"
-#include "documentprivate.h"
-#include "ui_utils.h"
-#include "sidebar.h"
-#include "support.h"
-#include "callbacks.h"
-#include "utils.h"
-#include "keybindings.h"
-#include "main.h"
-#include "gtkcompat.h"
 
 #define GEANY_DND_NOTEBOOK_TAB_TYPE	"geany_dnd_notebook_tab"
 
@@ -534,7 +537,7 @@ static gboolean notebook_tab_bar_click_cb(GtkWidget *widget, GdkEventButton *eve
 }
 
 
-void notebook_init()
+void notebook_init(void)
 {
 	g_signal_connect_after(main_widgets.notebook, "button-press-event",
 		G_CALLBACK(notebook_tab_bar_click_cb), NULL);
@@ -561,7 +564,7 @@ void notebook_free(void)
 }
 
 
-static void setup_tab_dnd()
+static void setup_tab_dnd(void)
 {
 	GtkWidget *notebook = main_widgets.notebook;
 

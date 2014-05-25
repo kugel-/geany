@@ -91,7 +91,7 @@ void tm_workspace_free(gpointer workspace)
 	}
 }
 
-const TMWorkspace *tm_get_workspace()
+const TMWorkspace *tm_get_workspace(void)
 {
 	if (NULL == theWorkspace)
 		tm_create_workspace();
@@ -207,7 +207,7 @@ static guint tm_file_inode_hash(gconstpointer key)
 #ifdef TM_DEBUG
 		g_message ("Hash for '%s' is '%d'\n", filename, file_stat.st_ino);
 #endif
-		return g_direct_hash (GUINT_TO_POINTER (file_stat.st_ino));
+		return g_direct_hash ((gpointer)(gulong)file_stat.st_ino);
 	} else {
 		return 0;
 	}
@@ -594,8 +594,9 @@ const GPtrArray *tm_workspace_find(const char *name, int type, TMTagAttrType *at
 	else
 		tags = g_ptr_array_new();
 
-	matches[0] = tm_tags_find(theWorkspace->work_object.tags_array, name, partial, &tagCount[0]);
-	matches[1] = tm_tags_find(theWorkspace->global_tags, name, partial, &tagCount[1]);
+	matches[0] = tm_tags_find(theWorkspace->work_object.tags_array, name, partial, TRUE,
+					&tagCount[0]);
+	matches[1] = tm_tags_find(theWorkspace->global_tags, name, partial, TRUE, &tagCount[1]);
 
 	/* file tags */
 	if (matches[0] && *matches[0])
@@ -690,7 +691,7 @@ fill_find_tags_array (GPtrArray *dst, const GPtrArray *src,
 	if ((!src) || (!dst) || (!name) || (!*name))
 		return 0;
 
-	match = tm_tags_find (src, name, partial, &count);
+	match = tm_tags_find (src, name, partial, TRUE, &count);
 	if (count && match && *match)
 	{
 		for (tagIter = 0; tagIter < count; ++tagIter)

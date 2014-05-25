@@ -27,22 +27,24 @@
  * @see GeanyMainWidgets::message_window_notebook to append a new notebook page.
  **/
 
-#include "geany.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
-#include "support.h"
-#include "prefs.h"
+#include "msgwindow.h"
+
+#include "build.h"
+#include "document.h"
 #include "callbacks.h"
+#include "filetypes.h"
+#include "keybindings.h"
+#include "main.h"
+#include "navqueue.h"
+#include "prefs.h"
+#include "support.h"
 #include "ui_utils.h"
 #include "utils.h"
-#include "document.h"
-#include "filetypes.h"
-#include "build.h"
-#include "main.h"
 #include "vte.h"
-#include "navqueue.h"
-#include "editor.h"
-#include "msgwindow.h"
-#include "keybindings.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -470,7 +472,7 @@ on_compiler_treeview_copy_activate(GtkMenuItem *menuitem, gpointer user_data)
 		gchar *string;
 
 		gtk_tree_model_get(model, &iter, str_idx, &string, -1);
-		if (NZV(string))
+		if (!EMPTY(string))
 		{
 			gtk_clipboard_set_text(gtk_clipboard_get(gdk_atom_intern("CLIPBOARD", FALSE)),
 				string, -1);
@@ -512,7 +514,7 @@ static void on_compiler_treeview_copy_all_activate(GtkMenuItem *menuitem, gpoint
 		gchar *line;
 
 		gtk_tree_model_get(GTK_TREE_MODEL(store), &iter, str_idx, &line, -1);
-		if (NZV(line))
+		if (!EMPTY(line))
 		{
 			g_string_append(str, line);
 			g_string_append_c(str, '\n');

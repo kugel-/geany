@@ -31,10 +31,12 @@ lexers/LexNsis.cxx \
 lexers/LexOthers.cxx \
 lexers/LexPascal.cxx \
 lexers/LexPerl.cxx \
+lexers/LexPowerShell.cxx \
 lexers/LexPython.cxx \
 lexers/LexPO.cxx \
 lexers/LexR.cxx \
 lexers/LexRuby.cxx \
+lexers/LexRust.cxx \
 lexers/LexSQL.cxx \
 lexers/LexTCL.cxx \
 lexers/LexTxt2tags.cxx \
@@ -67,6 +69,7 @@ lexlib/OptionSet.h \
 lexlib/PropSetSimple.cxx \
 lexlib/PropSetSimple.h \
 lexlib/SparseState.h \
+lexlib/StringCopy.h \
 lexlib/StyleContext.cxx \
 lexlib/StyleContext.h \
 lexlib/SubStyles.h \
