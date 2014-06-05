@@ -704,7 +704,7 @@ static void notebook_tab_close_button_style_set(GtkWidget *btn, GtkRcStyle *prev
 /* Returns page number of notebook page, or -1 on error */
 gint notebook_new_tab(GeanyDocument *this)
 {
-	GtkWidget *hbox, *ebox, *vbox;
+	GtkWidget *hbox, *ebox;
 	gint tabnum;
 	GtkWidget *page;
 	gint cur_page;
@@ -712,10 +712,8 @@ gint notebook_new_tab(GeanyDocument *this)
 	g_return_val_if_fail(this != NULL, -1);
 
 	/* page is packed into a vbox so we can stack infobars above it */
-	vbox = gtk_vbox_new(FALSE, 0);
-	page = GTK_WIDGET(this->editor->sci);
-	gtk_box_pack_start(GTK_BOX(vbox), page, TRUE, TRUE, 0);
-	gtk_widget_show(vbox);
+	page = (GtkWidget *) geany_page_new(this->editor->sci);
+	gtk_widget_show(page);
 
 	this->priv->tab_label = gtk_label_new(NULL);
 
@@ -764,16 +762,16 @@ gint notebook_new_tab(GeanyDocument *this)
 	else
 		cur_page = file_prefs.tab_order_ltr ? -2 /* hack: -2 + 1 = -1, last page */ : 0;
 	if (file_prefs.tab_order_ltr)
-		tabnum = gtk_notebook_insert_page_menu(GTK_NOTEBOOK(main_widgets.notebook), vbox,
+		tabnum = gtk_notebook_insert_page_menu(GTK_NOTEBOOK(main_widgets.notebook), page,
 			ebox, NULL, cur_page + 1);
 	else
-		tabnum = gtk_notebook_insert_page_menu(GTK_NOTEBOOK(main_widgets.notebook), vbox,
+		tabnum = gtk_notebook_insert_page_menu(GTK_NOTEBOOK(main_widgets.notebook), page,
 			ebox, NULL, cur_page);
 
 	tab_count_changed();
 
 	/* enable tab DnD */
-	gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(main_widgets.notebook), vbox, TRUE);
+	gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(main_widgets.notebook), page, TRUE);
 
 	return tabnum;
 }
