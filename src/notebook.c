@@ -42,6 +42,62 @@
 
 #include <gdk/gdkkeysyms.h>
 
+#define TYPE_GEANY_PAGE (geany_page_get_type ())
+#define GEANY_PAGE(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_GEANY_PAGE, GeanyPage))
+#define GEANY_PAGE_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_GEANY_PAGE, GeanyPageClass))
+#define IS_GEANY_PAGE(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_GEANY_PAGE))
+#define IS_GEANY_PAGE_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), TYPE_GEANY_PAGE))
+#define GEANY_PAGE_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_GEANY_PAGE, GeanyPageClass))
+
+typedef struct _GeanyPage GeanyPage;
+typedef struct _GeanyPageClass GeanyPageClass;
+
+struct _GeanyPage
+{
+	GtkBox                parent_instance;
+	ScintillaObject      *sci;
+};
+
+struct _GeanyPageClass
+{
+	GtkBoxClass           parent_class;
+};
+
+
+G_DEFINE_TYPE(GeanyPage, geany_page, GTK_TYPE_BOX)
+
+static GeanyPage* geany_page_new (ScintillaObject* sci)
+{
+	GeanyPage *self;
+	self = (GeanyPage*) g_object_new (TYPE_GEANY_PAGE, "orientation", GTK_ORIENTATION_VERTICAL, NULL);
+	self->sci = sci;
+	gtk_box_pack_start (GTK_BOX(self), GTK_WIDGET(sci), TRUE, TRUE, 0);
+	return self;
+}
+
+
+static ScintillaObject* geany_page_get_sci (GeanyPage* self)
+{
+	return self->sci;
+}
+
+
+static void geany_page_init (GeanyPage * self)
+{
+}
+
+
+static void geany_page_finalize (GObject* obj)
+{
+	GeanyPage * self = GEANY_PAGE(obj);;
+	G_OBJECT_CLASS (geany_page_parent_class)->finalize (obj);
+}
+
+static void geany_page_class_init (GeanyPageClass * klass)
+{
+	geany_page_parent_class = g_type_class_peek_parent (klass);
+	G_OBJECT_CLASS (klass)->finalize = geany_page_finalize;
+}
 
 #define GEANY_DND_NOTEBOOK_TAB_TYPE	"geany_dnd_notebook_tab"
 
