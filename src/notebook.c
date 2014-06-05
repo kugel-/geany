@@ -360,10 +360,10 @@ gboolean notebook_switch_in_progress(void)
 
 static gboolean focus_sci(GtkWidget *widget, GdkEventButton *event, gpointer user_data)
 {
-	GeanyDocument *doc = document_get_current();
+	ScintillaObject *sci = SCINTILLA(user_data);
 
-	if (doc != NULL && event->button == 1)
-		gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
+	if (event->button == 1)
+		gtk_widget_grab_focus(GTK_WIDGET(sci));
 
 	return FALSE;
 }
@@ -722,8 +722,7 @@ gint notebook_new_tab(GeanyDocument *this)
 	gtk_widget_set_has_window(ebox, FALSE);
 	g_signal_connect(ebox, "button-press-event", G_CALLBACK(notebook_tab_click), this);
 	/* focus the current document after clicking on a tab */
-	g_signal_connect_after(ebox, "button-release-event",
-		G_CALLBACK(focus_sci), NULL);
+	g_signal_connect_after(ebox, "button-release-event", G_CALLBACK(focus_sci), page);
 
 	hbox = gtk_hbox_new(FALSE, 2);
 	gtk_box_pack_start(GTK_BOX(hbox), this->priv->tab_label, FALSE, FALSE, 0);
