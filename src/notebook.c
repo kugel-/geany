@@ -180,6 +180,7 @@ GtkNotebook *notebook_get_with_page_by_sci(ScintillaObject *sci, GtkWidget **pag
 	return GTK_NOTEBOOK(parent);
 }
 
+
 static GeanyPage *page_by_sci(ScintillaObject *sci)
 {
 	GtkWidget *page = gtk_widget_get_parent(GTK_WIDGET(sci));
@@ -187,6 +188,7 @@ static GeanyPage *page_by_sci(ScintillaObject *sci)
 		page = gtk_widget_get_parent(page);
 	return (GeanyPage *) page;
 }
+
 
 GeanyDocument *notebook_get_current_document(void)
 {
@@ -247,6 +249,10 @@ static gboolean
 on_page_focused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
 {
 	GeanyDocument *doc = (GeanyDocument *) user_data;
+	GtkLabel      *label;
+	GtkNotebook   *notebook;
+	GeanyPage     *page;
+	gchar         *markup;
 
 	g_return_val_if_fail(user_data != NULL, FALSE);
 
@@ -255,6 +261,13 @@ on_page_focused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
 
 	if (!sci) /* focus is removed from child. Not interesting to us */
 		return FALSE;
+
+	notebook = notebook_get_with_page_by_sci(sci, (GtkWidget **) &page);
+
+	label = geany_page_get_label(page);
+	markup = g_markup_printf_escaped("<u>%s</u>", gtk_label_get_text(label));
+	gtk_label_set_markup(label, markup);
+	g_free(markup);
 
 	/* update MRU to make ctrl-tab between notebooks work */
 	if (!switch_in_progress)
@@ -282,6 +295,22 @@ on_page_focused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
 
 	g_signal_emit_by_name(geany_object, "document-activate", doc);
 
+	return FALSE;
+}
+
+static gboolean
+on_page_unfocused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
+{
+	GeanyDocument *doc = (GeanyDocument *) user_data;
+	GtkLabel      *label;
+
+	if (! main_status.quitting)
+	{
+		/* undo underlined text created by on_page_focused */
+		GeanyPage *page = page_by_sci(sci);
+		label = geany_page_get_label(page);
+		gtk_label_set_text(label, gtk_label_get_text(label));
+	}
 
 	return FALSE;
 }
@@ -903,7 +932,6 @@ static void notebook_tab_close_button_style_set(GtkWidget *btn, GtkRcStyle *prev
 	gtk_widget_set_size_request(btn, w + 2, h + 2);
 }
 
-
 /* Returns page number of notebook page, or -1 on error */
 gint notebook_new_tab(GeanyDocument *this, GtkNotebook *notebook)
 {
@@ -921,7 +949,9 @@ gint notebook_new_tab(GeanyDocument *this, GtkNotebook *notebook)
 	this->priv->tab_label = (GtkWidget *) geany_page_get_label(page);
 
 	g_signal_connect(G_OBJECT(geany_page_get_sci(page)),
-			"focus-in-event", G_CALLBACK(on_page_focused), this);
+			"focus-in-event",  G_CALLBACK(on_page_focused), this);
+	g_signal_connect(G_OBJECT(geany_page_get_sci(page)),
+			"focus-out-event", G_CALLBACK(on_page_unfocused), this);
 
 	/* get button press events for the tab label and the space between it and
 	 * the close button, if any */
