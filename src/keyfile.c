@@ -109,11 +109,16 @@
 #define GEANY_MAX_SYMBOLS_UPDATE_FREQ	250
 #define GEANY_DEFAULT_FILETYPE_REGEX    "-\\*-\\s*([^\\s]+)\\s*-\\*-"
 
+typedef struct {
+	GtkNotebook *notebook;
+	GPtrArray   *files;
+	gint 		 notebook_page;
+} SessionFileSet;
+GPtrArray *session_files;
 
 static gchar *scribble_text = NULL;
 static gint scribble_pos = -1;
 static GPtrArray *default_session_files = NULL;
-static gint session_notebook_page;
 static gint hpan_position;
 static gint vpan_position;
 static const gchar atomic_file_saving_key[] = "use_atomic_file_saving";
@@ -468,48 +473,76 @@ static gchar *get_session_file_string(GeanyDocument *doc)
 	return fname;
 }
 
-
-static void remove_session_files(GKeyFile *config)
+static void do_remove_files(GKeyFile *config, const gchar *group)
 {
 	gchar **ptr;
-	gchar **keys = g_key_file_get_keys(config, "files", NULL, NULL);
+	gchar **keys = g_key_file_get_keys(config, group, NULL, NULL);
 
 	foreach_strv(ptr, keys)
 	{
 		if (g_str_has_prefix(*ptr, "FILE_NAME_"))
-			g_key_file_remove_key(config, "files", *ptr, NULL);
+			g_key_file_remove_key(config, group, *ptr, NULL);
 	}
+
 	g_strfreev(keys);
+}
+
+static void remove_session_files(GKeyFile *config)
+{
+	do_remove_files(config, "files");
+	/* clear notebook entries as well if exists.
+	 * legacy configs don't contain notebookN, but just files */
+	for(gint i = 1; ; i++)
+	{
+		gchar group[16];
+		g_snprintf(group, sizeof(group), "notebook%d", i);
+		if (!g_key_file_has_group(config, group))
+			break;
+		do_remove_files(config, group);
+	}
 }
 
 
 void configuration_save_session_files(GKeyFile *config)
 {
-	gint npage;
+	gint cur_page;
 	gchar entry[16];
-	guint i = 0, j = 0, max;
-
-	npage = gtk_notebook_get_current_page(GTK_NOTEBOOK(main_widgets.notebook));
-	g_key_file_set_integer(config, "files", "current_page", npage);
+	guint i = 0, k = 0, tabnum = 0;
+	GeanyDocument *doc;
+	GtkNotebook *nb;
+	char key[16];
+	GPtrArray *copy;
 
 	// clear existing entries first as they might not all be overwritten
 	remove_session_files(config);
 
 	/* store the filenames in the notebook tab order to reopen them the next time */
-	max = gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
-	for (i = 0; i < max; i++)
+	copy = document_array_sorted_copy(document_compare_by_tab_order);
+
+	foreach_ptr_array(doc, i, copy)
 	{
-		GeanyDocument *doc = document_get_from_page(i);
+		nb = document_get_notebook(doc);
+		/* Get the index of the notebook in main_widgets. Since the docs are
+		 * tab-sorted it's not necessary to go through all notebooks again */
+		for(;k < main_widgets.notebooks->len; k++)
+		{
+			if (g_ptr_array_index(main_widgets.notebooks, k) == nb)
+				break;
+			tabnum = 0; /* reset count when the notebook index changes */
+		}
+		g_snprintf(key, sizeof(key), "notebook%d", k+1);
+		cur_page = gtk_notebook_get_current_page(nb);
+		g_key_file_set_integer(config, key, "current_page", cur_page);
 
 		if (doc != NULL && doc->real_path != NULL)
 		{
 			gchar *fname;
 
-			g_snprintf(entry, sizeof(entry), "FILE_NAME_%d", j);
+			g_snprintf(entry, sizeof(entry), "FILE_NAME_%d", tabnum);
 			fname = get_session_file_string(doc);
-			g_key_file_set_string(config, "files", entry, fname);
+			g_key_file_set_string(config, key, entry, fname);
 			g_free(fname);
-			j++;
+			tabnum += 1;
 		}
 	}
 
@@ -520,6 +553,8 @@ void configuration_save_session_files(GKeyFile *config)
 		g_key_file_set_string(config, "VTE", "last_dir", vte_info.dir);
 	}
 #endif
+
+	g_ptr_array_free(copy, TRUE);
 }
 
 
@@ -796,36 +831,66 @@ static void load_recent_files(GKeyFile *config, GQueue *queue, const gchar *key)
 	}
 }
 
+static void session_files_destroy(gpointer element)
+{
+	SessionFileSet *set = (SessionFileSet *) element;
+	/* Do NOT free set->notebook */
+	g_ptr_array_unref(set->files);
+	g_free(set);
+}
 
 /*
  * Load session list from the given keyfile and return an array containing the file names
  * */
 GPtrArray *configuration_load_session_files(GKeyFile *config)
 {
-	guint i;
+	guint i, j;
 	gboolean have_session_files;
 	gchar entry[16];
 	gchar **tmp_array;
+	SessionFileSet *set;
 	GError *error = NULL;
 	GPtrArray *files;
+	GtkNotebook *notebook;
+	gboolean have_notebook_key;
+	gchar buf[16];
 
-	session_notebook_page = utils_get_setting_integer(config, "files", "current_page", -1);
+	/* Look for notebook1 to check for new config file format with per-notebook docs */
+	have_notebook_key = g_key_file_has_group(config, "notebook1");
 
-	files = g_ptr_array_new();
-	have_session_files = TRUE;
-	i = 0;
-	while (have_session_files)
+	files = g_ptr_array_new_full(main_widgets.notebooks->len, session_files_destroy);
+	j = 0;
+	foreach_notebook(notebook)
 	{
-		g_snprintf(entry, sizeof(entry), "FILE_NAME_%d", i);
-		tmp_array = g_key_file_get_string_list(config, "files", entry, NULL, &error);
-		if (! tmp_array || error)
+		const gchar *key;
+		set = g_malloc(sizeof(SessionFileSet));
+		g_ptr_array_add(files, set);
+		/* 32 is an arbitrary guess */
+		set->files = g_ptr_array_new_full(32, (GDestroyNotify) g_strfreev);
+		set->notebook = notebook;
+		g_snprintf(buf, sizeof(buf), "notebook%d", ++j);
+		/* read [files] for compatibility with old configs */
+		key = have_notebook_key ? buf : "files";
+		set->notebook_page = utils_get_setting_integer(config, key, "current_page", -1);
+
+		i = 0;
+		have_session_files = TRUE;
+		while (have_session_files)
 		{
-			g_error_free(error);
-			error = NULL;
-			have_session_files = FALSE;
+			g_snprintf(entry, sizeof(entry), "FILE_NAME_%d", i);
+			if (g_key_file_has_key(config, key, entry, &error) && ! error)
+			{
+				tmp_array = g_key_file_get_string_list(config, key, entry, NULL, &error);
+				if (! error)
+					g_ptr_array_add(set->files, tmp_array);
+			}
+			else
+				have_session_files = FALSE;
+			g_clear_error(&error);
+			i++;
 		}
-		g_ptr_array_add(files, tmp_array);
-		i++;
+		if (!have_notebook_key)
+			break; /* there is only one files group */
 	}
 
 #ifdef HAVE_VTE
@@ -1308,7 +1373,7 @@ gboolean configuration_load(void)
 }
 
 
-static gboolean open_session_file(gchar **tmp, guint len)
+static gboolean open_session_file(GtkNotebook *notebook, gchar **tmp, guint len)
 {
 	guint pos;
 	const gchar *ft_name;
@@ -1346,7 +1411,7 @@ static gboolean open_session_file(gchar **tmp, guint len)
 	{
 		GeanyFiletype *ft = filetypes_lookup_by_name(ft_name);
 		GeanyDocument *doc = document_open_file_full(
-			NULL, locale_filename, pos, ro, ft, encoding, notebook_get_primary());
+			NULL, locale_filename, pos, ro, ft, encoding, notebook);
 
 		if (doc)
 		{
@@ -1378,32 +1443,45 @@ static gboolean open_session_file(gchar **tmp, guint len)
 void configuration_open_files(GPtrArray *session_files)
 {
 	gboolean failure = FALSE;
+	SessionFileSet *set;
 
 	/* necessary to set it to TRUE for project session support */
 	main_status.opening_session_files++;
 
-	for (guint i = 0; i < session_files->len; i++)
+	for (guint j = 0; j < session_files->len; j++)
 	{
-		gchar **tmp = g_ptr_array_index(session_files, i);
-		guint len;
+		set = (SessionFileSet *) g_ptr_array_index(session_files, j);
 
-		if (tmp != NULL && (len = g_strv_length(tmp)) >= 8)
+		if (set->files->len == 0)
+			continue;
+
+		for (guint i = 0; i <= set->files->len - 1; i++)
 		{
-			if (! open_session_file(tmp, len))
-				failure = TRUE;
-		}
-		g_strfreev(tmp);
-	}
+			GtkNotebook *notebook = set->notebook;
+			gchar **tmp = g_ptr_array_index(set->files, i);
+			guint len;
 
-	g_ptr_array_free(session_files, TRUE);
+			if (tmp != NULL && (len = g_strv_length(tmp)) >= 8)
+			{
+				if (! open_session_file(notebook, tmp, len))
+					failure = TRUE;
+			}
+		}
+
+		if (!failure)
+		{
+			GtkWidget *w = gtk_notebook_get_nth_page(set->notebook, set->notebook_page);
+			document_show_tab(document_get_from_notebook_child(w));
+		}
+
+		set->notebook_page = -1;
+	}
 
 	if (failure)
 		ui_set_statusbar(TRUE, _("Failed to load one or more session files."));
-	else
-		document_show_tab(session_notebook_page >= 0 ? document_get_from_page(session_notebook_page) : document_get_current());
 
-	session_notebook_page = -1;
 	main_status.opening_session_files--;
+	g_ptr_array_free(session_files, TRUE);
 }
 
 

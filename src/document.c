@@ -3463,27 +3463,39 @@ GeanyDocument *document_clone(GeanyDocument *old_doc)
 }
 
 
-/* @return TRUE if all files were saved or had their changes discarded. */
-gboolean document_account_for_unsaved(void)
+GPtrArray *document_array_sorted_copy(GCompareFunc fn)
 {
-	guint i;
+	gint i;
+	GPtrArray *array_copy;
 
-	GPtrArray *array_copy = g_ptr_array_sized_new(documents_array->len);
-
+	array_copy = g_ptr_array_sized_new(documents_array->len);
+	/* Copy only valid ones, the sort func probably can't deal with invalid docs */
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
-		if (DOC_VALID(doc) && doc->changed)
+		if (DOC_VALID(doc))
 			g_ptr_array_add(array_copy, doc);
 	}
 
-	g_ptr_array_sort(array_copy, document_compare_by_tab_order);
+	g_ptr_array_sort(array_copy, fn);
 
+	return array_copy;
+}
+
+/* @note If successful, this should always be followed up with a call to
+ * document_close_all().
+ * @return TRUE if all files were saved or had their changes discarded. */
+gboolean document_account_for_unsaved(void)
+{
+	guint i;
+	GPtrArray *array_copy;
+	GeanyDocument *doc;
+
+	array_copy = document_array_sorted_copy(document_compare_by_tab_order);
 	/* iterate over documents in tabs order */
-	for(i = 0; i < array_copy->len; i++)
+	foreach_ptr_array(doc, i, array_copy)
 	{
-		GeanyDocument *doc = g_ptr_array_index(array_copy, i);
-		if (! dialogs_show_unsaved_file(doc))
+		if (doc->changed && ! dialogs_show_unsaved_file(doc))
 		{
 			g_ptr_array_free(array_copy, TRUE);
 			return FALSE;
