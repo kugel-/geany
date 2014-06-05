@@ -91,6 +91,14 @@ void notebook_remove_page_by_sci(ScintillaObject *sci);
 guint notebook_get_n_documents(void);
 
 /*
+ * Overrides the paned position upon the next re-layout of the editor notebooks
+ * (which happens when new tabs are added to an empty notebook or the last tab of a
+ * notebook is closed). This is intended to restore the paned position from stored
+ * configuration.
+ */
+void notebook_restore_paned_position(gint position);
+
+/*
  * Moves the tab containing doc to the specified notebook */
 gint notebook_move_doc(GtkNotebook *notebook, GeanyDocument *doc);
 
