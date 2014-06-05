@@ -202,6 +202,10 @@ GtkWidget* geany_page_new_with_label(const gchar *label_text)
 	gtk_container_add(GTK_CONTAINER(ebox), label);
 	g_signal_connect_object(ebox, "notify::name", G_CALLBACK(update_tab_widget_name), label, 0);
 
+	/* switch tab by scrolling - GTK2 behaviour for GTK3 */
+	gtk_widget_add_events(GTK_WIDGET(ebox), GDK_SCROLL_MASK);
+	gtk_widget_add_events(GTK_WIDGET(label), GDK_SCROLL_MASK);
+
 	self->tab_widget = g_object_ref(ebox);
 
 	return (GtkWidget *) self;

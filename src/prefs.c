@@ -1299,8 +1299,6 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 				editor_apply_update_prefs(documents[i]->editor);
 				if (! editor_prefs.folding)
 					editor_unfold_all(documents[i]->editor);
-
-				document_update_tab_label(documents[i]);
 			}
 		}
 		ui_document_show_hide(NULL);

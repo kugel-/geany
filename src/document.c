@@ -38,6 +38,7 @@
 #include "filetypesprivate.h"
 #include "geany.h" /* FIXME: why is this needed for DOC_FILENAME()? should come from documentprivate.h/document.h */
 #include "geanyobject.h"
+#include "geanypage.h"
 #include "geanywraplabel.h"
 #include "highlighting.h"
 #include "main.h"
@@ -111,7 +112,8 @@ static void document_undo_clear_stack(GSList **stack);
 static void document_undo_clear(GeanyDocument *doc);
 static void document_undo_add_internal(GeanyDocument *doc, guint type, gpointer data);
 static void document_redo_add(GeanyDocument *doc, guint type, gpointer data);
-static gboolean remove_page(guint page_num);
+static gboolean close_page(GeanyPage *page, GeanyDocument *doc);
+static gboolean destroy_tab_page(GeanyPage *page, GeanyDocument *doc);
 static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	void (*response_cb)(GtkWidget *info_bar, gint response_id, GeanyDocument *doc),
 	const gchar *btn_1, gint response_1,
@@ -245,7 +247,7 @@ GeanyDocument *document_find_by_id(guint id)
 
 
 /* gets the widget the main_widgets.notebook consider is its child for this document */
-static GtkWidget *document_get_notebook_child(GeanyDocument *doc)
+static GeanyPage *document_get_notebook_child(GeanyDocument *doc)
 {
 	GtkWidget *parent;
 	GtkWidget *child;
@@ -261,7 +263,7 @@ static GtkWidget *document_get_notebook_child(GeanyDocument *doc)
 		parent = gtk_widget_get_parent(child);
 	}
 
-	return child;
+	return GEANY_PAGE(child);
 }
 
 
@@ -272,9 +274,9 @@ static GtkWidget *document_get_notebook_child(GeanyDocument *doc)
 GEANY_API_SYMBOL
 gint document_get_notebook_page(GeanyDocument *doc)
 {
-	GtkWidget *child = document_get_notebook_child(doc);
+	GeanyPage *page = document_get_notebook_child(doc);
 
-	return gtk_notebook_page_num(GTK_NOTEBOOK(main_widgets.notebook), child);
+	return gtk_notebook_page_num(GTK_NOTEBOOK(main_widgets.notebook), GTK_WIDGET(page));
 }
 
 
@@ -380,27 +382,6 @@ gchar *document_get_basename_for_display(GeanyDocument *doc, gint length)
 	g_free(base_name);
 
 	return short_name;
-}
-
-
-void document_update_tab_label(GeanyDocument *doc)
-{
-	gchar *short_name;
-	GtkWidget *parent;
-
-	g_return_if_fail(doc != NULL);
-
-	short_name = document_get_basename_for_display(doc, interface_prefs.tab_label_len);
-
-	/* we need to use the event box for the tooltip, labels don't get the necessary events */
-	parent = gtk_widget_get_parent(doc->priv->tab_label);
-	parent = gtk_widget_get_parent(parent);
-
-	gtk_label_set_text(GTK_LABEL(doc->priv->tab_label), short_name);
-
-	gtk_widget_set_tooltip_text(parent, DOC_FILENAME(doc));
-
-	g_free(short_name);
 }
 
 
@@ -565,11 +546,40 @@ void document_try_focus(GeanyDocument *doc, GtkWidget *source_widget)
 }
 
 
+static void update_tab_label(GObject *obj, GParamSpec *pspec, gpointer user_data)
+{
+	GeanyPage *page = GEANY_PAGE(obj);
+	GtkWidget *ebox = user_data;
+
+	gtk_widget_set_tooltip_text(ebox, geany_page_get_label(page));
+}
+
+
+static GeanyPage *create_tab_page(GeanyDocument *doc)
+{
+	GeanyPage *page;
+	gchar     *label_text;
+	GtkWidget *tab_widget;
+
+	label_text = document_get_basename_for_display(doc, interface_prefs.tab_label_len);
+
+	page = (GeanyPage *) geany_page_new_with_label(label_text);
+
+	tab_widget = geany_page_get_tab_widget(page);
+	gtk_widget_set_tooltip_text(tab_widget, DOC_FILENAME(doc));
+	g_signal_connect_object(page, "notify::label", G_CALLBACK(update_tab_label), tab_widget, 0);
+
+	g_free(label_text);
+	return page;
+}
+
+
 /* Creates a new document and editor, adding a tab in the notebook.
  * @return The created document */
 static GeanyDocument *document_create(const gchar *utf8_filename)
 {
 	GeanyDocument *doc;
+	GeanyPage *page;
 	gint new_idx;
 	gint cur_pages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
 
@@ -580,7 +590,7 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
 		if (doc != NULL && doc->file_name == NULL && ! doc->changed)
 			/* prevent immediately opening another new doc with
 			 * new_document_after_close pref */
-			remove_page(0);
+			destroy_tab_page(document_get_notebook_child(doc), doc);
 	}
 
 	new_idx = document_get_new_idx();
@@ -610,7 +620,12 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
 
 	sidebar_openfiles_add(doc);	/* sets doc->iter */
 
-	notebook_new_tab(doc);
+	page = create_tab_page(doc);
+	gtk_box_pack_start((GtkBox *) page, (GtkWidget *) doc->editor->sci, TRUE, TRUE, 0);
+	g_signal_connect((gpointer) page, "try-close", G_CALLBACK(close_page), doc);
+	notebook_new_tab(page);
+	g_object_set_data(G_OBJECT(page), "geany_document", doc);
+	document_grab_focus(doc);
 
 	sidebar_select_openfiles_item(doc);
 
@@ -618,6 +633,20 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
 
 	doc->is_valid = TRUE;	/* do this last to prevent UI updating with NULL items. */
 	return doc;
+}
+
+
+static gboolean close_page(GeanyPage *page, GeanyDocument *doc)
+{
+	gboolean done;
+	g_return_val_if_fail(doc, FALSE);
+
+	done = destroy_tab_page(page, doc);
+
+	if (done && ui_prefs.new_document_after_close)
+		document_new_file_if_non_open();
+
+	return done;
 }
 
 
@@ -635,20 +664,16 @@ gboolean document_close(GeanyDocument *doc)
 {
 	g_return_val_if_fail(doc, FALSE);
 
-	return document_remove_page(document_get_notebook_page(doc));
+	return close_page(document_get_notebook_child(doc), doc);
 }
-
 
 /* Call document_remove_page() instead, this is only needed for document_create()
  * to prevent re-opening a new document when the last document is closed (if enabled). */
-static gboolean remove_page(guint page_num)
+static gboolean destroy_tab_page(GeanyPage *page, GeanyDocument *doc)
 {
-	GeanyDocument *doc = document_get_from_page(page_num);
-
 	g_return_val_if_fail(doc != NULL, FALSE);
 
-	/* if we're closing all, document_account_for_unsaved() has been called already, no need to ask again. */
-	if (! main_status.closing_all && doc->changed && ! dialogs_show_unsaved_file(doc))
+	if (doc->changed && ! dialogs_show_unsaved_file(doc))
 		return FALSE;
 
 	/* tell any plugins that the document is about to be closed */
@@ -668,11 +693,11 @@ static gboolean remove_page(guint page_num)
 		/* we need to destroy the ScintillaWidget so our handlers on it are
 		 * disconnected before we free any data they may use (like the editor).
 		 * when not quitting, this is handled by removing the notebook page. */
-		gtk_notebook_remove_page(GTK_NOTEBOOK(main_widgets.notebook), page_num);
+		notebook_destroy_tab(page);
 	}
 	else
 	{
-		notebook_remove_page(page_num);
+		notebook_remove_tab(page);
 		sidebar_remove_document(doc);
 		navqueue_remove_file(doc->file_name);
 		msgwin_status_add(_("File %s closed."), DOC_FILENAME(doc));
@@ -712,8 +737,10 @@ static gboolean remove_page(guint page_num)
 		ui_document_buttons_update();
 		build_menu_update(NULL);
 	}
+
 	return TRUE;
 }
+
 
 
 /**
@@ -727,12 +754,9 @@ static gboolean remove_page(guint page_num)
 GEANY_API_SYMBOL
 gboolean document_remove_page(guint page_num)
 {
-	gboolean done = remove_page(page_num);
+	GeanyDocument *doc = document_get_from_page(page_num);
 
-	if (done && ui_prefs.new_document_after_close)
-		document_new_file_if_non_open();
-
-	return done;
+	return document_close(doc);
 }
 
 
@@ -809,7 +833,7 @@ GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, 
 	document_set_filetype(doc, ft); /* also re-parses tags */
 
 	/* now the document is fully ready, display it (see notebook_new_tab()) */
-	gtk_widget_show(document_get_notebook_child(doc));
+	gtk_widget_show(GTK_WIDGET(document_get_notebook_child(doc)));
 
 	ui_set_window_title(doc);
 	build_menu_update(doc);
@@ -1220,8 +1244,7 @@ void document_show_tab(GeanyDocument *doc)
 	if (!doc)
 		return;
 
-	gtk_notebook_set_current_page(GTK_NOTEBOOK(main_widgets.notebook),
-		document_get_notebook_page(doc));
+	notebook_show_tab(document_get_notebook_child(doc));
 
 	/* finally, let the editor widget grab the focus so you can start coding
 	 * right away */
@@ -1449,7 +1472,7 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 		}
 
 		/* now the document is fully ready, display it (see notebook_new_tab()) */
-		gtk_widget_show(document_get_notebook_child(doc));
+		gtk_widget_show(GTK_WIDGET(document_get_notebook_child(doc)));
 	}
 
 	g_free(display_filename);
@@ -2160,6 +2183,8 @@ gboolean document_save_file(GeanyDocument *doc, gboolean force)
 	/* ignore the following things if we are quitting */
 	if (! main_status.quitting)
 	{
+		GeanyPage *page = document_get_notebook_child(doc);
+		gchar *basename;
 		sci_set_savepoint(doc->editor->sci);
 
 		if (file_prefs.disk_check_timeout > 0)
@@ -2168,13 +2193,14 @@ gboolean document_save_file(GeanyDocument *doc, gboolean force)
 		/* update filetype-related things */
 		document_set_filetype(doc, doc->file_type);
 
-		document_update_tab_label(doc);
-
 		msgwin_status_add(_("File %s saved."), doc->file_name);
 		ui_update_statusbar(doc);
 #ifdef HAVE_VTE
 		vte_cwd((doc->real_path != NULL) ? doc->real_path : doc->file_name, FALSE);
 #endif
+		basename = document_get_basename_for_display(doc, -1);
+		g_object_set(page, "label", basename, "icon", doc->file_type->icon, NULL);
+		g_free(basename);
 	}
 	g_free(locale_filename);
 
@@ -2799,6 +2825,7 @@ void document_set_filetype(GeanyDocument *doc, GeanyFiletype *type)
 	if (ft_changed)
 	{
 		const GeanyIndentPrefs *iprefs = editor_get_indent_prefs(NULL);
+		GeanyPage *page = document_get_notebook_child(doc);
 
 		/* assume that if previous filetype was none and the settings are the default ones, this
 		 * is the first time the filetype is carefully set, so we should apply indent settings */
@@ -2811,6 +2838,7 @@ void document_set_filetype(GeanyDocument *doc, GeanyFiletype *type)
 		}
 
 		sidebar_openfiles_update(doc); /* to update the icon */
+		g_object_set(page, "icon", type->icon, NULL);
 		g_signal_emit_by_name(geany_object, "document-filetype-set", doc, old_ft);
 	}
 }
@@ -3412,7 +3440,8 @@ static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgty
 	gchar *text, *markup;
 	GtkWidget *hbox, *icon, *label, *content_area;
 	GtkWidget *info_widget, *parent;
-	parent = document_get_notebook_child(doc);
+
+	parent = GTK_WIDGET(document_get_notebook_child(doc));
 
 	va_start(args, format);
 	text = g_strdup_vprintf(format, args);
