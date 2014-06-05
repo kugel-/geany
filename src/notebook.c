@@ -40,6 +40,11 @@
 
 #include "gtkcompat.h"
 #include "sciwrappers.h"
+#include "build.h"
+
+#ifdef HAVE_VTE
+# include "vte.h"
+#endif
 
 #include <gdk/gdkkeysyms.h>
 
@@ -229,7 +234,15 @@ static void update_mru_tabs_head(GeanyPage *page)
 		g_queue_pop_tail(mru_tabs);
 }
 
+static gboolean delayed_check_disk_status(gpointer data)
+{
+	document_check_disk_status(data, FALSE);
+	return FALSE;
+}
 
+/* Changes window-title after switching tabs and lots of other things.
+ * This connects to focus-on-event to catch cases where tabs are "switched" by
+ * focusing a different document notebook. This is too called on page switching. */
 static gboolean
 on_page_focused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
 {
@@ -248,6 +261,27 @@ on_page_focused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
 		update_mru_tabs_head(page_by_sci(sci));
 
 	last_focused = doc;
+	sidebar_select_openfiles_item(doc);
+	ui_save_buttons_toggle(doc->changed);
+	ui_set_window_title(doc);
+	ui_update_statusbar(doc, -1);
+	ui_update_popup_reundo_items(doc);
+	ui_document_show_hide(doc); /* update the document menu */
+	build_menu_update(doc);
+	sidebar_update_tag_list(doc, FALSE);
+	document_highlight_tags(doc);
+
+	/* We delay the check to avoid weird fast, unintended switching of notebook pages when
+	 * the 'file has changed' dialog is shown while the switch event is not yet completely
+	 * finished. So, we check after the switch has been performed to be safe. */
+	g_idle_add(delayed_check_disk_status, doc);
+
+#ifdef HAVE_VTE
+	vte_cwd((doc->real_path != NULL) ? doc->real_path : doc->file_name, FALSE);
+#endif
+
+	g_signal_emit_by_name(geany_object, "document-activate", doc);
+
 
 	return FALSE;
 }
