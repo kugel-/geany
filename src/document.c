@@ -124,13 +124,13 @@ static guint doc_id_counter = 0;
 
 static void document_undo_clear(GeanyDocument *doc);
 static void document_redo_add(GeanyDocument *doc, guint type, gpointer data);
-static gboolean remove_page(guint page_num);
 static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgtype,
 	void (*response_cb)(GtkWidget *info_bar, gint response_id, GeanyDocument *doc),
 	const gchar *btn_1, GtkResponseType response_1,
 	const gchar *btn_2, GtkResponseType response_2,
 	const gchar *btn_3, GtkResponseType response_3,
 	const gchar *extra_text, const gchar *format, ...) G_GNUC_PRINTF(11, 12);
+static gboolean remove_doc(GeanyDocument *doc);
 
 
 /**
@@ -276,59 +276,20 @@ GeanyDocument *document_find_by_id(guint id)
  * @since 0.19 */
 gint document_get_notebook_page(GeanyDocument *doc)
 {
-	GtkWidget *parent;
-	GtkWidget *child;
-
+	GtkNotebook *notebook;
+	GtkWidget   *page;
 	g_return_val_if_fail(doc != NULL, -1);
 
-	child = GTK_WIDGET(doc->editor->sci);
-	parent = gtk_widget_get_parent(child);
-	/* search for the direct notebook child, mirroring document_get_from_page() */
-	while (parent && ! GTK_IS_NOTEBOOK(parent))
-	{
-		child = parent;
-		parent = gtk_widget_get_parent(child);
-	}
-
-	return gtk_notebook_page_num(GTK_NOTEBOOK(main_widgets.notebook), child);
+	notebook = notebook_get_with_page_by_sci(doc->editor->sci, &page);
+	return gtk_notebook_page_num(notebook, page);
 }
-
-
-/*
- * Recursively searches a containers children until it finds a
- * Scintilla widget, or NULL if one was not found.
- */
-static ScintillaObject *locate_sci_in_container(GtkWidget *container)
-{
-	ScintillaObject *sci = NULL;
-	GList *children, *iter;
-
-	g_return_val_if_fail(GTK_IS_CONTAINER(container), NULL);
-
-	children = gtk_container_get_children(GTK_CONTAINER(container));
-	for (iter = children; iter != NULL; iter = g_list_next(iter))
-	{
-		if (IS_SCINTILLA(iter->data))
-		{
-			sci = SCINTILLA(iter->data);
-			break;
-		}
-		else if (GTK_IS_CONTAINER(iter->data))
-		{
-			sci = locate_sci_in_container(iter->data);
-			if (IS_SCINTILLA(sci))
-				break;
-			sci = NULL;
-		}
-	}
-	g_list_free(children);
-
-	return sci;
-}
-
 
 /**
+ *  @deprecated
  *  Finds the document for the given notebook page @a page_num.
+ *
+ *  It uses the currently focussed notebook. Use notebook_get_document_from_page()
+ *  to specify an explicit notebook.
  *
  *  @param page_num The notebook page number to search.
  *
@@ -342,15 +303,8 @@ GeanyDocument *document_get_from_page(guint page_num)
 	if (page_num >= documents_array->len)
 		return NULL;
 
-	parent = gtk_notebook_get_nth_page(GTK_NOTEBOOK(main_widgets.notebook), page_num);
-	g_return_val_if_fail(GTK_IS_BOX(parent), NULL);
-
-	sci = locate_sci_in_container(parent);
-	g_return_val_if_fail(IS_SCINTILLA(sci), NULL);
-
-	return document_find_by_sci(sci);
+	return notebook_get_document_from_page(notebook_get_current_notebook(), page_num);
 }
-
 
 /**
  *  Finds the current document.
@@ -359,12 +313,7 @@ GeanyDocument *document_get_from_page(guint page_num)
  **/
 GeanyDocument *document_get_current(void)
 {
-	gint cur_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(main_widgets.notebook));
-
-	if (cur_page == -1)
-		return NULL;
-	else
-		return document_get_from_page((guint) cur_page);
+	return notebook_get_current_document();
 }
 
 
@@ -602,11 +551,11 @@ static gboolean on_idle_focus(gpointer doc)
 
 /* Creates a new document and editor, adding a tab in the notebook.
  * @return The created document */
-static GeanyDocument *document_create(const gchar *utf8_filename)
+static GeanyDocument *document_create(const gchar *utf8_filename, GtkNotebook *notebook)
 {
 	GeanyDocument *doc;
 	gint new_idx;
-	gint cur_pages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
+	gint cur_pages = gtk_notebook_get_n_pages(notebook);
 
 	if (cur_pages == 1)
 	{
@@ -615,7 +564,7 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
 		if (doc != NULL && doc->file_name == NULL && ! doc->changed)
 			/* prevent immediately opening another new doc with
 			 * new_document_after_close pref */
-			remove_page(0);
+			remove_doc(doc);
 	}
 
 	new_idx = document_get_new_idx();
@@ -641,7 +590,7 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
 
 	sidebar_openfiles_add(doc);	/* sets doc->iter */
 
-	notebook_new_tab(doc);
+	notebook_new_tab(doc, notebook);
 
 	/* select document in sidebar */
 	{
@@ -669,23 +618,29 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
  **/
 gboolean document_close(GeanyDocument *doc)
 {
+	gboolean done;
 	g_return_val_if_fail(doc, FALSE);
 
-	return document_remove_page(document_get_notebook_page(doc));
+	done = remove_doc(doc);
+
+	if (done && ui_prefs.new_document_after_close)
+		document_new_file_if_non_open();
+
+	return done;
 }
 
 
 /* Call document_remove_page() instead, this is only needed for document_create()
  * to prevent re-opening a new document when the last document is closed (if enabled). */
-static gboolean remove_page(guint page_num)
+static gboolean remove_doc(GeanyDocument *doc)
 {
-	GeanyDocument *doc = document_get_from_page(page_num);
-
+	GtkNotebook *notebook;
 	g_return_val_if_fail(doc != NULL, FALSE);
 
 	if (doc->changed && ! dialogs_show_unsaved_file(doc))
 		return FALSE;
 
+	notebook = notebook_get_from_sci(doc->editor->sci);
 	/* tell any plugins that the document is about to be closed */
 	g_signal_emit_by_name(geany_object, "document-close", doc);
 
@@ -696,16 +651,12 @@ static gboolean remove_page(guint page_num)
 	doc->is_valid = FALSE;
 	doc->id = 0;
 
-	if (main_status.quitting)
+	/* we need to destroy the ScintillaWidget so our handlers on it are
+	 * disconnected before we free any data they may use (like the editor).
+	 * when not quitting, this is handled by removing the notebook page. */
+	notebook_remove_page_by_sci(doc->editor->sci);
+	if (!main_status.quitting)
 	{
-		/* we need to destroy the ScintillaWidget so our handlers on it are
-		 * disconnected before we free any data they may use (like the editor).
-		 * when not quitting, this is handled by removing the notebook page. */
-		gtk_notebook_remove_page(GTK_NOTEBOOK(main_widgets.notebook), page_num);
-	}
-	else
-	{
-		notebook_remove_page(page_num);
 		sidebar_remove_document(doc);
 		navqueue_remove_file(doc->file_name);
 		msgwin_status_add(_("File %s closed."), DOC_FILENAME(doc));
@@ -731,7 +682,7 @@ static gboolean remove_page(guint page_num)
 	/* reset document settings to defaults for re-use */
 	memset(doc, 0, sizeof(GeanyDocument));
 
-	if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook)) == 0)
+	if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(notebook)) == 0)
 	{
 		sidebar_update_tag_list(NULL, FALSE);
 		ui_set_window_title(NULL);
@@ -754,7 +705,13 @@ static gboolean remove_page(guint page_num)
  **/
 gboolean document_remove_page(guint page_num)
 {
-	gboolean done = remove_page(page_num);
+	gboolean done;
+	GeanyDocument *doc = document_get_from_page(page_num);
+
+	if (!doc)
+		return FALSE;
+
+	done = remove_doc(doc);
 
 	if (done && ui_prefs.new_document_after_close)
 		document_new_file_if_non_open();
@@ -762,6 +719,18 @@ gboolean document_remove_page(guint page_num)
 	return done;
 }
 
+gboolean document_remove_by_sci(ScintillaObject *sci)
+{
+	GeanyDocument *doc = document_find_by_sci(sci);
+	gboolean done;
+
+	done = remove_doc(doc);
+
+	if (done && ui_prefs.new_document_after_close)
+		document_new_file_if_non_open();
+
+	return done;
+}
 
 /* used to keep a record of the unchanged document state encoding */
 static void store_saved_encoding(GeanyDocument *doc)
@@ -775,7 +744,7 @@ static void store_saved_encoding(GeanyDocument *doc)
 /* Opens a new empty document only if there are no other documents open */
 GeanyDocument *document_new_file_if_non_open(void)
 {
-	if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook)) == 0)
+	if (notebook_get_n_documents() == 0)
 		return document_new_file(NULL, NULL, NULL);
 
 	return NULL;
@@ -804,7 +773,7 @@ GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, 
 		utils_tidy_path(tmp);
 		utf8_filename = tmp;
 	}
-	doc = document_create(utf8_filename);
+	doc = document_create(utf8_filename, notebook_get_current_notebook());
 
 	g_assert(doc != NULL);
 
@@ -876,7 +845,7 @@ GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, 
 GeanyDocument *document_open_file(const gchar *locale_filename, gboolean readonly,
 		GeanyFiletype *ft, const gchar *forced_enc)
 {
-	return document_open_file_full(NULL, locale_filename, 0, readonly, ft, forced_enc);
+	return document_open_file_full(NULL, locale_filename, 0, readonly, ft, forced_enc, notebook_get_primary());
 }
 
 
@@ -1189,8 +1158,10 @@ void document_apply_indent_settings(GeanyDocument *doc)
 
 void document_show_tab(GeanyDocument *doc)
 {
-	gtk_notebook_set_current_page(GTK_NOTEBOOK(main_widgets.notebook),
-		document_get_notebook_page(doc));
+	GtkWidget   *page;
+	GtkNotebook *notebook = notebook_get_with_page_by_sci(doc->editor->sci, &page);
+	gtk_notebook_set_current_page(notebook, gtk_notebook_page_num(notebook, page));
+	gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
 }
 
 
@@ -1200,7 +1171,7 @@ void document_show_tab(GeanyDocument *doc)
  * forced_enc can be NULL to detect the file encoding.
  * Returns: doc of the opened file or NULL if an error occurred. */
 GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename, gint pos,
-		gboolean readonly, GeanyFiletype *ft, const gchar *forced_enc)
+		gboolean readonly, GeanyFiletype *ft, const gchar *forced_enc, GtkNotebook *notebook)
 {
 	gint editor_mode;
 	gboolean reload = (doc == NULL) ? FALSE : TRUE;
@@ -1240,6 +1211,7 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 		{
 			ui_add_recent_document(doc);	/* either add or reorder recent item */
 			/* show the doc before reload dialog */
+			notebook_move_doc(notebook, doc);
 			document_show_tab(doc);
 			document_check_disk_status(doc, TRUE);	/* force a file changed check */
 		}
@@ -1258,7 +1230,7 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 
 		if (! reload)
 		{
-			doc = document_create(utf8_filename);
+			doc = document_create(utf8_filename, notebook);
 			g_return_val_if_fail(doc != NULL, NULL); /* really should not happen */
 
 			/* file exists on disk, set real_path */
@@ -1339,9 +1311,8 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 			/* For translators: this is the status window message for opening a file. %d is the number
 			 * of the newly opened file, %s indicates whether the file is opened read-only
 			 * (it is replaced with the string ", read-only"). */
-			msgwin_status_add(_("File %s opened(%d%s)."),
-				display_filename, gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook)),
-				(readonly) ? _(", read-only") : "");
+			msgwin_status_add(_("File %s opened(%d%s)."), display_filename,
+				documents_array->len, (readonly) ? _(", read-only") : "");
 		}
 	}
 
@@ -1363,7 +1334,7 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 
 /* Takes a new line separated list of filename URIs and opens each file.
  * length is the length of the string */
-void document_open_file_list(const gchar *data, gsize length)
+void document_open_file_list(const gchar *data, gsize length, GtkNotebook *notebook)
 {
 	guint i;
 	gchar *filename;
@@ -1379,7 +1350,7 @@ void document_open_file_list(const gchar *data, gsize length)
 		filename = utils_get_path_from_uri(list[i]);
 		if (filename == NULL)
 			continue;
-		document_open_file(filename, FALSE, NULL, NULL);
+		document_open_file_full(NULL, filename, 0, FALSE, NULL, NULL, notebook);
 		g_free(filename);
 	}
 
@@ -1430,7 +1401,7 @@ gboolean document_reload_force(GeanyDocument *doc, const gchar *forced_enc)
 
 	/* try to set the cursor to the position before reloading */
 	pos = sci_get_current_position(doc->editor->sci);
-	new_doc = document_open_file_full(doc, NULL, pos, doc->readonly, doc->file_type, forced_enc);
+	new_doc = document_open_file_full(doc, NULL, pos, doc->readonly, doc->file_type, forced_enc, NULL);
 
 	return (new_doc != NULL);
 }
@@ -3101,16 +3072,25 @@ gboolean document_account_for_unsaved(void)
 {
 	guint i, p, page_count;
 
-	page_count = gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
-	/* iterate over documents in tabs order */
-	for (p = 0; p < page_count; p++)
-	{
-		GeanyDocument *doc = document_get_from_page(p);
+	GPtrArray *array_copy = g_ptr_array_sized_new(documents_array->len);
 
+	foreach_document(i)
+	{
+		GeanyDocument *doc = documents[i];
 		if (DOC_VALID(doc) && doc->changed)
+			g_ptr_array_add(array_copy, doc);
+	}
+
+	g_ptr_array_sort(array_copy, document_compare_by_tab_order);
+
+	/* iterate over documents in tabs order */
+	for(i = 0; i < array_copy->len; i++)
+	{
+		GeanyDocument *doc = g_ptr_array_index(array_copy, i);
+		if (! dialogs_show_unsaved_file(doc))
 		{
-			if (! dialogs_show_unsaved_file(doc))
-				return FALSE;
+			g_ptr_array_free(array_copy, TRUE);
+			return FALSE;
 		}
 	}
 	/* all documents should now be accounted for, so ignore any changes */
@@ -3118,6 +3098,8 @@ gboolean document_account_for_unsaved(void)
 	{
 		documents[i]->changed = FALSE;
 	}
+
+	g_ptr_array_free(array_copy, TRUE);
 	return TRUE;
 }
 
@@ -3518,16 +3500,19 @@ gint document_compare_by_tab_order(gconstpointer a, gconstpointer b)
 	GeanyDocument *doc_b = *((GeanyDocument**) b);
 	gint notebook_position_doc_a;
 	gint notebook_position_doc_b;
+	gint ret;
+	GtkNotebook *n1, *n2;
+	GtkWidget   *p1, *p2;
 
-	notebook_position_doc_a = document_get_notebook_page(doc_a);
-	notebook_position_doc_b = document_get_notebook_page(doc_b);
+	n1 = notebook_get_with_page_by_sci(doc_a->editor->sci, &p1);
+	n2 = notebook_get_with_page_by_sci(doc_b->editor->sci, &p2);
 
-	if (notebook_position_doc_a < notebook_position_doc_b)
-		return -1;
-	if (notebook_position_doc_a > notebook_position_doc_b)
-		return 1;
-	/* equality */
-	return 0;
+	ret = notebook_order_compare(n1, n2);
+
+	if (ret == 0)
+		return gtk_notebook_page_num(n1, p1) - gtk_notebook_page_num(n2, p2);
+	else
+		return ret;
 }
 
 

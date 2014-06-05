@@ -25,6 +25,8 @@
 #include "document.h"
 
 #include <glib.h>
+#include "Scintilla.h"
+#include "ScintillaWidget.h"
 
 G_BEGIN_DECLS
 
@@ -34,10 +36,10 @@ GPtrArray* notebook_init(void);
 void notebook_free(void);
 
 /* Returns page number of notebook page, or -1 on error */
-gint notebook_new_tab(GeanyDocument *doc);
+gint notebook_new_tab(GeanyDocument *this, GtkNotebook *notebook);
 
 /* Always use this instead of gtk_notebook_remove_page(). */
-void notebook_remove_page(gint page_num);
+void notebook_remove_page(GtkNotebook *notebook, gint page_num);
 
 /* Switch notebook to the last used tab. Can be called repeatedly to get to the
  * previous tabs. */
@@ -47,7 +49,58 @@ void notebook_switch_tablastused(void);
  * document yet). */
 gboolean notebook_switch_in_progress(void);
 
+/*
+ * Returns the active notebook across all notebooks.
+ * This is the notebook that contains the current document */
+GtkNotebook *notebook_get_current_notebook(void);
+
+/*
+ * Returns the active document across all notebooks */
+GeanyDocument *notebook_get_current_document(void);
+
+/*
+ * Get the order of two notebooks. Can be used as compare func for sorting functions.
+ *
+ * Returns 0 if both pointer are the same, -1 if notebook1 sorts before notebook2 and 1 if notebook2
+ * sorts before notebook. */
+gint notebook_order_compare(GtkNotebook *notebook1, GtkNotebook *notebook2);
+
+/*
+ * Returns the active notebook across all notebooks.
+ * This is the notebook that contains the current document */
+GeanyDocument *notebook_get_document_from_page(GtkNotebook *notebook, guint page_num);
+
+/*
+ * Returns the parent notebook and the containing page of a given sci pointer.
+ *
+ * Usually (*page == sci) except if a plugin added another layer of widgets between the notebook
+ * and the sci. Thus always use the returned page pointer when calling gtk_notebook_* that take
+ * the page widget as parameter.
+ */
+GtkNotebook *notebook_get_with_page_by_sci(ScintillaObject *sci, GtkWidget **page);
+
+/*
+ * Removes the notebook page that contains the sci
+ *
+ * Just a wrappre for gtk_notebook_remove_page() so document teardown must be done
+ * by the caller */
+void notebook_remove_page_by_sci(ScintillaObject *sci);
+
+/*
+ * Returns the number of documents in all notebooks */
+guint notebook_get_n_documents(void);
+
+/*
+ * Moves the tab containing doc to the specified notebook */
+gint notebook_move_doc(GtkNotebook *notebook, GeanyDocument *doc);
+
+#define foreach_notebook(notebook)                                                 \
+	for (gint __idx = 0; __idx < main_widgets.notebooks->len; ++__idx)             \
+		if (((notebook) = g_ptr_array_index(main_widgets.notebooks, (__idx))) || 1)
+
 #define notebook_get_primary() (g_ptr_array_index(main_widgets.notebooks, 0))
+
+GtkNotebook *notebook_get_from_sci(ScintillaObject *sci);
 
 G_END_DECLS
 

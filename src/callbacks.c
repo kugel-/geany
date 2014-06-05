@@ -45,6 +45,7 @@
 #include "main.h"
 #include "msgwindow.h"
 #include "navqueue.h"
+#include "notebook.h"
 #include "plugins.h"
 #include "pluginutils.h"
 #include "prefs.h"
@@ -204,19 +205,23 @@ G_MODULE_EXPORT void on_save_as1_activate(GtkMenuItem *menuitem, gpointer user_d
 
 G_MODULE_EXPORT void on_save_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
-	guint i, max = (guint) gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
 	GeanyDocument *doc, *cur_doc = document_get_current();
 	guint count = 0;
+	GtkNotebook *notebook;
 
-	/* iterate over documents in tabs order */
-	for (i = 0; i < max; i++)
+	foreach_notebook(notebook)
 	{
-		doc = document_get_from_page(i);
-		if (! doc->changed)
-			continue;
+		guint i, max = (guint) gtk_notebook_get_n_pages(notebook);
+		/* iterate over documents in tabs order */
+		for (i = 0; i < max; i++)
+		{
+			doc = document_get_from_page(i);
+			if (! doc->changed)
+				continue;
 
-		if (document_save_file(doc, FALSE))
-			count++;
+			if (document_save_file(doc, FALSE))
+				count++;
+		}
 	}
 	if (!count)
 		return;
@@ -543,7 +548,7 @@ G_MODULE_EXPORT void on_notebook1_switch_page_after(GtkNotebook *notebook, gpoin
 	if (page_num == (guint) -1 && page != NULL)
 		doc = document_find_by_sci(SCINTILLA(page));
 	else
-		doc = document_get_from_page(page_num);
+		doc = notebook_get_document_from_page(notebook, page_num);
 
 	if (doc != NULL)
 	{
@@ -1575,6 +1580,7 @@ G_MODULE_EXPORT void on_menu_toggle_all_additional_widgets1_activate(GtkMenuItem
 		ui_lookup_widget(main_widgets.window, "menu_show_messages_window1"));
 	GtkCheckMenuItem *toolbari = GTK_CHECK_MENU_ITEM(
 		ui_lookup_widget(main_widgets.window, "menu_show_toolbar1"));
+	GtkNotebook *notebook;
 
 	/* get the initial state (necessary if Geany was closed with hide_all = TRUE) */
 	if (G_UNLIKELY(hide_all == -1))
@@ -1597,7 +1603,8 @@ G_MODULE_EXPORT void on_menu_toggle_all_additional_widgets1_activate(GtkMenuItem
 			gtk_check_menu_item_set_active(msgw, ! gtk_check_menu_item_get_active(msgw));
 
 		interface_prefs.show_notebook_tabs = FALSE;
-		gtk_notebook_set_show_tabs(GTK_NOTEBOOK(main_widgets.notebook), interface_prefs.show_notebook_tabs);
+		foreach_notebook(notebook)
+			gtk_notebook_set_show_tabs(notebook, interface_prefs.show_notebook_tabs);
 
 		ui_statusbar_showhide(FALSE);
 
@@ -1611,7 +1618,8 @@ G_MODULE_EXPORT void on_menu_toggle_all_additional_widgets1_activate(GtkMenuItem
 			gtk_check_menu_item_set_active(msgw, ! gtk_check_menu_item_get_active(msgw));
 
 		interface_prefs.show_notebook_tabs = TRUE;
-		gtk_notebook_set_show_tabs(GTK_NOTEBOOK(main_widgets.notebook), interface_prefs.show_notebook_tabs);
+		foreach_notebook(notebook)
+			gtk_notebook_set_show_tabs(notebook, interface_prefs.show_notebook_tabs);
 
 		ui_statusbar_showhide(TRUE);
 
