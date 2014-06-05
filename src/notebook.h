@@ -28,7 +28,8 @@
 
 G_BEGIN_DECLS
 
-void notebook_init(void);
+/* Returns an array of notebooks that are used by the UI */
+GPtrArray* notebook_init(void);
 
 void notebook_free(void);
 
@@ -45,6 +46,8 @@ void notebook_switch_tablastused(void);
 /* Returns TRUE when MRU tab switch is in progress (i.e. not at the final 
  * document yet). */
 gboolean notebook_switch_in_progress(void);
+
+#define notebook_get_primary() (g_ptr_array_index(main_widgets.notebooks, 0))
 
 G_END_DECLS
 
