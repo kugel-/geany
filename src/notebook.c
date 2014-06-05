@@ -71,6 +71,10 @@ on_window_drag_data_received(GtkWidget *widget, GdkDragContext *drag_context,
 		guint event_time, gpointer user_data);
 
 
+static void
+swap_notebooks_cb(GtkButton *button, gpointer user_data);
+
+
 GtkNotebook *notebook_get_current_notebook(void)
 {
 	return document_get_notebook(document_get_current());
@@ -415,6 +419,22 @@ static gboolean is_position_on_tab_bar(GtkNotebook *notebook, GdkEventButton *ev
 }
 
 
+static gint
+swap_notebooks(GeanyPage *page)
+{
+	GtkWidget *parent, *new_parent;
+
+	parent = gtk_widget_get_parent((GtkWidget *) page);
+
+	if (parent == g_ptr_array_index(main_widgets.notebooks, 0))
+		new_parent = g_ptr_array_index(main_widgets.notebooks, 1);
+	else
+		new_parent = g_ptr_array_index(main_widgets.notebooks, 0);
+
+	return notebook_move_tab(page, GTK_NOTEBOOK(new_parent));
+}
+
+
 static void on_open_in_new_window_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GeanyDocument *doc = user_data;
@@ -503,6 +523,12 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GtkWidget *page)
 	/* disable if not on disk */
 	if (doc == NULL || !doc->real_path)
 		gtk_widget_set_sensitive(menu_item, FALSE);
+
+	menu_item = ui_image_menu_item_new(GTK_STOCK_JUMP_TO, _("Open in other _notebook"));
+	gtk_widget_show(menu_item);
+	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+	g_signal_connect(menu_item, "activate", G_CALLBACK(swap_notebooks_cb), page);
+	gtk_widget_set_sensitive(GTK_WIDGET(menu_item), (doc != NULL));
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_item);
@@ -830,6 +856,13 @@ gint notebook_move_tab(GeanyPage *page, GtkNotebook *new_notebook)
 	gtk_notebook_set_tab_reorderable(new_notebook, child, TRUE);
 
 	return page_num;
+}
+
+
+static void
+swap_notebooks_cb(GtkButton *button, gpointer user_data)
+{
+	swap_notebooks((GeanyPage *) user_data);
 }
 
 
