@@ -474,6 +474,19 @@ static void on_close_documents_right_activate(GtkMenuItem *menuitem, GeanyDocume
 }
 
 
+static void on_tab_bar_item_activate(GtkMenuItem *menuitem, GtkWidget *page_)
+{
+	GtkWidget *menu = gtk_widget_get_parent(GTK_WIDGET(menuitem));
+	GtkWidget *menu_notebook = g_object_get_data(G_OBJECT(menu), "notebook");
+	GtkWidget *page_notebook = gtk_widget_get_parent(page_);
+	GeanyPage *page = GEANY_PAGE(page_);
+
+	if (menu_notebook != page_notebook)
+		notebook_move_tab(page, GTK_NOTEBOOK(menu_notebook));
+	notebook_show_tab(page);
+}
+
+
 static void add_page_to_menu(GtkWidget *widget, gpointer menu)
 {
 	GeanyPage *page = GEANY_PAGE(widget);
@@ -487,16 +500,16 @@ static void add_page_to_menu(GtkWidget *widget, gpointer menu)
 	gtk_container_add(GTK_CONTAINER(menu), item);
 
 	g_signal_connect_object(item, "activate",
-	                        G_CALLBACK(notebook_show_tab), page, G_CONNECT_SWAPPED);
+	                        G_CALLBACK(on_tab_bar_item_activate), page, 0);
 }
 
 
-static void show_tab_bar_popup_menu(GdkEventButton *event, GtkWidget *page)
+static void show_tab_bar_popup_menu(GdkEventButton *event, GtkNotebook *nb, GtkWidget *page)
 {
 	GtkWidget *menu_item;
 	static GtkWidget *menu = NULL;
 	GeanyDocument *doc = NULL;
-	GtkNotebook *nb = GTK_NOTEBOOK(main_widgets.notebook);
+	GtkNotebook *tmp;
 
 	if (page)
 	{
@@ -509,7 +522,10 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GtkWidget *page)
 
 	/* clear the old menu items */
 	gtk_container_foreach(GTK_CONTAINER(menu), (GtkCallback) (void(*)(void)) gtk_widget_destroy, NULL);
-	gtk_container_foreach(GTK_CONTAINER(nb), (GtkCallback) add_page_to_menu, menu);
+	foreach_notebook(tmp)
+		gtk_container_foreach(GTK_CONTAINER(tmp), (GtkCallback) add_page_to_menu, menu);
+
+	g_object_set_data(G_OBJECT(menu), "notebook", nb);
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_item);
@@ -589,7 +605,7 @@ static gboolean notebook_tab_bar_click_cb(GtkWidget *widget, GdkEventButton *eve
 	 * on a tab directly */
 	else if (event->button == 3)
 	{
-		show_tab_bar_popup_menu(event, NULL);
+		show_tab_bar_popup_menu(event, notebook, NULL);
 		return TRUE;
 	}
 	return FALSE;
@@ -711,7 +727,9 @@ static gboolean notebook_tab_click(GtkWidget *widget, GdkEventButton *event, gpo
 {
 	guint state;
 	GeanyPage *page = GEANY_PAGE(data);
+	GtkNotebook *notebook;
 
+	notebook = notebook_get_with_page_by_sci(doc->editor->sci, NULL);
 	/* toggle additional widgets on double click */
 	if (event->type == GDK_2BUTTON_PRESS)
 	{
@@ -737,7 +755,7 @@ static gboolean notebook_tab_click(GtkWidget *widget, GdkEventButton *event, gpo
 	/* right-click is first handled here if it happened on a notebook tab */
 	if (event->button == 3)
 	{
-		show_tab_bar_popup_menu(event, (GtkWidget *) page);
+		show_tab_bar_popup_menu(event, notebook, (GtkWidget *) page);
 		return TRUE;
 	}
 
