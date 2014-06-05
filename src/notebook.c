@@ -148,6 +148,9 @@ on_window_drag_data_received(GtkWidget *widget, GdkDragContext *drag_context,
 static void
 notebook_tab_close_clicked_cb(GtkButton *button, gpointer user_data);
 
+static void
+swap_notebooks_cb(GtkButton *button, gpointer user_data);
+
 
 GtkNotebook *notebook_get_with_page_by_sci(ScintillaObject *sci, GtkWidget **page)
 {
@@ -571,6 +574,25 @@ GtkNotebook *notebook_get_from_sci(ScintillaObject *sci)
 }
 
 
+static gint
+swap_notebooks(GeanyDocument *doc)
+{
+	GtkNotebook *parent, *new_parent;
+	GtkWidget *label;
+	GtkWidget *page;
+	gint page_num;
+
+	parent = notebook_get_from_sci(doc->editor->sci);
+
+	if (parent == g_ptr_array_index(main_widgets.notebooks, 0))
+		new_parent = GTK_NOTEBOOK(g_ptr_array_index(main_widgets.notebooks, 1));
+	else
+		new_parent = GTK_NOTEBOOK(g_ptr_array_index(main_widgets.notebooks, 0));
+
+	return notebook_move_doc(new_parent, doc);
+}
+
+
 static void tab_bar_menu_activate_cb(GtkMenuItem *menuitem, gpointer data)
 {
 	GeanyDocument *doc = data;
@@ -636,6 +658,12 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
 	/* disable if not on disk */
 	if (doc == NULL || !doc->real_path)
 		gtk_widget_set_sensitive(menu_item, FALSE);
+
+	menu_item = ui_image_menu_item_new(GTK_STOCK_JUMP_TO, _("Open in other _notebook"));
+	gtk_widget_show(menu_item);
+	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+	g_signal_connect(menu_item, "activate", G_CALLBACK(swap_notebooks_cb), doc);
+	gtk_widget_set_sensitive(GTK_WIDGET(menu_item), (doc != NULL));
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_item);
@@ -937,6 +965,12 @@ notebook_tab_close_clicked_cb(GtkButton *button, gpointer data)
 	GeanyDocument *doc = (GeanyDocument *) data;
 
 	document_close(doc);
+}
+
+static void
+swap_notebooks_cb(GtkButton *button, gpointer user_data)
+{
+	swap_notebooks((GeanyDocument *) user_data);
 }
 
 
