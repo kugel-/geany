@@ -56,6 +56,7 @@ struct _GeanyPage
 {
 	GtkBox                parent_instance;
 	ScintillaObject      *sci;
+	GtkLabel             *tab_label;
 };
 
 struct _GeanyPageClass
@@ -66,11 +67,13 @@ struct _GeanyPageClass
 
 G_DEFINE_TYPE(GeanyPage, geany_page, GTK_TYPE_BOX)
 
-static GeanyPage* geany_page_new (ScintillaObject* sci)
+static GeanyPage* geany_page_new (ScintillaObject* sci, const gchar *label_text)
 {
 	GeanyPage *self;
 	self = (GeanyPage*) g_object_new (TYPE_GEANY_PAGE, "orientation", GTK_ORIENTATION_VERTICAL, NULL);
 	self->sci = sci;
+	self->tab_label = GTK_LABEL(gtk_label_new(label_text));
+	g_object_ref_sink(G_OBJECT(self->tab_label));
 	gtk_box_pack_start (GTK_BOX(self), GTK_WIDGET(sci), TRUE, TRUE, 0);
 	return self;
 }
@@ -82,6 +85,18 @@ static ScintillaObject* geany_page_get_sci (GeanyPage* self)
 }
 
 
+static const gchar *geany_page_get_label_text(GeanyPage *self)
+{
+	return gtk_label_get_text(self->tab_label);
+}
+
+
+static GtkLabel *geany_page_get_label(GeanyPage *self)
+{
+	return self->tab_label;
+}
+
+
 static void geany_page_init (GeanyPage * self)
 {
 }
@@ -90,6 +105,7 @@ static void geany_page_init (GeanyPage * self)
 static void geany_page_finalize (GObject* obj)
 {
 	GeanyPage * self = GEANY_PAGE(obj);;
+	g_object_unref(G_OBJECT(self->tab_label));
 	G_OBJECT_CLASS (geany_page_parent_class)->finalize (obj);
 }
 
@@ -696,10 +712,10 @@ gint notebook_new_tab(GeanyDocument *this)
 	g_return_val_if_fail(this != NULL, -1);
 
 	/* page is packed into a vbox so we can stack infobars above it */
-	page = (GtkWidget *) geany_page_new(this->editor->sci);
+	page = (GtkWidget *) geany_page_new(this->editor->sci, "");
 	gtk_widget_show(page);
 
-	this->priv->tab_label = gtk_label_new(NULL);
+	this->priv->tab_label = (GtkWidget *) geany_page_get_label((GeanyPage *) page);
 
 	/* get button press events for the tab label and the space between it and
 	 * the close button, if any */
