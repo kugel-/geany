@@ -24,6 +24,8 @@
 # include "config.h"
 #endif
 
+#include "document.h"
+
 #include <glib.h>
 #include <gtk/gtk.h>
 
@@ -31,6 +33,7 @@
 G_MODULE_EXPORT void
 on_file_new_action_activate(GtkAction *action, gpointer user_data)
 {
+	document_new_file(NULL, NULL, NULL);
 }
 
 

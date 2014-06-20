@@ -169,12 +169,6 @@ G_MODULE_EXPORT gboolean on_window_delete_event(GtkWidget *widget, GdkEvent *eve
  * GUI callbacks
  */
 
-G_MODULE_EXPORT void on_new1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	document_new_file(NULL, NULL, NULL);
-}
-
-
 /* create a new file and copy file content and properties */
 G_MODULE_EXPORT void on_clone1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {

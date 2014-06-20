@@ -31,6 +31,7 @@
 
 #include "toolbar.h"
 
+#include "actioncallbacks.h"
 #include "app.h"
 #include "build.h"
 #include "callbacks.h"
@@ -360,7 +361,7 @@ GtkWidget *toolbar_init(void)
 		_("Create a new file"),
 		_("Create a new file from a template"),
 		GTK_STOCK_NEW);
-	g_signal_connect(action_new, "button-clicked", G_CALLBACK(on_new1_activate), NULL);
+	g_signal_connect(action_new, "button-clicked", G_CALLBACK(on_file_new_action_activate), NULL);
 	gtk_action_group_add_action(group, action_new);
 
 	action_open = geany_menu_button_action_new(

@@ -28,8 +28,6 @@ G_BEGIN_DECLS
 
 extern gboolean	ignore_callback;
 
-G_MODULE_EXPORT void on_new1_activate(GtkMenuItem *menuitem, gpointer user_data);
-
 G_MODULE_EXPORT void on_save1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
 G_MODULE_EXPORT void on_save_as1_activate(GtkMenuItem *menuitem, gpointer user_data);

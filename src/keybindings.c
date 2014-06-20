@@ -245,8 +245,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_FILE);
 
-	add_kb(group, GEANY_KEYS_FILE_NEW, NULL,
-		GDK_n, GDK_CONTROL_MASK, "menu_new", _("New"), "menu_new1");
 	add_kb(group, GEANY_KEYS_FILE_OPEN, NULL,
 		GDK_o, GDK_CONTROL_MASK, "menu_open", _("Open"), "menu_open1");
 	add_kb(group, GEANY_KEYS_FILE_OPENSELECTED, NULL,
@@ -1325,9 +1323,6 @@ static gboolean cb_func_file_action(guint key_id)
 {
 	switch (key_id)
 	{
-		case GEANY_KEYS_FILE_NEW:
-			document_new_file(NULL, NULL, NULL);
-			break;
 		case GEANY_KEYS_FILE_OPEN:
 			on_open1_activate(NULL, NULL);
 			break;
