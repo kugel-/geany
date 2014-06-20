@@ -82,11 +82,782 @@
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
+  <object class="GtkActionGroup" id="build_action_group">
+    <property name="name">Build</property>
+    <child>
+      <object class="GtkAction" id="build_options">
+        <property name="label" translatable="yes">Build options</property>
+        <property name="short_label" translatable="yes">Build options</property>
+        <signal name="activate" handler="on_build_options_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_run">
+        <property name="label" translatable="yes">Run</property>
+        <property name="short_label" translatable="yes">Run</property>
+        <signal name="activate" handler="on_build_run_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F5"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_previouserror">
+        <property name="label" translatable="yes">Previous error</property>
+        <property name="short_label" translatable="yes">Previous error</property>
+        <signal name="activate" handler="on_build_previouserror_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_nexterror">
+        <property name="label" translatable="yes">Next error</property>
+        <property name="short_label" translatable="yes">Next error</property>
+        <signal name="activate" handler="on_build_nexterror_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_makeobject">
+        <property name="label" translatable="yes">Make object</property>
+        <property name="short_label" translatable="yes">Make object</property>
+        <signal name="activate" handler="on_build_makeobject_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F8" modifiers="GDK_SHIFT_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_makeowntarget">
+        <property name="label" translatable="yes">Make custom target</property>
+        <property name="short_label" translatable="yes">Make custom target</property>
+        <signal name="activate" handler="on_build_makeowntarget_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F9" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_make">
+        <property name="label" translatable="yes">Make all</property>
+        <property name="short_label" translatable="yes">Make all</property>
+        <signal name="activate" handler="on_build_make_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F9" modifiers="GDK_SHIFT_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_link">
+        <property name="label" translatable="yes">Build</property>
+        <property name="short_label" translatable="yes">Build</property>
+        <signal name="activate" handler="on_build_link_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F9"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="build_compile">
+        <property name="label" translatable="yes">Compile</property>
+        <property name="short_label" translatable="yes">Compile</property>
+        <signal name="activate" handler="on_build_compile_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F8"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="clipboard_action_group">
+    <property name="name">Clipboard</property>
+    <child>
+      <object class="GtkAction" id="edit_cutline">
+        <property name="label" translatable="yes">Cu_t Current Line(s)</property>
+        <property name="short_label" translatable="yes">Cu_t Current Line(s)</property>
+        <signal name="activate" handler="on_clipboard_cutline_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="x" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_copyline">
+        <property name="label" translatable="yes">_Copy Current Line(s)</property>
+        <property name="short_label" translatable="yes">_Copy Current Line(s)</property>
+        <signal name="activate" handler="on_clipboard_copyline_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="c" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_paste">
+        <property name="label" translatable="yes">Paste</property>
+        <property name="short_label" translatable="yes">Paste</property>
+        <signal name="activate" handler="on_clipboard_paste_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="v" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_copy">
+        <property name="label" translatable="yes">Copy</property>
+        <property name="short_label" translatable="yes">Copy</property>
+        <signal name="activate" handler="on_clipboard_copy_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="c" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_cut">
+        <property name="label" translatable="yes">Cut</property>
+        <property name="short_label" translatable="yes">Cut</property>
+        <signal name="activate" handler="on_clipboard_cut_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="x" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="document_action_group">
+    <property name="name">Document</property>
+    <child>
+      <object class="GtkAction" id="remove_markers_and_indicators">
+        <property name="label" translatable="yes">Remove Markers and Error Indicators</property>
+        <property name="short_label" translatable="yes">Remove Markers and Error Indicators</property>
+        <signal name="activate" handler="on_document_remove_markers_indicators_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="remove_error_indicators">
+        <property name="label" translatable="yes">Remove Error Indicators</property>
+        <property name="short_label" translatable="yes">Remove Error Indicators</property>
+        <signal name="activate" handler="on_document_remove_error_indicators_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="remove_markers">
+        <property name="label" translatable="yes">Remove Markers</property>
+        <property name="short_label" translatable="yes">Remove Markers</property>
+        <signal name="activate" handler="on_document_remove_markers_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="reloadtaglist">
+        <property name="label" translatable="yes">Reload symbol list</property>
+        <property name="short_label" translatable="yes">Reload symbol list</property>
+        <signal name="activate" handler="on_document_reloadtaglist_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="r" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_unfoldall">
+        <property name="label" translatable="yes">Unfold all</property>
+        <property name="short_label" translatable="yes">Unfold all</property>
+        <signal name="activate" handler="on_document_unfoldall_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_foldall">
+        <property name="label" translatable="yes">Fold all</property>
+        <property name="short_label" translatable="yes">Fold all</property>
+        <signal name="activate" handler="on_document_foldall_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_togglefold">
+        <property name="label" translatable="yes">Toggle current fold</property>
+        <property name="short_label" translatable="yes">Toggle current fold</property>
+        <signal name="activate" handler="on_document_togglefold_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_replacespaces">
+        <property name="label" translatable="yes">Replace spaces with tabs</property>
+        <property name="short_label" translatable="yes">Replace spaces with tabs</property>
+        <signal name="activate" handler="on_document_replacespaces_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_replacetabs">
+        <property name="label" translatable="yes">Replace tabs with space</property>
+        <property name="short_label" translatable="yes">Replace tabs with space</property>
+        <signal name="activate" handler="on_document_replacetabs_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_clone">
+        <property name="label" translatable="yes">_Clone</property>
+        <property name="short_label" translatable="yes">_Clone</property>
+        <signal name="activate" handler="on_document_clone_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_linebreak">
+        <property name="label" translatable="yes">Toggle Line breaking</property>
+        <property name="short_label" translatable="yes">Toggle Line breaking</property>
+        <signal name="activate" handler="on_document_linebreak_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_linewrap">
+        <property name="label" translatable="yes">Toggle Line wrapping</property>
+        <property name="short_label" translatable="yes">Toggle Line wrapping</property>
+        <signal name="activate" handler="on_document_linewrap_action_activate" swapped="no"/>
+      </object>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="editor_action_group">
+    <property name="name">Editor</property>
+    <child>
+      <object class="GtkAction" id="edit_movelinedown">
+        <property name="label" translatable="yes">Move line(s) down</property>
+        <property name="short_label" translatable="yes">Move line(s) down</property>
+        <signal name="activate" handler="on_editor_movelinedown_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Page_Down" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_movelineup">
+        <property name="label" translatable="yes">Move line(s) up</property>
+        <property name="short_label" translatable="yes">Move line(s) up</property>
+        <signal name="activate" handler="on_editor_movelineup_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Page_Up" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_wordpartcompletion">
+        <property name="label" translatable="yes">Word part completion</property>
+        <property name="short_label" translatable="yes">Word part completion</property>
+        <signal name="activate" handler="on_editor_wordpartcompletion_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Tab"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_macrolist">
+        <property name="label" translatable="yes">Show macro list</property>
+        <property name="short_label" translatable="yes">Show macro list</property>
+        <signal name="activate" handler="on_editor_macrolist_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Return" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_calltip">
+        <property name="label" translatable="yes">Show calltip</property>
+        <property name="short_label" translatable="yes">Show calltip</property>
+        <signal name="activate" handler="on_editor_calltip_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="space" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_autocomplete">
+        <property name="label" translatable="yes">Complete word</property>
+        <property name="short_label" translatable="yes">Complete word</property>
+        <signal name="activate" handler="on_editor_autocomplete_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="space" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="popup_contextaction">
+        <property name="label" translatable="yes">Context Action</property>
+        <property name="short_label" translatable="yes">Context Action</property>
+        <signal name="activate" handler="on_editor_contextaction_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_suppresssnippetcompletion">
+        <property name="label" translatable="yes">Suppress snippet completion</property>
+        <property name="short_label" translatable="yes">Suppress snippet completion</property>
+        <signal name="activate" handler="on_editor_suppresssnippetcompletion_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="move_snippetnextcursor">
+        <property name="label" translatable="yes">Move cursor in snippet</property>
+        <property name="short_label" translatable="yes">Move cursor in snippet</property>
+        <signal name="activate" handler="on_editor_snippetnextcursor_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_completesnippet">
+        <property name="label" translatable="yes">Complete snippet</property>
+        <property name="short_label" translatable="yes">Complete snippet</property>
+        <signal name="activate" handler="on_editor_completesnippet_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Tab"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_scrolllinedown">
+        <property name="label" translatable="yes">Scroll down the view by one line</property>
+        <property name="short_label" translatable="yes">Scroll down the view by one line</property>
+        <signal name="activate" handler="on_editor_scrolllinedown_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Down" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_scrolllineup">
+        <property name="label" translatable="yes">Scroll up the view by one line</property>
+        <property name="short_label" translatable="yes">Scroll up the view by one line</property>
+        <signal name="activate" handler="on_editor_scrolllineup_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Up" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_scrolltoline">
+        <property name="label" translatable="yes">Scroll to current line</property>
+        <property name="short_label" translatable="yes">Scroll to current line</property>
+        <signal name="activate" handler="on_editor_scrolltoline_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="l" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_transposeline">
+        <property name="label" translatable="yes">_Transpose Current Line</property>
+        <property name="short_label" translatable="yes">_Transpose Current Line</property>
+        <signal name="activate" handler="on_editor_transposeline_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_deletelinetoend">
+        <property name="label" translatable="yes">Delete to line end</property>
+        <property name="short_label" translatable="yes">Delete to line end</property>
+        <signal name="activate" handler="on_editor_deletelinetoend_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Delete" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_deleteline">
+        <property name="label" translatable="yes">_Delete Current Line(s)</property>
+        <property name="short_label" translatable="yes">_Delete Current Line(s)</property>
+        <signal name="activate" handler="on_editor_deleteline_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="k" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_duplicateline">
+        <property name="label" translatable="yes">D_uplicate Line or Selection</property>
+        <property name="short_label" translatable="yes">D_uplicate Line or Selection</property>
+        <signal name="activate" handler="on_editor_duplicateline_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="d" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_redo">
+        <property name="label" translatable="yes">Redo</property>
+        <property name="short_label" translatable="yes">Redo</property>
+        <signal name="activate" handler="on_editor_redo_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="y" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_undo">
+        <property name="label" translatable="yes">Undo</property>
+        <property name="short_label" translatable="yes">Undo</property>
+        <signal name="activate" handler="on_editor_undo_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="z" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+  </object>
   <object class="GtkListStore" id="eol_list">
     <columns>
       <!-- column-name text -->
       <column type="gchararray"/>
     </columns>
+  </object>
+  <object class="GtkActionGroup" id="file_action_group">
+    <property name="name">File</property>
+    <child>
+      <object class="GtkAction" id="menu_quit">
+        <property name="label" translatable="yes">Quit</property>
+        <property name="short_label" translatable="yes">Quit</property>
+        <signal name="activate" handler="on_file_quit_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="q" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="file_openlasttab">
+        <property name="label" translatable="yes">Re-open last closed tab</property>
+        <property name="short_label" translatable="yes">Re-open last closed tab</property>
+        <signal name="activate" handler="on_file_openlasttab_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_reloadfile">
+        <property name="label" translatable="yes">Reload file</property>
+        <property name="short_label" translatable="yes">Reload file</property>
+        <signal name="activate" handler="on_file_reload_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="r" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_closeall">
+        <property name="label" translatable="yes">Close all</property>
+        <property name="short_label" translatable="yes">Close all</property>
+        <signal name="activate" handler="on_file_closeall_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="w" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_close">
+        <property name="label" translatable="yes">Close</property>
+        <property name="short_label" translatable="yes">Close</property>
+        <signal name="activate" handler="on_file_close_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="w" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_print">
+        <property name="label" translatable="yes">Print</property>
+        <property name="short_label" translatable="yes">Print</property>
+        <signal name="activate" handler="on_file_print_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="p" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_saveall">
+        <property name="label" translatable="yes">Save all</property>
+        <property name="short_label" translatable="yes">Save all</property>
+        <signal name="activate" handler="on_file_saveall_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="s" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_saveas">
+        <property name="label" translatable="yes">Save as</property>
+        <property name="short_label" translatable="yes">Save as</property>
+        <signal name="activate" handler="on_file_saveas_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_save">
+        <property name="label" translatable="yes">Save</property>
+        <property name="short_label" translatable="yes">Save</property>
+        <signal name="activate" handler="on_file_save_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="s" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_open_selected">
+        <property name="label" translatable="yes">Open selected file</property>
+        <property name="short_label" translatable="yes">Open selected file</property>
+        <signal name="activate" handler="on_file_openselected_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="o" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_open">
+        <property name="label" translatable="yes">Open</property>
+        <property name="short_label" translatable="yes">Open</property>
+        <signal name="activate" handler="on_file_open_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="o" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_new">
+        <property name="label" translatable="yes">New</property>
+        <property name="short_label" translatable="yes">New</property>
+        <signal name="activate" handler="on_file_new_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="n" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="focus_action_group">
+    <property name="name">Focus</property>
+    <child>
+      <object class="GtkAction" id="switch_sidebar_doc_list">
+        <property name="label" translatable="yes">Switch to Sidebar Document List</property>
+        <property name="short_label" translatable="yes">Switch to Sidebar Document List</property>
+        <signal name="activate" handler="on_focus_sidebar_document_list_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_sidebar_symbol_list">
+        <property name="label" translatable="yes">Switch to Sidebar Symbol List</property>
+        <property name="short_label" translatable="yes">Switch to Sidebar Symbol List</property>
+        <signal name="activate" handler="on_focus_sidebar_symbol_list_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_sidebar">
+        <property name="label" translatable="yes">Switch to Sidebar</property>
+        <property name="short_label" translatable="yes">Switch to Sidebar</property>
+        <signal name="activate" handler="on_focus_sidebar_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_vte">
+        <property name="label" translatable="yes">Switch to VTE</property>
+        <property name="short_label" translatable="yes">Switch to VTE</property>
+        <signal name="activate" handler="on_focus_vte_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F4"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_scribble">
+        <property name="label" translatable="yes">Switch to Scribble</property>
+        <property name="short_label" translatable="yes">Switch to Scribble</property>
+        <signal name="activate" handler="on_focus_scribble_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F6"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_messages">
+        <property name="label" translatable="yes">Switch to Messages</property>
+        <property name="short_label" translatable="yes">Switch to Messages</property>
+        <signal name="activate" handler="on_focus_messages_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_compiler">
+        <property name="label" translatable="yes">Switch to Compiler</property>
+        <property name="short_label" translatable="yes">Switch to Compiler</property>
+        <signal name="activate" handler="on_focus_compiler_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_message_window">
+        <property name="label" translatable="yes">Switch to Message Window</property>
+        <property name="short_label" translatable="yes">Switch to Message Window</property>
+        <signal name="activate" handler="on_focus_message_window_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_search_bar">
+        <property name="label" translatable="yes">Switch to Search Bar</property>
+        <property name="short_label" translatable="yes">Switch to Search Bar</property>
+        <signal name="activate" handler="on_focus_searchbar_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F7"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_editor">
+        <property name="label" translatable="yes">Switch to Editor</property>
+        <property name="short_label" translatable="yes">Switch to Editor</property>
+        <signal name="activate" handler="on_focus_editor_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F2"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="format_action_group">
+    <property name="name">Format</property>
+    <child>
+      <object class="GtkAction" id="format_reflowparagraph">
+        <property name="label" translatable="yes">_Reflow Lines/Block</property>
+        <property name="short_label" translatable="yes">_Reflow Lines/Block</property>
+        <signal name="activate" handler="on_format_reflowparagraph_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="j" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_sendtovte">
+        <property name="label" translatable="yes">_Send Selection to Terminal</property>
+        <property name="short_label" translatable="yes">_Send Selection to Terminal</property>
+        <signal name="activate" handler="on_format_sendtovte_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_sendtocmd3">
+        <property name="label" translatable="yes">Send to Custom Command 3</property>
+        <property name="short_label" translatable="yes">Send to Custom Command 3</property>
+        <signal name="activate" handler="on_format_sendtocmd3_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="3" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_sendtocmd2">
+        <property name="label" translatable="yes">Send to Custom Command 2</property>
+        <property name="short_label" translatable="yes">Send to Custom Command 2</property>
+        <signal name="activate" handler="on_format_sendtocmd2_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="2" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_sendtocmd1">
+        <property name="label" translatable="yes">Send to Custom Command 1</property>
+        <property name="short_label" translatable="yes">Send to Custom Command 1</property>
+        <signal name="activate" handler="on_format_sendtocmd1_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="1" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_autoindent">
+        <property name="label" translatable="yes">S_mart Line Indent</property>
+        <property name="short_label" translatable="yes">S_mart Line Indent</property>
+        <signal name="activate" handler="on_format_autoindent_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_decreaseindentbyspace">
+        <property name="label" translatable="yes">Decrease indent by one space</property>
+        <property name="short_label" translatable="yes">Decrease indent by one space</property>
+        <signal name="activate" handler="on_format_decreaseindentbyspace_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_increaseindentbyspace">
+        <property name="label" translatable="yes">Increase indent by one space</property>
+        <property name="short_label" translatable="yes">Increase indent by one space</property>
+        <signal name="activate" handler="on_format_increaseindentbyspace_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_decreaseindent">
+        <property name="label" translatable="yes">Decrease indent</property>
+        <property name="short_label" translatable="yes">Decrease indent</property>
+        <signal name="activate" handler="on_format_decreaseindent_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="u" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_increaseindent">
+        <property name="label" translatable="yes">Increase indent</property>
+        <property name="short_label" translatable="yes">Increase indent</property>
+        <signal name="activate" handler="on_format_increaseindent_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="i" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_uncommentline">
+        <property name="label" translatable="yes">Uncomment line(s)</property>
+        <property name="short_label" translatable="yes">Uncomment line(s)</property>
+        <signal name="activate" handler="on_format_uncommentline_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_commentline">
+        <property name="label" translatable="yes">Comment line(s)</property>
+        <property name="short_label" translatable="yes">Comment line(s)</property>
+        <signal name="activate" handler="on_format_commentline_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_commentlinetoggle">
+        <property name="label" translatable="yes">Toggle line commentation</property>
+        <property name="short_label" translatable="yes">Toggle line commentation</property>
+        <signal name="activate" handler="on_format_commentlinetoggle_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="e" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_togglecase">
+        <property name="label" translatable="yes">T_oggle Case of Selection</property>
+        <property name="short_label" translatable="yes">T_oggle Case of Selection</property>
+        <signal name="activate" handler="on_format_togglecase_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="u" modifiers="GDK_CONTROL_MASK | GDK_MOD1_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="go to_action_group">
+    <property name="name">Go to</property>
+    <child>
+      <object class="GtkAction" id="edit_nextwordstart">
+        <property name="label" translatable="yes">Go to Next Word Part</property>
+        <property name="short_label" translatable="yes">Go to Next Word Part</property>
+        <signal name="activate" handler="on_goto_nextwordpart_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="backslash" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_prevwordstart">
+        <property name="label" translatable="yes">Go to Previous Word Part</property>
+        <property name="short_label" translatable="yes">Go to Previous Word Part</property>
+        <signal name="activate" handler="on_goto_prevwordpart_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="slash" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotolineendvisual">
+        <property name="label" translatable="yes">Go to End of Display Line</property>
+        <property name="short_label" translatable="yes">Go to End of Display Line</property>
+        <signal name="activate" handler="on_goto_lineendvisual_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="End" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotolinestartvisual">
+        <property name="label" translatable="yes">Go to Start of Display Line</property>
+        <property name="short_label" translatable="yes">Go to Start of Display Line</property>
+        <signal name="activate" handler="on_goto_linestartvisual_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Home" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotolineend">
+        <property name="label" translatable="yes">Go to End of Line</property>
+        <property name="short_label" translatable="yes">Go to End of Line</property>
+        <signal name="activate" handler="on_goto_lineend_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="End"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotolinestart">
+        <property name="label" translatable="yes">Go to Start of Line</property>
+        <property name="short_label" translatable="yes">Go to Start of Line</property>
+        <signal name="activate" handler="on_goto_linestart_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Home"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="popup_gototagdeclaration">
+        <property name="label" translatable="yes">Go to Tag Declaration</property>
+        <property name="short_label" translatable="yes">Go to Tag Declaration</property>
+        <signal name="activate" handler="on_goto_tagdeclaration_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="t" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="popup_gototagdefinition">
+        <property name="label" translatable="yes">Go to Tag Definition</property>
+        <property name="short_label" translatable="yes">Go to Tag Definition</property>
+        <signal name="activate" handler="on_goto_tagdefinition_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="t" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotopreviousmarker">
+        <property name="label" translatable="yes">Go to Pre_vious Marker</property>
+        <property name="short_label" translatable="yes">Go to Pre_vious Marker</property>
+        <signal name="activate" handler="on_goto_previousmarker_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="comma" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotonextmarker">
+        <property name="label" translatable="yes">Go to Ne_xt Marker</property>
+        <property name="short_label" translatable="yes">Go to Ne_xt Marker</property>
+        <signal name="activate" handler="on_goto_nextmarker_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="period" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_togglemarker">
+        <property name="label" translatable="yes">Toggle marker</property>
+        <property name="short_label" translatable="yes">Toggle marker</property>
+        <signal name="activate" handler="on_goto_togglemarker_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="m" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_gotomatchingbrace">
+        <property name="label" translatable="yes">Go to matching brace</property>
+        <property name="short_label" translatable="yes">Go to matching brace</property>
+        <signal name="activate" handler="on_goto_matchingbrace_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="b" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_gotoline">
+        <property name="label" translatable="yes">Go to Line</property>
+        <property name="short_label" translatable="yes">Go to Line</property>
+        <signal name="activate" handler="on_goto_line_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="l" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="nav_forward">
+        <property name="label" translatable="yes">Navigate forward a location</property>
+        <property name="short_label" translatable="yes">Navigate forward a location</property>
+        <signal name="activate" handler="on_goto_forward_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Right" modifiers="GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="nav_back">
+        <property name="label" translatable="yes">Navigate back a location</property>
+        <property name="short_label" translatable="yes">Navigate back a location</property>
+        <signal name="activate" handler="on_goto_back_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Left" modifiers="GDK_MOD1_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="help_action_group">
+    <property name="name">Help</property>
+    <child>
+      <object class="GtkAction" id="menu_help">
+        <property name="label" translatable="yes">Help</property>
+        <property name="short_label" translatable="yes">Help</property>
+        <signal name="activate" handler="on_help_help_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F1"/>
+    </child>
   </object>
   <object class="GtkImage" id="image2">
     <property name="visible">True</property>
@@ -719,6 +1490,288 @@
         <col id="0" translatable="yes">Match braces</col>
       </row>
     </data>
+  </object>
+  <object class="GtkActionGroup" id="insert_action_group">
+    <property name="name">Insert</property>
+    <child>
+      <object class="GtkAction" id="edit_insertlineafter">
+        <property name="label" translatable="yes">Insert New Line After Current</property>
+        <property name="short_label" translatable="yes">Insert New Line After Current</property>
+        <signal name="activate" handler="on_insert_lineafter_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_insertlinebefore">
+        <property name="label" translatable="yes">Insert New Line Before Current</property>
+        <property name="short_label" translatable="yes">Insert New Line Before Current</property>
+        <signal name="activate" handler="on_insert_linebefore_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_insertwhitespace">
+        <property name="label" translatable="yes">Insert Alternative _White Space</property>
+        <property name="short_label" translatable="yes">Insert Alternative _White Space</property>
+        <signal name="activate" handler="on_insert_altwhitespace_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_insert_date">
+        <property name="label" translatable="yes">Insert date</property>
+        <property name="short_label" translatable="yes">Insert date</property>
+        <signal name="activate" handler="on_insert_date_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="d" modifiers="GDK_SHIFT_MASK | GDK_MOD1_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="notebook tab_action_group">
+    <property name="name">Notebook tab</property>
+    <child>
+      <object class="GtkAction" id="move_tablast">
+        <property name="label" translatable="yes">Move document last</property>
+        <property name="short_label" translatable="yes">Move document last</property>
+        <signal name="activate" handler="on_notebook_movetablast_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="move_tabfirst">
+        <property name="label" translatable="yes">Move document first</property>
+        <property name="short_label" translatable="yes">Move document first</property>
+        <signal name="activate" handler="on_notebook_movetabfirst_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="move_tabright">
+        <property name="label" translatable="yes">Move document right</property>
+        <property name="short_label" translatable="yes">Move document right</property>
+        <signal name="activate" handler="on_notebook_movetabright_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Page_Down" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="move_tableft">
+        <property name="label" translatable="yes">Move document left</property>
+        <property name="short_label" translatable="yes">Move document left</property>
+        <signal name="activate" handler="on_notebook_movetableft_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Page_Up" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_tablastused">
+        <property name="label" translatable="yes">Switch to last used document</property>
+        <property name="short_label" translatable="yes">Switch to last used document</property>
+        <signal name="activate" handler="on_notebook_switchtablastused_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Tab" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_tabright">
+        <property name="label" translatable="yes">Switch to right document</property>
+        <property name="short_label" translatable="yes">Switch to right document</property>
+        <signal name="activate" handler="on_notebook_switchtabright_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Page_Down" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="switch_tableft">
+        <property name="label" translatable="yes">Switch to left document</property>
+        <property name="short_label" translatable="yes">Switch to left document</property>
+        <signal name="activate" handler="on_notebook_switchtableft_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="Page_Up" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="project_action_group">
+    <property name="name">Project</property>
+    <child>
+      <object class="GtkAction" id="project_close">
+        <property name="label" translatable="yes">Close</property>
+        <property name="short_label" translatable="yes">Close</property>
+        <signal name="activate" handler="on_project_close_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="project_properties">
+        <property name="label" translatable="yes">GTK_STOCK_PROPERTIES</property>
+        <property name="short_label" translatable="yes">GTK_STOCK_PROPERTIES</property>
+        <signal name="activate" handler="on_project_properties_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="project_open">
+        <property name="label" translatable="yes">Open</property>
+        <property name="short_label" translatable="yes">Open</property>
+        <signal name="activate" handler="on_project_open_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="project_new">
+        <property name="label" translatable="yes">New</property>
+        <property name="short_label" translatable="yes">New</property>
+        <signal name="activate" handler="on_project_new_action_activate" swapped="no"/>
+      </object>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="search_action_group">
+    <property name="name">Search</property>
+    <child>
+      <object class="GtkAction" id="find_markall">
+        <property name="label" translatable="yes">_Mark All</property>
+        <property name="short_label" translatable="yes">_Mark All</property>
+        <signal name="activate" handler="on_search_markall_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="m" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="popup_finddocumentusage">
+        <property name="label" translatable="yes">Find Document Usage</property>
+        <property name="short_label" translatable="yes">Find Document Usage</property>
+        <signal name="activate" handler="on_search_finddocumentusage_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="d" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="popup_findusage">
+        <property name="label" translatable="yes">Find Usage</property>
+        <property name="short_label" translatable="yes">Find Usage</property>
+        <signal name="activate" handler="on_search_findusage_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="e" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_previousmessage">
+        <property name="label" translatable="yes">Previous Message</property>
+        <property name="short_label" translatable="yes">Previous Message</property>
+        <signal name="activate" handler="on_search_previousmessage_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_nextmessage">
+        <property name="label" translatable="yes">Next Message</property>
+        <property name="short_label" translatable="yes">Next Message</property>
+        <signal name="activate" handler="on_search_nextmessage_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_findinfiles">
+        <property name="label" translatable="yes">Find in Files</property>
+        <property name="short_label" translatable="yes">Find in Files</property>
+        <signal name="activate" handler="on_search_findinfiles_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="f" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_replace">
+        <property name="label" translatable="yes">Replace</property>
+        <property name="short_label" translatable="yes">Replace</property>
+        <signal name="activate" handler="on_search_replace_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="h" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_findprevsel">
+        <property name="label" translatable="yes">Find Pre_vious Selection</property>
+        <property name="short_label" translatable="yes">Find Pre_vious Selection</property>
+        <signal name="activate" handler="on_search_findprevsel_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_findnextsel">
+        <property name="label" translatable="yes">Find Next _Selection</property>
+        <property name="short_label" translatable="yes">Find Next _Selection</property>
+        <signal name="activate" handler="on_search_findnextsel_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_findprevious">
+        <property name="label" translatable="yes">Find Previous</property>
+        <property name="short_label" translatable="yes">Find Previous</property>
+        <signal name="activate" handler="on_search_findprevious_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="g" modifiers="GDK_SHIFT_MASK | GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_findnext">
+        <property name="label" translatable="yes">Find Next</property>
+        <property name="short_label" translatable="yes">Find Next</property>
+        <signal name="activate" handler="on_search_findnext_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="g" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_find">
+        <property name="label" translatable="yes">Find</property>
+        <property name="short_label" translatable="yes">Find</property>
+        <signal name="activate" handler="on_search_find_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="f" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="select_action_group">
+    <property name="name">Select</property>
+    <child>
+      <object class="GtkAction" id="edit_selectwordpartright">
+        <property name="label" translatable="yes">Select to next word part</property>
+        <property name="short_label" translatable="yes">Select to next word part</property>
+        <signal name="activate" handler="on_select_wordpartright_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_selectwordpartleft">
+        <property name="label" translatable="yes">Select to previous word part</property>
+        <property name="short_label" translatable="yes">Select to previous word part</property>
+        <signal name="activate" handler="on_select_wordpartleft_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_selectparagraph">
+        <property name="label" translatable="yes">Se_lect Current Paragraph</property>
+        <property name="short_label" translatable="yes">Se_lect Current Paragraph</property>
+        <signal name="activate" handler="on_select_paragraph_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="p" modifiers="GDK_SHIFT_MASK | GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_selectline">
+        <property name="label" translatable="yes">S_elect Current Line(s)</property>
+        <property name="short_label" translatable="yes">S_elect Current Line(s)</property>
+        <signal name="activate" handler="on_select_line_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="l" modifiers="GDK_SHIFT_MASK | GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="edit_selectword">
+        <property name="label" translatable="yes">Select current word</property>
+        <property name="short_label" translatable="yes">Select current word</property>
+        <signal name="activate" handler="on_select_word_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="w" modifiers="GDK_SHIFT_MASK | GDK_MOD1_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_selectall">
+        <property name="label" translatable="yes">Select All</property>
+        <property name="short_label" translatable="yes">Select All</property>
+        <signal name="activate" handler="on_select_all_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="a" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="settings_action_group">
+    <property name="name">Settings</property>
+    <child>
+      <object class="GtkAction" id="menu_pluginpreferences">
+        <property name="label" translatable="yes">P_lugin Preferences</property>
+        <property name="short_label" translatable="yes">P_lugin Preferences</property>
+        <signal name="activate" handler="on_settings_pluginpreferences_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_preferences">
+        <property name="label" translatable="yes">Preferences</property>
+        <property name="short_label" translatable="yes">Preferences</property>
+        <signal name="activate" handler="on_settings_preferences_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="p" modifiers="GDK_CONTROL_MASK | GDK_MOD1_MASK"/>
+    </child>
   </object>
   <object class="GtkListStore" id="tab_pos_list">
     <columns>
@@ -9782,5 +10835,71 @@
     <action-widgets>
       <action-widget response="0">button1</action-widget>
     </action-widgets>
+  </object>
+  <object class="GtkActionGroup" id="tools_action_group">
+    <property name="name">Tools</property>
+    <child>
+      <object class="GtkAction" id="menu_opencolorchooser">
+        <property name="label" translatable="yes">Show Color Chooser</property>
+        <property name="short_label" translatable="yes">Show Color Chooser</property>
+        <signal name="activate" handler="on_tools_opencolorchooser_action_activate" swapped="no"/>
+      </object>
+    </child>
+  </object>
+  <object class="GtkActionGroup" id="view_action_group">
+    <property name="name">View</property>
+    <child>
+      <object class="GtkAction" id="normal_size">
+        <property name="label" translatable="yes">Zoom Reset</property>
+        <property name="short_label" translatable="yes">Zoom Reset</property>
+        <signal name="activate" handler="on_view_zoomreset_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="0" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_zoomout">
+        <property name="label" translatable="yes">Zoom Out</property>
+        <property name="short_label" translatable="yes">Zoom Out</property>
+        <signal name="activate" handler="on_view_zoomout_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="minus" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_zoomin">
+        <property name="label" translatable="yes">Zoom In</property>
+        <property name="short_label" translatable="yes">Zoom In</property>
+        <signal name="activate" handler="on_view_zoomin_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="plus" modifiers="GDK_CONTROL_MASK"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="toggle_sidebar">
+        <property name="label" translatable="yes">Toggle Sidebar</property>
+        <property name="short_label" translatable="yes">Toggle Sidebar</property>
+        <signal name="activate" handler="on_view_sidebar_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_messagewindow">
+        <property name="label" translatable="yes">Toggle Messages Window</property>
+        <property name="short_label" translatable="yes">Toggle Messages Window</property>
+        <signal name="activate" handler="on_view_messagewindow_action_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_fullscreen">
+        <property name="label" translatable="yes">Fullscreen</property>
+        <property name="short_label" translatable="yes">Fullscreen</property>
+        <signal name="activate" handler="on_view_fullscreen_action_activate" swapped="no"/>
+      </object>
+      <accelerator key="F11"/>
+    </child>
+    <child>
+      <object class="GtkAction" id="menu_toggleall">
+        <property name="label" translatable="yes">Toggle All Additional Widgets</property>
+        <property name="short_label" translatable="yes">Toggle All Additional Widgets</property>
+        <signal name="activate" handler="on_view_toggleall_action_activate" swapped="no"/>
+      </object>
+    </child>
   </object>
 </interface>

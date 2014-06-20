@@ -16,6 +16,7 @@ bin_PROGRAMS = geany
 
 SRCS = \
 	about.c about.h \
+	actioncallbacks.c \
 	app.h \
 	build.c build.h \
 	callbacks.c callbacks.h \
@@ -156,4 +157,3 @@ AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \
 clean-local:
 
 endif
-
