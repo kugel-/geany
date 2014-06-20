@@ -136,8 +136,6 @@ G_MODULE_EXPORT void on_project_close1_activate(GtkMenuItem *menuitem, gpointer 
 
 G_MODULE_EXPORT void on_project_properties1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
-G_MODULE_EXPORT void on_menu_open_selected_file1_activate(GtkMenuItem *menuitem, gpointer user_data);
-
 G_MODULE_EXPORT void on_remove_markers1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
 G_MODULE_EXPORT void on_context_action1_activate(GtkMenuItem *menuitem, gpointer user_data);

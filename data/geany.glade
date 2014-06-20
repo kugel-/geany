@@ -1240,12 +1240,13 @@
     <child>
       <object class="GtkImageMenuItem" id="menu_open_selected_file2">
         <property name="label" translatable="yes">Open Selected F_ile</property>
+        <property name="use_action_appearance">False</property>
+        <property name="related_action">menu_open_selected</property>
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="use_underline">True</property>
         <property name="image">image3764</property>
         <property name="use_stock">False</property>
-        <signal name="activate" handler="on_menu_open_selected_file1_activate" swapped="no"/>
       </object>
     </child>
     <child>
@@ -7370,11 +7371,12 @@
                         </child>
                         <child>
                           <object class="GtkMenuItem" id="menu_open_selected_file1">
+                            <property name="use_action_appearance">False</property>
+                            <property name="related_action">menu_open_selected</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Open Selected F_ile</property>
                             <property name="use_underline">True</property>
-                            <signal name="activate" handler="on_menu_open_selected_file1_activate" swapped="no"/>
                           </object>
                         </child>
                         <child>

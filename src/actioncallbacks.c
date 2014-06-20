@@ -26,6 +26,9 @@
 
 #include "dialogs.h"
 #include "document.h"
+#include "support.h"
+#include "utils.h"
+#include "ui_utils.h"
 
 #include <glib.h>
 #include <gtk/gtk.h>
@@ -48,6 +51,67 @@ on_file_open_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_openselected_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	gchar *sel = NULL;
+	const gchar *wc;
+
+#ifdef G_OS_WIN32
+	wc = GEANY_WORDCHARS "./-" "\\";
+#else
+	wc = GEANY_WORDCHARS "./-";
+#endif
+
+	g_return_if_fail(doc != NULL);
+
+	sel = editor_get_default_selection(doc->editor, TRUE, wc);
+	SETPTR(sel, utils_get_locale_from_utf8(sel));
+
+	if (sel != NULL)
+	{
+		gchar *filename = NULL;
+
+		if (g_path_is_absolute(sel))
+			filename = g_strdup(sel);
+		else
+		{	/* relative filename, add the path of the current file */
+			gchar *path;
+
+			path = utils_get_current_file_dir_utf8();
+			SETPTR(path, utils_get_locale_from_utf8(path));
+			if (!path)
+				path = g_get_current_dir();
+
+			filename = g_build_path(G_DIR_SEPARATOR_S, path, sel, NULL);
+
+			if (! g_file_test(filename, G_FILE_TEST_EXISTS) &&
+				app->project != NULL && !EMPTY(app->project->base_path))
+			{
+				/* try the project's base path */
+				SETPTR(path, project_get_base_path());
+				SETPTR(path, utils_get_locale_from_utf8(path));
+				SETPTR(filename, g_build_path(G_DIR_SEPARATOR_S, path, sel, NULL));
+			}
+			g_free(path);
+#ifdef G_OS_UNIX
+			if (! g_file_test(filename, G_FILE_TEST_EXISTS))
+				SETPTR(filename, g_build_path(G_DIR_SEPARATOR_S, "/usr/local/include", sel, NULL));
+
+			if (! g_file_test(filename, G_FILE_TEST_EXISTS))
+				SETPTR(filename, g_build_path(G_DIR_SEPARATOR_S, "/usr/include", sel, NULL));
+#endif
+		}
+
+		if (g_file_test(filename, G_FILE_TEST_EXISTS))
+			document_open_file(filename, FALSE, NULL, NULL);
+		else
+		{
+			SETPTR(sel, utils_get_utf8_from_locale(sel));
+			ui_set_statusbar(TRUE, _("Could not open file %s (File not found)"), sel);
+		}
+
+		g_free(filename);
+		g_free(sel);
+	}
 }
 
 
