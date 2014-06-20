@@ -245,8 +245,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_FILE);
 
-	add_kb(group, GEANY_KEYS_FILE_SAVE, NULL,
-		GDK_s, GDK_CONTROL_MASK, "menu_save", _("Save"), "menu_save1");
 	add_kb(group, GEANY_KEYS_FILE_SAVEAS, NULL,
 		0, 0, "menu_saveas", _("Save as"), "menu_save_as1");
 	add_kb(group, GEANY_KEYS_FILE_SAVEALL, NULL,
@@ -1323,9 +1321,6 @@ static gboolean cb_func_file_action(guint key_id)
 			g_free(locale_filename);
 			break;
 		}
-		case GEANY_KEYS_FILE_SAVE:
-			on_save1_activate(NULL, NULL);
-			break;
 		case GEANY_KEYS_FILE_SAVEAS:
 			on_save_as1_activate(NULL, NULL);
 			break;

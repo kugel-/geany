@@ -118,6 +118,13 @@ on_file_openselected_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_save_action_activate(GtkAction *action, gpointer user_data)
 {
+	gint cur_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(main_widgets.notebook));
+	GeanyDocument *doc = document_get_current();
+
+	if (doc != NULL && cur_page >= 0)
+	{
+		document_save_file(doc, ui_prefs.allow_always_save);
+	}
 }
 
 

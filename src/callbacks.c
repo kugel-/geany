@@ -179,17 +179,6 @@ G_MODULE_EXPORT void on_clone1_activate(GtkMenuItem *menuitem, gpointer user_dat
 }
 
 
-G_MODULE_EXPORT void on_save1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	GeanyDocument *doc = document_get_current();
-
-	if (doc != NULL)
-	{
-		document_save_file(doc, ui_prefs.allow_always_save);
-	}
-}
-
-
 G_MODULE_EXPORT void on_save_as1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	dialogs_show_save_as();
