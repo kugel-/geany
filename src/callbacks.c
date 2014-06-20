@@ -395,13 +395,6 @@ G_MODULE_EXPORT void on_info1_activate(GtkMenuItem *menuitem, gpointer user_data
 }
 
 
-/* open file */
-G_MODULE_EXPORT void on_open1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	dialogs_show_open_file();
-}
-
-
 /* reload file */
 G_MODULE_EXPORT void on_toolbutton_reload_clicked(GtkAction *action, gpointer user_data)
 {

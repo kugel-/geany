@@ -369,7 +369,7 @@ GtkWidget *toolbar_init(void)
 		_("Open an existing file"),
 		_("Open a recent file"),
 		GTK_STOCK_OPEN);
-	g_signal_connect(action_open, "button-clicked", G_CALLBACK(on_open1_activate), NULL);
+	g_signal_connect(action_open, "button-clicked", G_CALLBACK(on_file_open_action_activate), NULL);
 	gtk_action_group_add_action(group, action_open);
 
 	action_build = geany_menu_button_action_new(

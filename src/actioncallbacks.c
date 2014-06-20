@@ -24,6 +24,7 @@
 # include "config.h"
 #endif
 
+#include "dialogs.h"
 #include "document.h"
 
 #include <glib.h>
@@ -40,6 +41,7 @@ on_file_new_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_open_action_activate(GtkAction *action, gpointer user_data)
 {
+	dialogs_show_open_file();
 }
 
 
