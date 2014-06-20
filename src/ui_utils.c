@@ -2311,6 +2311,43 @@ static GtkWidget *ui_get_top_parent(GtkWidget *widget)
 }
 
 
+/* FIXME: Hack to work-around a Glade bug (apparently fixed in newer versions) where
+ * it doesn't/can't set the action group's accel group which causes spam on
+ * the console. Related to: https://bugzilla.gnome.org/show_bug.cgi?id=671786 */
+void ui_set_action_group_accel_group(const gchar *act_group_name)
+{
+	GtkActionGroup *group = GTK_ACTION_GROUP(ui_builder_get_object(act_group_name));
+	GtkAccelGroup *ac_group = ui_builder_get_object("accelgroup1");
+	gtk_action_group_set_translation_domain(group, GETTEXT_PACKAGE);
+#if GTK_CHECK_VERSION(3, 6, 0)
+	gtk_action_group_set_accel_group(group, ac_group);
+#else
+	GList *actions = gtk_action_group_list_actions(group);
+	GtkAccelKey key;
+	for (GList *iter = actions; iter; iter = g_list_next(iter))
+	{
+		GtkAction *action = iter->data;
+		gtk_action_set_accel_group(iter->data, ac_group);
+		gtk_action_connect_accelerator(iter->data);
+		for (GSList *iter1 = gtk_action_get_proxies(action); iter1; iter1 = g_slist_next(iter1))
+		{
+			GtkWidget *widget = iter1->data;
+			GtkMenu *parent = GTK_MENU(gtk_widget_get_parent(widget));
+			gtk_menu_set_accel_group(GTK_MENU(parent), ac_group);
+			gtk_menu_item_set_accel_path(GTK_MENU_ITEM(widget), gtk_action_get_accel_path(action));
+		}
+	}
+	g_list_free(actions);
+#endif
+}
+
+
+static void ui_silent_log_func(const gchar *log_domain, GLogLevelFlags log_level,
+	const gchar *message, gpointer user_data)
+{
+}
+
+
 void ui_init_builder(void)
 {
 	gchar *interface_file;
@@ -2318,6 +2355,8 @@ void ui_init_builder(void)
 	GError *error;
 	GSList *iter, *all_objects;
 	GtkWidget *widget, *toplevel;
+	gboolean add_result;
+	GLogFunc log_handler;
 
 	/* prevent function from being called twice */
 	if (GTK_IS_BUILDER(builder))
@@ -2329,7 +2368,20 @@ void ui_init_builder(void)
 
 	error = NULL;
 	interface_file = g_build_filename(app->datadir, "geany.glade", NULL);
-	if (! gtk_builder_add_from_file(builder, interface_file, &error))
+
+	/* Hack to disable terminal spam while adding the interface file to builder
+	 * since it spews all kinds of action/accel-related stuff we cannot silence.
+	 * This is required to use "use action appearance" to avoid duplication
+	 * between the Glade actions and menu/toolbar items. See also
+	 * ui_set_action_group_accel_group() for a similar/related workaround. */
+	log_handler = g_log_set_default_handler(ui_silent_log_func, NULL);
+
+	add_result = gtk_builder_add_from_file(builder, interface_file, &error);
+
+	/* Hack to put back the original log handler function */
+	g_log_set_default_handler(log_handler, NULL);
+
+	if (! add_result)
 	{
 		/* Show the user this message so they know WTF happened */
 		dialogs_show_msgbox_with_secondary(GTK_MESSAGE_ERROR,
@@ -2342,6 +2394,24 @@ void ui_init_builder(void)
 		return;
 	}
 	g_free(interface_file);
+
+	ui_set_action_group_accel_group("file_action_group");
+	ui_set_action_group_accel_group("project_action_group");
+	ui_set_action_group_accel_group("editor_action_group");
+	ui_set_action_group_accel_group("clipboard_action_group");
+	ui_set_action_group_accel_group("select_action_group");
+	ui_set_action_group_accel_group("format_action_group");
+	ui_set_action_group_accel_group("insert_action_group");
+	ui_set_action_group_accel_group("settings_action_group");
+	ui_set_action_group_accel_group("search_action_group");
+	ui_set_action_group_accel_group("go to_action_group");
+	ui_set_action_group_accel_group("view_action_group");
+	ui_set_action_group_accel_group("focus_action_group");
+	ui_set_action_group_accel_group("notebook tab_action_group");
+	ui_set_action_group_accel_group("document_action_group");
+	ui_set_action_group_accel_group("build_action_group");
+	ui_set_action_group_accel_group("tools_action_group");
+	ui_set_action_group_accel_group("help_action_group");
 
 	gtk_builder_connect_signals(builder, NULL);
 
