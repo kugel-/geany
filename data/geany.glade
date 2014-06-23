@@ -7407,12 +7407,13 @@
                         <child>
                           <object class="GtkImageMenuItem" id="menu_save_as1">
                             <property name="label" translatable="yes">Save _As...</property>
+                            <property name="use_action_appearance">False</property>
+                            <property name="related_action">menu_saveas</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="use_underline">True</property>
                             <property name="image">image4</property>
                             <property name="use_stock">False</property>
-                            <signal name="activate" handler="on_save_as1_activate" swapped="no"/>
                           </object>
                         </child>
                         <child>

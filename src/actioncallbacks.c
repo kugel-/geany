@@ -131,6 +131,7 @@ on_file_save_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_saveas_action_activate(GtkAction *action, gpointer user_data)
 {
+	dialogs_show_save_as();
 }
 
 
