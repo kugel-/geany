@@ -179,33 +179,6 @@ G_MODULE_EXPORT void on_clone1_activate(GtkMenuItem *menuitem, gpointer user_dat
 }
 
 
-G_MODULE_EXPORT void on_save_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	guint i, max = (guint) gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
-	GeanyDocument *doc, *cur_doc = document_get_current();
-	guint count = 0;
-
-	/* iterate over documents in tabs order */
-	for (i = 0; i < max; i++)
-	{
-		doc = document_get_from_page(i);
-		if (! doc->changed)
-			continue;
-
-		if (document_save_file(doc, FALSE))
-			count++;
-	}
-	if (!count)
-		return;
-
-	ui_set_statusbar(FALSE, ngettext("%d file saved.", "%d files saved.", count), count);
-	/* saving may have changed window title, sidebar for another doc, so update */
-	document_show_tab(cur_doc);
-	sidebar_update_tag_list(cur_doc, TRUE);
-	ui_set_window_title(cur_doc);
-}
-
-
 G_MODULE_EXPORT void on_close_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	document_close_all();
