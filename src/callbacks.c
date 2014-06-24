@@ -179,12 +179,6 @@ G_MODULE_EXPORT void on_clone1_activate(GtkMenuItem *menuitem, gpointer user_dat
 }
 
 
-G_MODULE_EXPORT void on_close_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	document_close_all();
-}
-
-
 G_MODULE_EXPORT void on_quit1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	main_quit();

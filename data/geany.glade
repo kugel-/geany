@@ -7535,12 +7535,13 @@
                         <child>
                           <object class="GtkImageMenuItem" id="menu_close_all1">
                             <property name="label" translatable="yes">C_lose All</property>
+                            <property name="use_action_appearance">False</property>
+                            <property name="related_action">menu_closeall</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="use_underline">True</property>
                             <property name="image">image4061</property>
                             <property name="use_stock">False</property>
-                            <signal name="activate" handler="on_close_all1_activate" swapped="no"/>
                           </object>
                         </child>
                         <child>

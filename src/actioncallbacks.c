@@ -189,6 +189,7 @@ on_file_close_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_closeall_action_activate(GtkAction *action, gpointer user_data)
 {
+	document_close_all();
 }
 
 
