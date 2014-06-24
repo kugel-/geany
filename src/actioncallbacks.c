@@ -196,6 +196,11 @@ on_file_closeall_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_reload_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	document_reload_prompt(doc, NULL);
 }
 
 

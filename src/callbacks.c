@@ -336,17 +336,6 @@ G_MODULE_EXPORT void on_info1_activate(GtkMenuItem *menuitem, gpointer user_data
 }
 
 
-/* reload file */
-G_MODULE_EXPORT void on_toolbutton_reload_clicked(GtkAction *action, gpointer user_data)
-{
-	GeanyDocument *doc = document_get_current();
-
-	g_return_if_fail(doc != NULL);
-
-	document_reload_prompt(doc, NULL);
-}
-
-
 G_MODULE_EXPORT void on_change_font1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	dialogs_show_open_font();

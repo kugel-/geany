@@ -37,6 +37,7 @@
 #include "encodings.h"
 
 #include "app.h"
+#include "actioncallbacks.h"
 #include "callbacks.h"
 #include "documentprivate.h"
 #include "support.h"
