@@ -245,8 +245,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_FILE);
 
-	add_kb(group, GEANY_KEYS_FILE_OPENLASTTAB, NULL,
-		0, 0, "file_openlasttab", _("Re-open last closed tab"), NULL);
 	add_kb(group, GEANY_KEYS_FILE_QUIT, NULL,
 		GDK_q, GDK_CONTROL_MASK, "menu_quit", _("Quit"), "menu_quit1");
 
@@ -1299,14 +1297,6 @@ static gboolean cb_func_file_action(guint key_id)
 {
 	switch (key_id)
 	{
-		case GEANY_KEYS_FILE_OPENLASTTAB:
-		{
-			gchar *utf8_filename = g_queue_peek_head(ui_prefs.recent_queue);
-			gchar *locale_filename = utils_get_locale_from_utf8(utf8_filename);
-			document_open_file(locale_filename, FALSE, NULL, NULL);
-			g_free(locale_filename);
-			break;
-		}
 		case GEANY_KEYS_FILE_QUIT:
 			on_quit1_activate(NULL, NULL);
 			break;
