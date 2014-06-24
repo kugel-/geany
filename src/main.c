@@ -788,16 +788,6 @@ static gint setup_config_dir(void)
 	return mkdir_result;
 }
 
-/* Signal handling removed since on_quit1_activate() uses functions that are
- * illegal in signal handlers
-static void signal_cb(gint sig)
-{
-	if (sig == SIGTERM)
-	{
-		on_quit1_activate(NULL, NULL);
-	}
-}
- */
 
 /* Used for command-line arguments at startup or from socket.
  * this will strip any :line:col filename suffix from locale_filename */

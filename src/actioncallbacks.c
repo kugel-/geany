@@ -26,6 +26,7 @@
 
 #include "dialogs.h"
 #include "document.h"
+#include "main.h"
 #include "printing.h"
 #include "sidebar.h"
 #include "support.h"
@@ -218,6 +219,7 @@ on_file_openlasttab_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_quit_action_activate(GtkAction *action, gpointer user_data)
 {
+	main_quit();
 }
 
 

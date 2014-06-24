@@ -78,7 +78,6 @@ static gboolean check_current_word(GeanyDocument *doc, gboolean sci_word);
 static gboolean read_current_word(GeanyDocument *doc, gboolean sci_word);
 static gchar *get_current_word_or_sel(GeanyDocument *doc, gboolean sci_word);
 
-static gboolean cb_func_file_action(guint key_id);
 static gboolean cb_func_project_action(guint key_id);
 static gboolean cb_func_editor_action(guint key_id);
 static gboolean cb_func_select_action(guint key_id);
@@ -221,7 +220,6 @@ static void init_default_kb(void)
 	GeanyKeyGroup *group;
 
 	/* visual group order */
-	ADD_KB_GROUP(GEANY_KEY_GROUP_FILE, _("File"), cb_func_file_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_EDITOR, _("Editor"), cb_func_editor_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_CLIPBOARD, _("Clipboard"), cb_func_clipboard_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_SELECT, _("Select"), cb_func_select_action);
@@ -242,11 +240,6 @@ static void init_default_kb(void)
 	/* Init all fields of keys with default values.
 	 * The menu_item field is always the main menu item, popup menu accelerators are
 	 * set in add_popup_menu_accels(). */
-
-	group = keybindings_get_core_group(GEANY_KEY_GROUP_FILE);
-
-	add_kb(group, GEANY_KEYS_FILE_QUIT, NULL,
-		GDK_q, GDK_CONTROL_MASK, "menu_quit", _("Quit"), "menu_quit1");
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_PROJECT);
 
@@ -1291,18 +1284,6 @@ void keybindings_send_command(guint group_id, guint key_id)
 
 /* These are the callback functions, either each group or each shortcut has it's
  * own function. */
-
-
-static gboolean cb_func_file_action(guint key_id)
-{
-	switch (key_id)
-	{
-		case GEANY_KEYS_FILE_QUIT:
-			on_quit1_activate(NULL, NULL);
-			break;
-	}
-	return TRUE;
-}
 
 
 static gboolean cb_func_project_action(guint key_id)

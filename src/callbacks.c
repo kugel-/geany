@@ -179,12 +179,6 @@ G_MODULE_EXPORT void on_clone1_activate(GtkMenuItem *menuitem, gpointer user_dat
 }
 
 
-G_MODULE_EXPORT void on_quit1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	main_quit();
-}
-
-
 G_MODULE_EXPORT void on_file1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	gtk_widget_set_sensitive(ui_widgets.recent_files_menuitem,
