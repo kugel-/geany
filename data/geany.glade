@@ -7495,12 +7495,13 @@
                         <child>
                           <object class="GtkImageMenuItem" id="print1">
                             <property name="label" translatable="yes">_Print...</property>
+                            <property name="use_action_appearance">False</property>
+                            <property name="related_action">menu_print</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="use_underline">True</property>
                             <property name="image">image5</property>
                             <property name="use_stock">False</property>
-                            <signal name="activate" handler="on_print1_activate" swapped="no"/>
                           </object>
                         </child>
                         <child>

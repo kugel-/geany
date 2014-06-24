@@ -1214,15 +1214,6 @@ G_MODULE_EXPORT void on_menu_remove_indicators1_activate(GtkMenuItem *menuitem, 
 }
 
 
-G_MODULE_EXPORT void on_print1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	GeanyDocument *doc = document_get_current();
-	g_return_if_fail(doc != NULL);
-
-	printing_print_doc(doc);
-}
-
-
 G_MODULE_EXPORT void on_menu_select_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();

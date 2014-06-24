@@ -26,6 +26,7 @@
 
 #include "dialogs.h"
 #include "document.h"
+#include "printing.h"
 #include "sidebar.h"
 #include "support.h"
 #include "utils.h"
@@ -167,6 +168,10 @@ on_file_saveall_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_print_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	g_return_if_fail(doc != NULL);
+
+	printing_print_doc(doc);
 }
 
 
