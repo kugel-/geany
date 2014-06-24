@@ -245,8 +245,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_FILE);
 
-	add_kb(group, GEANY_KEYS_FILE_CLOSE, NULL,
-		GDK_w, GDK_CONTROL_MASK, "menu_close", _("Close"), "menu_close1");
 	add_kb(group, GEANY_KEYS_FILE_CLOSEALL, NULL,
 		GDK_w, GDK_CONTROL_MASK | GDK_SHIFT_MASK, "menu_closeall", _("Close all"),
 		"menu_close_all1");
@@ -1314,9 +1312,6 @@ static gboolean cb_func_file_action(guint key_id)
 			g_free(locale_filename);
 			break;
 		}
-		case GEANY_KEYS_FILE_CLOSE:
-			on_close1_activate(NULL, NULL);
-			break;
 		case GEANY_KEYS_FILE_CLOSEALL:
 			on_close_all1_activate(NULL, NULL);
 			break;

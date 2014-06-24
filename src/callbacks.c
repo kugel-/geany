@@ -185,15 +185,6 @@ G_MODULE_EXPORT void on_close_all1_activate(GtkMenuItem *menuitem, gpointer user
 }
 
 
-G_MODULE_EXPORT void on_close1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	GeanyDocument *doc = document_get_current();
-
-	if (doc != NULL)
-		document_close(doc);
-}
-
-
 G_MODULE_EXPORT void on_quit1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	main_quit();

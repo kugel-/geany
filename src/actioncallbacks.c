@@ -178,6 +178,11 @@ on_file_print_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_file_close_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(DOC_VALID(doc));
+
+	document_close(doc);
 }
 
 
