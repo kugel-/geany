@@ -230,7 +230,6 @@ static void init_default_kb(void)
 	ADD_KB_GROUP(GEANY_KEY_GROUP_GOTO, _("Go to"), cb_func_goto_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_VIEW, _("View"), cb_func_view_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_DOCUMENT, _("Document"), cb_func_document_action);
-	ADD_KB_GROUP(GEANY_KEY_GROUP_PROJECT, _("Project"), cb_func_project_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_BUILD, _("Build"), cb_func_build_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_TOOLS, _("Tools"), NULL);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_HELP, _("Help"), NULL);
@@ -240,11 +239,6 @@ static void init_default_kb(void)
 	/* Init all fields of keys with default values.
 	 * The menu_item field is always the main menu item, popup menu accelerators are
 	 * set in add_popup_menu_accels(). */
-
-	group = keybindings_get_core_group(GEANY_KEY_GROUP_PROJECT);
-
-	add_kb(group, GEANY_KEYS_PROJECT_CLOSE, NULL,
-		0, 0, "project_close", _("Close"), "project_close1");
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
@@ -1277,19 +1271,6 @@ void keybindings_send_command(guint group_id, guint key_id)
 
 /* These are the callback functions, either each group or each shortcut has it's
  * own function. */
-
-
-static gboolean cb_func_project_action(guint key_id)
-{
-	switch (key_id)
-	{
-		case GEANY_KEYS_PROJECT_CLOSE:
-			if (app->project)
-				on_project_close1_activate(NULL, NULL);
-			break;
-	}
-	return TRUE;
-}
 
 
 static void cb_func_menu_preferences(guint key_id)

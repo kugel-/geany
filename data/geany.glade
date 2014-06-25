@@ -8941,12 +8941,13 @@
                         <child>
                           <object class="GtkImageMenuItem" id="project_close1">
                             <property name="label" translatable="yes">_Close</property>
+                            <property name="use_action_appearance">False</property>
+                            <property name="related_action">project_close</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="use_underline">True</property>
                             <property name="image">image4079</property>
                             <property name="use_stock">False</property>
-                            <signal name="activate" handler="on_project_close1_activate" swapped="no"/>
                           </object>
                         </child>
                         <child>

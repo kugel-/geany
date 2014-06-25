@@ -1301,21 +1301,8 @@ G_MODULE_EXPORT void on_previous_message1_activate(GtkMenuItem *menuitem, gpoint
 }
 
 
-G_MODULE_EXPORT void on_project_close1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	project_close(TRUE);
-}
-
-
 G_MODULE_EXPORT void on_menu_project1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
-	static GtkWidget *item_close = NULL;
-	if (item_close == NULL)
-	{
-		item_close = ui_lookup_widget(main_widgets.window, "project_close1");
-	}
-
-	gtk_widget_set_sensitive(item_close, (app->project != NULL));
 	gtk_widget_set_sensitive(ui_widgets.recent_projects_menuitem,
 						g_queue_get_length(ui_prefs.recent_projects_queue) > 0);
 }

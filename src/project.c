@@ -1266,6 +1266,7 @@ void project_init(void)
 {
 	project_sensitive_actions = g_ptr_array_sized_new(2);
 	g_ptr_array_add(project_sensitive_actions, g_object_ref(ui_builder_get_object("project_properties")));
+	g_ptr_array_add(project_sensitive_actions, g_object_ref(ui_builder_get_object("project_close")));
 
 	/* Initially there is no project */
 	toggle_sensitive_actions(FALSE);

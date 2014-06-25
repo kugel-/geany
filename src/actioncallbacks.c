@@ -248,6 +248,7 @@ on_project_properties_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_project_close_action_activate(GtkAction *action, gpointer user_data)
 {
+	project_close(TRUE);
 }
 
 
