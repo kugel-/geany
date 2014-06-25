@@ -1301,12 +1301,6 @@ G_MODULE_EXPORT void on_previous_message1_activate(GtkMenuItem *menuitem, gpoint
 }
 
 
-G_MODULE_EXPORT void on_project_new1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	project_new();
-}
-
-
 G_MODULE_EXPORT void on_project_open1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	project_open();

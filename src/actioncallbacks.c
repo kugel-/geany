@@ -28,6 +28,7 @@
 #include "document.h"
 #include "main.h"
 #include "printing.h"
+#include "project.h"
 #include "sidebar.h"
 #include "support.h"
 #include "utils.h"
@@ -226,6 +227,7 @@ on_file_quit_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_project_new_action_activate(GtkAction *action, gpointer user_data)
 {
+	project_new();
 }
 
 
