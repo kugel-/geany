@@ -90,6 +90,15 @@ static void on_radio_long_line_custom_toggled(GtkToggleButton *radio, GtkWidget 
 static void apply_editor_prefs(void);
 static void init_stash_prefs(void);
 
+static GPtrArray *project_sensitive_actions;
+
+static void toggle_sensitive_actions(gboolean sensitive)
+{
+	g_return_if_fail(project_sensitive_actions != NULL);
+
+	g_ptr_array_foreach(project_sensitive_actions,
+			(GFunc) gtk_action_set_sensitive, GINT_TO_POINTER(sensitive));
+}
 
 #define SHOW_ERR(args) dialogs_show_msgbox(GTK_MESSAGE_ERROR, args)
 #define SHOW_ERR1(args, more) dialogs_show_msgbox(GTK_MESSAGE_ERROR, args, more)
@@ -385,6 +394,7 @@ void project_close(gboolean open_default)
 
 	g_free(app->project);
 	app->project = NULL;
+	toggle_sensitive_actions(FALSE);
 
 	foreach_slist(node, stash_groups)
 		stash_group_free(node->data);
@@ -633,6 +643,7 @@ static GeanyProject *create_project(void)
 	project->priv->long_line_column = editor_prefs.long_line_column;
 
 	app->project = project;
+	toggle_sensitive_actions(TRUE);
 	return project;
 }
 
@@ -1253,9 +1264,16 @@ const GeanyFilePrefs *project_get_file_prefs(void)
 
 void project_init(void)
 {
+	project_sensitive_actions = g_ptr_array_sized_new(2);
+	g_ptr_array_add(project_sensitive_actions, g_object_ref(ui_builder_get_object("project_properties")));
+
+	/* Initially there is no project */
+	toggle_sensitive_actions(FALSE);
 }
 
 
 void project_finalize(void)
 {
+	g_ptr_array_set_free_func(project_sensitive_actions, (GDestroyNotify) g_object_unref);
+	g_ptr_array_free(project_sensitive_actions, TRUE);
 }
