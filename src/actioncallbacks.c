@@ -234,6 +234,7 @@ on_project_new_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_project_open_action_activate(GtkAction *action, gpointer user_data)
 {
+	project_open();
 }
 
 
