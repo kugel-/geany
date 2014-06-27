@@ -242,8 +242,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
-	add_kb(group, GEANY_KEYS_EDITOR_UNDO, NULL,
-		GDK_z, GDK_CONTROL_MASK, "menu_undo", _("Undo"), "menu_undo2");
 	add_kb(group, GEANY_KEYS_EDITOR_REDO, NULL,
 		GDK_y, GDK_CONTROL_MASK, "menu_redo", _("Redo"), "menu_redo2");
 	add_kb(group, GEANY_KEYS_EDITOR_DUPLICATELINE, NULL,
@@ -1889,9 +1887,6 @@ static gboolean cb_func_editor_action(guint key_id)
 
 	switch (key_id)
 	{
-		case GEANY_KEYS_EDITOR_UNDO:
-			on_undo1_activate(NULL, NULL);
-			break;
 		case GEANY_KEYS_EDITOR_REDO:
 			on_redo1_activate(NULL, NULL);
 			break;

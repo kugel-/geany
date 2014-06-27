@@ -29,6 +29,7 @@
 #include "main.h"
 #include "printing.h"
 #include "project.h"
+#include "sciwrappers.h"
 #include "sidebar.h"
 #include "support.h"
 #include "utils.h"
@@ -255,6 +256,15 @@ on_project_close_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_undo_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	if (document_can_undo(doc))
+	{
+		sci_cancel(doc->editor->sci);
+		document_undo(doc);
+	}
 }
 
 
