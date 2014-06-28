@@ -1247,9 +1247,18 @@ static void queue_free(GQueue *queue)
 }
 
 
-void main_quit(void)
+static void do_main_quit(void)
 {
 	geany_debug("Quitting...");
+
+	configuration_save();
+
+	if (app->project != NULL)
+		project_close(FALSE);   /* save project session files */
+
+	document_close_all();
+
+	main_status.quitting = TRUE;
 
 #ifdef HAVE_SOCKET
 	socket_finalize();
@@ -1342,6 +1351,47 @@ void main_quit(void)
 	gtk_main_quit();
 }
 
+
+static gboolean check_no_unsaved(void)
+{
+	guint i;
+
+	for (i = 0; i < documents_array->len; i++)
+	{
+		if (documents[i]->is_valid && documents[i]->changed)
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;    /* no unsaved edits */
+}
+
+
+/* Returns false when quitting is aborted due to user cancellation */
+gboolean main_quit(void)
+{
+	main_status.quitting = TRUE;
+
+	if (! check_no_unsaved())
+	{
+		if (document_account_for_unsaved())
+		{
+			do_main_quit();
+			return TRUE;
+		}
+	}
+	else
+	if (! prefs.confirm_exit ||
+		dialogs_show_question_full(NULL, GTK_STOCK_QUIT, GTK_STOCK_CANCEL, NULL,
+			_("Do you really want to quit?")))
+	{
+		do_main_quit();
+		return TRUE;
+	}
+
+	main_status.quitting = FALSE;
+	return FALSE;
+}
 
 /**
  *  Reloads most of Geany's configuration files without restarting. Currently the following
