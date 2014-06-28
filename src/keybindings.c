@@ -242,8 +242,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
-	add_kb(group, GEANY_KEYS_EDITOR_REDO, NULL,
-		GDK_y, GDK_CONTROL_MASK, "menu_redo", _("Redo"), "menu_redo2");
 	add_kb(group, GEANY_KEYS_EDITOR_DUPLICATELINE, NULL,
 		GDK_d, GDK_CONTROL_MASK, "edit_duplicateline", _("D_uplicate Line or Selection"),
 		"duplicate_line_or_selection1");
@@ -1887,9 +1885,6 @@ static gboolean cb_func_editor_action(guint key_id)
 
 	switch (key_id)
 	{
-		case GEANY_KEYS_EDITOR_REDO:
-			on_redo1_activate(NULL, NULL);
-			break;
 		case GEANY_KEYS_EDITOR_SCROLLTOLINE:
 			editor_scroll_to_line(doc->editor, -1, 0.5F);
 			break;

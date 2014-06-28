@@ -42,8 +42,6 @@ void on_toolbutton_search_clicked(GtkAction *action, gpointer user_data);
 
 gboolean toolbar_popup_menu(GtkWidget *widget, GdkEventButton *event, gpointer user_data);
 
-G_MODULE_EXPORT void on_redo1_activate(GtkMenuItem *menuitem, gpointer user_data);
-
 G_MODULE_EXPORT void on_cut1_activate(GtkMenuItem *menuitem, gpointer user_data);
 
 G_MODULE_EXPORT void on_copy1_activate(GtkMenuItem *menuitem, gpointer user_data);

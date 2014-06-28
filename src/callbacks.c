@@ -206,20 +206,6 @@ G_MODULE_EXPORT void on_edit1_activate(GtkMenuItem *menuitem, gpointer user_data
 }
 
 
-G_MODULE_EXPORT void on_redo1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	GeanyDocument *doc = document_get_current();
-
-	g_return_if_fail(doc != NULL);
-
-	if (document_can_redo(doc))
-	{
-		sci_cancel(doc->editor->sci);
-		document_redo(doc);
-	}
-}
-
-
 G_MODULE_EXPORT void on_cut1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();

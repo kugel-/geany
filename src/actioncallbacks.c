@@ -271,6 +271,15 @@ on_editor_undo_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_redo_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	if (document_can_redo(doc))
+	{
+		sci_cancel(doc->editor->sci);
+		document_redo(doc);
+	}
 }
 
 
