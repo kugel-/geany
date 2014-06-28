@@ -242,9 +242,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
-	/* Note: transpose may fit better in format group, but that would break the API */
-	add_kb(group, GEANY_KEYS_EDITOR_TRANSPOSELINE, NULL,
-		0, 0, "edit_transposeline", _("_Transpose Current Line"), NULL);
 	add_kb(group, GEANY_KEYS_EDITOR_SCROLLTOLINE, NULL,
 		GDK_l, GDK_SHIFT_MASK | GDK_CONTROL_MASK, "edit_scrolltoline", _("Scroll to current line"), NULL);
 	add_kb(group, GEANY_KEYS_EDITOR_SCROLLLINEUP, NULL,
@@ -1866,9 +1863,6 @@ static gboolean cb_func_editor_action(guint key_id)
 			break;
 		case GEANY_KEYS_EDITOR_SNIPPETNEXTCURSOR:
 			editor_goto_next_snippet_cursor(doc->editor);
-			break;
-		case GEANY_KEYS_EDITOR_TRANSPOSELINE:
-			sci_send_command(doc->editor->sci, SCI_LINETRANSPOSE);
 			break;
 		case GEANY_KEYS_EDITOR_AUTOCOMPLETE:
 			editor_start_auto_complete(doc->editor, sci_get_current_position(doc->editor->sci), TRUE);
