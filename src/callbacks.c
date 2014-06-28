@@ -1627,12 +1627,6 @@ G_MODULE_EXPORT void on_copy_current_lines1_activate(GtkMenuItem *menuitem, gpoi
 }
 
 
-G_MODULE_EXPORT void on_delete_current_lines1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	keybindings_send_command(GEANY_KEY_GROUP_EDITOR, GEANY_KEYS_EDITOR_DELETELINE);
-}
-
-
 G_MODULE_EXPORT void on_select_current_lines1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	keybindings_send_command(GEANY_KEY_GROUP_SELECT, GEANY_KEYS_SELECT_LINE);

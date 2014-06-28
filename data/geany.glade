@@ -7699,11 +7699,12 @@
                                 </child>
                                 <child>
                                   <object class="GtkMenuItem" id="delete_current_lines1">
+                                    <property name="use_action_appearance">False</property>
+                                    <property name="related_action">edit_deleteline</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="label" translatable="yes">_Delete Current Line(s)</property>
                                     <property name="use_underline">True</property>
-                                    <signal name="activate" handler="on_delete_current_lines1_activate" swapped="no"/>
                                   </object>
                                 </child>
                                 <child>

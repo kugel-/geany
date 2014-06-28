@@ -242,9 +242,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
-	add_kb(group, GEANY_KEYS_EDITOR_DELETELINE, NULL,
-		GDK_k, GDK_CONTROL_MASK, "edit_deleteline", _("_Delete Current Line(s)"),
-		"delete_current_lines1");
 	add_kb(group, GEANY_KEYS_EDITOR_DELETELINETOEND, NULL,
 		GDK_Delete, GDK_SHIFT_MASK | GDK_CONTROL_MASK, "edit_deletelinetoend",
 		_("Delete to line end"), NULL);
@@ -1849,13 +1846,6 @@ static gboolean cb_func_goto_action(guint key_id)
 }
 
 
-static void delete_lines(GeanyEditor *editor)
-{
-	editor_select_lines(editor, TRUE); /* include last line (like cut lines, copy lines do) */
-	sci_clear(editor->sci);	/* (SCI_LINEDELETE only does 1 line) */
-}
-
-
 /* common function for editor keybindings, only valid when scintilla has focus. */
 static gboolean cb_func_editor_action(guint key_id)
 {
@@ -1879,9 +1869,6 @@ static gboolean cb_func_editor_action(guint key_id)
 			break;
 		case GEANY_KEYS_EDITOR_SNIPPETNEXTCURSOR:
 			editor_goto_next_snippet_cursor(doc->editor);
-			break;
-		case GEANY_KEYS_EDITOR_DELETELINE:
-			delete_lines(doc->editor);
 			break;
 		case GEANY_KEYS_EDITOR_DELETELINETOEND:
 			sci_send_command(doc->editor->sci, SCI_DELLINERIGHT);

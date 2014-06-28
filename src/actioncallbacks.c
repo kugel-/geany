@@ -306,6 +306,12 @@ on_editor_duplicateline_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_deleteline_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	editor_select_lines(doc->editor, TRUE); /* include last line (like cut lines, copy lines do) */
+	sci_clear(doc->editor->sci);	/* (SCI_LINEDELETE only does 1 line) */
 }
 
 
