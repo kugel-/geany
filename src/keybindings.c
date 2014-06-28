@@ -242,9 +242,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
-	add_kb(group, GEANY_KEYS_EDITOR_DUPLICATELINE, NULL,
-		GDK_d, GDK_CONTROL_MASK, "edit_duplicateline", _("D_uplicate Line or Selection"),
-		"duplicate_line_or_selection1");
 	add_kb(group, GEANY_KEYS_EDITOR_DELETELINE, NULL,
 		GDK_k, GDK_CONTROL_MASK, "edit_deleteline", _("_Delete Current Line(s)"),
 		"delete_current_lines1");
@@ -1852,20 +1849,6 @@ static gboolean cb_func_goto_action(guint key_id)
 }
 
 
-static void duplicate_lines(GeanyEditor *editor)
-{
-	if (sci_get_lines_selected(editor->sci) > 1)
-	{	/* ignore extra_line because of selecting lines from the line number column */
-		editor_select_lines(editor, FALSE);
-		sci_selection_duplicate(editor->sci);
-	}
-	else if (sci_has_selection(editor->sci))
-		sci_selection_duplicate(editor->sci);
-	else
-		sci_line_duplicate(editor->sci);
-}
-
-
 static void delete_lines(GeanyEditor *editor)
 {
 	editor_select_lines(editor, TRUE); /* include last line (like cut lines, copy lines do) */
@@ -1893,9 +1876,6 @@ static gboolean cb_func_editor_action(guint key_id)
 			break;
 		case GEANY_KEYS_EDITOR_SCROLLLINEDOWN:
 			sci_send_command(doc->editor->sci, SCI_LINESCROLLDOWN);
-			break;
-		case GEANY_KEYS_EDITOR_DUPLICATELINE:
-			duplicate_lines(doc->editor);
 			break;
 		case GEANY_KEYS_EDITOR_SNIPPETNEXTCURSOR:
 			editor_goto_next_snippet_cursor(doc->editor);

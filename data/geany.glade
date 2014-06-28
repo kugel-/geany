@@ -7708,11 +7708,12 @@
                                 </child>
                                 <child>
                                   <object class="GtkMenuItem" id="duplicate_line_or_selection1">
+                                    <property name="use_action_appearance">False</property>
+                                    <property name="related_action">edit_duplicateline</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="label" translatable="yes">D_uplicate Line or Selection</property>
                                     <property name="use_underline">True</property>
-                                    <signal name="activate" handler="on_duplicate_line_or_selection1_activate" swapped="no"/>
                                   </object>
                                 </child>
                                 <child>

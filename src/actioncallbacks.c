@@ -26,6 +26,7 @@
 
 #include "dialogs.h"
 #include "document.h"
+#include "editor.h"
 #include "main.h"
 #include "printing.h"
 #include "project.h"
@@ -286,6 +287,19 @@ on_editor_redo_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_duplicateline_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	if (sci_get_lines_selected(doc->editor->sci) > 1)
+	{	/* ignore extra_line because of selecting lines from the line number column */
+		editor_select_lines(doc->editor, FALSE);
+		sci_selection_duplicate(doc->editor->sci);
+	}
+	else if (sci_has_selection(doc->editor->sci))
+		sci_selection_duplicate(doc->editor->sci);
+	else
+		sci_line_duplicate(doc->editor->sci);
 }
 
 

@@ -1633,12 +1633,6 @@ G_MODULE_EXPORT void on_delete_current_lines1_activate(GtkMenuItem *menuitem, gp
 }
 
 
-G_MODULE_EXPORT void on_duplicate_line_or_selection1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	keybindings_send_command(GEANY_KEY_GROUP_EDITOR, GEANY_KEYS_EDITOR_DUPLICATELINE);
-}
-
-
 G_MODULE_EXPORT void on_select_current_lines1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	keybindings_send_command(GEANY_KEY_GROUP_SELECT, GEANY_KEYS_SELECT_LINE);
