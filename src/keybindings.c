@@ -242,8 +242,6 @@ static void init_default_kb(void)
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
 
-	add_kb(group, GEANY_KEYS_EDITOR_SCROLLLINEUP, NULL,
-		GDK_Up, GDK_MOD1_MASK, "edit_scrolllineup", _("Scroll up the view by one line"), NULL);
 	add_kb(group, GEANY_KEYS_EDITOR_SCROLLLINEDOWN, NULL,
 		GDK_Down, GDK_MOD1_MASK, "edit_scrolllinedown", _("Scroll down the view by one line"), NULL);
 	add_kb(group, GEANY_KEYS_EDITOR_COMPLETESNIPPET, NULL,
@@ -1850,9 +1848,6 @@ static gboolean cb_func_editor_action(guint key_id)
 
 	switch (key_id)
 	{
-		case GEANY_KEYS_EDITOR_SCROLLLINEUP:
-			sci_send_command(doc->editor->sci, SCI_LINESCROLLUP);
-			break;
 		case GEANY_KEYS_EDITOR_SCROLLLINEDOWN:
 			sci_send_command(doc->editor->sci, SCI_LINESCROLLDOWN);
 			break;

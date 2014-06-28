@@ -351,6 +351,11 @@ on_editor_scrolltoline_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_scrolllineup_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	sci_send_command(doc->editor->sci, SCI_LINESCROLLUP);
 }
 
 
