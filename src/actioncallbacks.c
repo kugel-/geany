@@ -28,6 +28,7 @@
 #include "document.h"
 #include "editor.h"
 #include "main.h"
+#include "prefs.h"
 #include "printing.h"
 #include "project.h"
 #include "sciwrappers.h"
@@ -36,8 +37,11 @@
 #include "utils.h"
 #include "ui_utils.h"
 
+#include "gtkcompat.h"
+
 #include <glib.h>
 #include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
 
 
 G_MODULE_EXPORT void
@@ -184,7 +188,7 @@ on_file_close_action_activate(GtkAction *action, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();
 
-	g_return_if_fail(DOC_VALID(doc));
+	g_return_if_fail(doc != NULL);
 
 	document_close(doc);
 }
@@ -373,78 +377,257 @@ on_editor_scrolllinedown_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_completesnippet_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	GtkWidget *focusw = gtk_window_get_focus(GTK_WINDOW(main_widgets.window));
+	gboolean handled = FALSE;
+
+	g_return_if_fail(DOC_VALID(doc));
+
+	/* keybinding only valid when scintilla widget has focus */
+	if (focusw == GTK_WIDGET(doc->editor->sci))
+	{
+		ScintillaObject *sci = doc->editor->sci;
+		gint pos = sci_get_current_position(sci);
+
+		if (editor_prefs.complete_snippets)
+			handled = editor_complete_snippet(doc->editor, pos);
+	}
+
+	/* allow tab to be overloaded */
+	if (!handled)
+		g_warning("TODO tab snippet"); /* TODO */
 }
 
 
 G_MODULE_EXPORT void
 on_editor_snippetnextcursor_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	editor_goto_next_snippet_cursor(doc->editor);
 }
 
 
 G_MODULE_EXPORT void
 on_editor_suppresssnippetcompletion_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	GtkAction      *completesnippet_action;
+	GtkAccelKey    key;
+
+	g_return_if_fail(DOC_VALID(doc));
+
+	completesnippet_action = ui_builder_get_object("completesnippet");
+	if (!gtk_accel_map_lookup_entry(gtk_action_get_accel_path(completesnippet_action), &key))
+		return;
+
+	switch (key.accel_key)
+	{
+		case GDK_space:
+			sci_add_text(doc->editor->sci, " ");
+			break;
+		case GDK_Tab:
+			sci_send_command(doc->editor->sci, SCI_TAB);
+			break;
+		default:
+			break;
+	}
 }
 
 
 G_MODULE_EXPORT void
 on_editor_contextaction_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	gchar *word, *command;
+	GError *error = NULL;
+
+	g_return_if_fail(DOC_VALID(doc));
+
+	if (sci_has_selection(doc->editor->sci))
+	{	/* take selected text if there is a selection */
+		word = sci_get_selection_contents(doc->editor->sci);
+	}
+	else
+	{
+		word = g_new(char, GEANY_MAX_WORD_LENGTH);
+		editor_find_current_word(doc->editor, -1, word, GEANY_MAX_WORD_LENGTH, NULL);
+	}
+
+	if (!EMPTY(word))
+	{
+		/* use the filetype specific command if available, fallback to global command otherwise */
+		if (doc->file_type != NULL &&
+			!EMPTY(doc->file_type->context_action_cmd))
+		{
+			command = g_strdup(doc->file_type->context_action_cmd);
+		}
+		else
+		{
+			command = g_strdup(tool_prefs.context_action_cmd);
+		}
+
+		/* substitute the wildcard %s and run the command if it is non empty */
+		if (G_LIKELY(!EMPTY(command)))
+		{
+			utils_str_replace_all(&command, "%s", word);
+
+			if (! g_spawn_command_line_async(command, &error))
+			{
+				ui_set_statusbar(TRUE, "Context action command failed: %s", error->message);
+				g_error_free(error);
+			}
+		}
+		g_free(command);
+	}
+	else
+		utils_beep();
+
+	g_free(word);
 }
 
 
 G_MODULE_EXPORT void
 on_editor_autocomplete_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	editor_start_auto_complete(doc->editor, sci_get_current_position(doc->editor->sci), TRUE);
 }
 
 
 G_MODULE_EXPORT void
 on_editor_calltip_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	editor_show_calltip(doc->editor, -1);
 }
 
 
 G_MODULE_EXPORT void
 on_editor_macrolist_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	editor_show_macro_list(doc->editor);
 }
 
 
 G_MODULE_EXPORT void
 on_editor_wordpartcompletion_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	gboolean handled;
+
+	g_return_if_fail(doc != NULL);
+
+	handled = editor_complete_word_part(doc->editor);
+
+	if (!handled)
+		g_warning("TODO complete_word_part"); /* TODO */
 }
 
 
 G_MODULE_EXPORT void
 on_editor_movelineup_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	sci_move_selected_lines_up(doc->editor->sci);
 }
 
 
 G_MODULE_EXPORT void
 on_editor_movelinedown_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	sci_move_selected_lines_down(doc->editor->sci);
 }
 
 
 G_MODULE_EXPORT void
 on_clipboard_cut_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	GtkWidget *focusw = gtk_window_get_focus(GTK_WINDOW(main_widgets.window));
+
+	g_return_if_fail(doc != NULL);
+
+	if (GTK_IS_EDITABLE(focusw))
+		gtk_editable_cut_clipboard(GTK_EDITABLE(focusw));
+	else
+	if (IS_SCINTILLA(focusw) && doc != NULL)
+		sci_cut(doc->editor->sci);
+	else
+	if (GTK_IS_TEXT_VIEW(focusw))
+	{
+		GtkTextBuffer *buffer = gtk_text_view_get_buffer(
+			GTK_TEXT_VIEW(focusw));
+		gtk_text_buffer_cut_clipboard(buffer, gtk_clipboard_get(GDK_NONE), TRUE);
+	}
 }
 
 
 G_MODULE_EXPORT void
 on_clipboard_copy_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	GtkWidget *focusw = gtk_window_get_focus(GTK_WINDOW(main_widgets.window));
+
+	g_return_if_fail(doc != NULL);
+
+	if (GTK_IS_EDITABLE(focusw))
+		gtk_editable_copy_clipboard(GTK_EDITABLE(focusw));
+	else
+	if (IS_SCINTILLA(focusw) && doc != NULL)
+		sci_copy(doc->editor->sci);
+	else
+	if (GTK_IS_TEXT_VIEW(focusw))
+	{
+		GtkTextBuffer *buffer = gtk_text_view_get_buffer(
+			GTK_TEXT_VIEW(focusw));
+		gtk_text_buffer_copy_clipboard(buffer, gtk_clipboard_get(GDK_NONE));
+	}
 }
 
 
 G_MODULE_EXPORT void
 on_clipboard_paste_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+	GtkWidget *focusw = gtk_window_get_focus(GTK_WINDOW(main_widgets.window));
+
+	g_return_if_fail(doc != NULL);
+
+	if (GTK_IS_EDITABLE(focusw))
+		gtk_editable_paste_clipboard(GTK_EDITABLE(focusw));
+	else
+	if (IS_SCINTILLA(focusw) && doc != NULL)
+	{
+		sci_paste(doc->editor->sci);
+	}
+	else
+	if (GTK_IS_TEXT_VIEW(focusw))
+	{
+		GtkTextBuffer *buffer = gtk_text_view_get_buffer(
+			GTK_TEXT_VIEW(focusw));
+		gtk_text_buffer_paste_clipboard(buffer, gtk_clipboard_get(GDK_NONE), NULL,
+			TRUE);
+	}
 }
 
 

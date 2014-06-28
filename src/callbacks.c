@@ -1296,50 +1296,6 @@ G_MODULE_EXPORT void on_load_tags1_activate(GtkMenuItem *menuitem, gpointer user
 }
 
 
-G_MODULE_EXPORT void on_context_action1_activate(GtkMenuItem *menuitem, gpointer user_data)
-{
-	gchar *word, *command;
-	GError *error = NULL;
-	GeanyDocument *doc = document_get_current();
-
-	g_return_if_fail(doc != NULL);
-
-	if (sci_has_selection(doc->editor->sci))
-	{	/* take selected text if there is a selection */
-		word = sci_get_selection_contents(doc->editor->sci);
-	}
-	else
-	{
-		word = g_strdup(editor_info.current_word);
-	}
-
-	/* use the filetype specific command if available, fallback to global command otherwise */
-	if (doc->file_type != NULL &&
-		!EMPTY(doc->file_type->context_action_cmd))
-	{
-		command = g_strdup(doc->file_type->context_action_cmd);
-	}
-	else
-	{
-		command = g_strdup(tool_prefs.context_action_cmd);
-	}
-
-	/* substitute the wildcard %s and run the command if it is non empty */
-	if (G_LIKELY(!EMPTY(command)))
-	{
-		utils_str_replace_all(&command, "%s", word);
-
-		if (! g_spawn_command_line_async(command, &error))
-		{
-			ui_set_statusbar(TRUE, "Context action command failed: %s", error->message);
-			g_error_free(error);
-		}
-	}
-	g_free(word);
-	g_free(command);
-}
-
-
 G_MODULE_EXPORT void on_menu_toggle_all_additional_widgets1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	static gint hide_all = -1;

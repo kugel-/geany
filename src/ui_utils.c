@@ -2310,6 +2310,13 @@ static GtkWidget *ui_get_top_parent(GtkWidget *widget)
 	return widget;
 }
 
+static GPtrArray *act_groups;
+
+GPtrArray *ui_get_action_groups(void)
+{
+	return act_groups;
+}
+
 
 /* FIXME: Hack to work-around a Glade bug (apparently fixed in newer versions) where
  * it doesn't/can't set the action group's accel group which causes spam on
@@ -2339,6 +2346,8 @@ void ui_set_action_group_accel_group(const gchar *act_group_name)
 	}
 	g_list_free(actions);
 #endif
+
+	g_ptr_array_add(act_groups, g_object_ref(group));
 }
 
 
@@ -2394,6 +2403,9 @@ void ui_init_builder(void)
 		return;
 	}
 	g_free(interface_file);
+
+	act_groups = g_ptr_array_sized_new(17);
+	g_ptr_array_set_free_func(act_groups, g_object_unref);
 
 	ui_set_action_group_accel_group("file_action_group");
 	ui_set_action_group_accel_group("project_action_group");

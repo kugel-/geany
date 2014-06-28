@@ -74,12 +74,10 @@ static const gboolean swap_alt_tab_order = FALSE;
 /* central keypress event handler, almost all keypress events go to this function */
 static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
 
-static gboolean check_current_word(GeanyDocument *doc, gboolean sci_word);
 static gboolean read_current_word(GeanyDocument *doc, gboolean sci_word);
 static gchar *get_current_word_or_sel(GeanyDocument *doc, gboolean sci_word);
 
 static gboolean cb_func_project_action(guint key_id);
-static gboolean cb_func_editor_action(guint key_id);
 static gboolean cb_func_select_action(guint key_id);
 static gboolean cb_func_format_action(guint key_id);
 static gboolean cb_func_insert_action(guint key_id);
@@ -220,7 +218,6 @@ static void init_default_kb(void)
 	GeanyKeyGroup *group;
 
 	/* visual group order */
-	ADD_KB_GROUP(GEANY_KEY_GROUP_EDITOR, _("Editor"), cb_func_editor_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_CLIPBOARD, _("Clipboard"), cb_func_clipboard_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_SELECT, _("Select"), cb_func_select_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_FORMAT, _("Format"), cb_func_format_action);
@@ -239,31 +236,6 @@ static void init_default_kb(void)
 	/* Init all fields of keys with default values.
 	 * The menu_item field is always the main menu item, popup menu accelerators are
 	 * set in add_popup_menu_accels(). */
-
-	group = keybindings_get_core_group(GEANY_KEY_GROUP_EDITOR);
-
-	add_kb(group, GEANY_KEYS_EDITOR_COMPLETESNIPPET, NULL,
-		GDK_Tab, 0, "edit_completesnippet", _("Complete snippet"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_SNIPPETNEXTCURSOR, NULL,
-		0, 0, "move_snippetnextcursor", _("Move cursor in snippet"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_SUPPRESSSNIPPETCOMPLETION, NULL,
-		0, 0, "edit_suppresssnippetcompletion", _("Suppress snippet completion"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_CONTEXTACTION, NULL,
-		0, 0, "popup_contextaction", _("Context Action"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_AUTOCOMPLETE, NULL,
-		GDK_space, GDK_CONTROL_MASK, "edit_autocomplete", _("Complete word"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_CALLTIP, NULL,
-		GDK_space, GDK_CONTROL_MASK | GDK_SHIFT_MASK, "edit_calltip", _("Show calltip"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_MACROLIST, NULL,
-		GDK_Return, GDK_CONTROL_MASK, "edit_macrolist", _("Show macro list"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_WORDPARTCOMPLETION, NULL,
-		GDK_Tab, 0, "edit_wordpartcompletion", _("Word part completion"), NULL);
-	add_kb(group, GEANY_KEYS_EDITOR_MOVELINEUP, NULL,
-		GDK_Page_Up, GDK_MOD1_MASK, "edit_movelineup",
-		_("Move line(s) up"), "move_lines_up1");
-	add_kb(group, GEANY_KEYS_EDITOR_MOVELINEDOWN, NULL,
-		GDK_Page_Down, GDK_MOD1_MASK, "edit_movelinedown",
-		_("Move line(s) down"), "move_lines_down1");
 
 	group = keybindings_get_core_group(GEANY_KEY_GROUP_CLIPBOARD);
 
@@ -548,17 +520,74 @@ static void init_default_kb(void)
 		GDK_F1, 0, "menu_help", _("Help"), "help1");
 }
 
+static GHashTable *foo_hash;
+
+static gboolean is_borked_key(guint key)
+{
+	/* based on http://trac.wxwidgets.org/ticket/10049 */
+	//~ return (key == GDK_KEY_Tab
+			//~ || key == GDK_KEY_Up || key == GDK_KEY_Down
+			//~ || key == GDK_KEY_Left || key == GDK_KEY_Right);
+	return key == GDK_KEY_Tab;
+}
+
+GtkAction *find_action_by_path(const gchar *accel_path)
+{
+	GPtrArray *groups = ui_get_action_groups();
+	GtkActionGroup *this;
+	int idx;
+
+	foreach_ptr_array(this, idx, groups)
+	{
+		GList *actions = gtk_action_group_list_actions(this);
+		GList *item;
+
+		foreach_list(item, actions)
+		{
+			GtkAction *action = item->data;
+			if (g_str_equal(accel_path, gtk_action_get_accel_path))
+			{
+				g_list_free(actions);
+				return action;
+			}
+		}
+		g_list_free(actions);
+	}
+
+	return NULL;
+}
+
+void add_to_hash(GtkAccelMap *object, const gchar *accel_path,
+				 guint accel_key, GdkModifierType accel_mods,
+				 gboolean changed)
+{
+	if (is_borked_key(accel_key))
+	{
+		gint64 *k = g_new(gint64, 1);
+		*k = accel_key | ((gint64)accel_mods << 32);
+		GtkAction *action = find_action_by_path(accel_path);
+		if (action)
+			g_hash_table_replace(foo_hash, k, g_object_ref(action));
+	}
+}
 
 void keybindings_init(void)
 {
+	GtkAccelMap *accel_map;
 	memset(binding_ids, 0, sizeof binding_ids);
 	keybinding_groups = g_ptr_array_sized_new(GEANY_KEY_GROUP_COUNT);
 	kb_accel_group = gtk_accel_group_new();
+	accel_map = gtk_accel_map_get();
 
 	init_default_kb();
 	gtk_window_add_accel_group(GTK_WINDOW(main_widgets.window), kb_accel_group);
 
 	g_signal_connect(main_widgets.window, "key-press-event", G_CALLBACK(on_key_press_event), NULL);
+
+	foo_hash = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_object_unref);
+
+	gtk_accel_map_foreach(accel_map, (GtkAccelMapForeach) add_to_hash);
+	g_signal_connect(accel_map, "changed", G_CALLBACK(add_to_hash), GINT_TO_POINTER(1));
 }
 
 
@@ -1204,6 +1233,25 @@ static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *ev, gpointer 
 	/* fixed keybindings can be overridden by user bindings, so check them last */
 	if (check_fixed_kb(keyval, state))
 		return TRUE;
+
+	if (!gtk_accelerator_valid(keyval, state))
+	{
+		GObject *obj = G_OBJECT(widget);
+		gchar *accel_name;
+		GQuark accel_quark;
+		GSList *slist;
+
+		accel_name = gtk_accelerator_name(keyval, state);
+		accel_quark = g_quark_from_string(accel_name);
+		g_free(accel_name);
+
+		foreach_list(slist, gtk_accel_groups_from_object(obj))
+		{
+			if (gtk_accel_group_activate (slist->data, accel_quark, obj, keyval, state))
+				return TRUE;
+		}
+	}
+
 	return FALSE;
 }
 
@@ -1456,18 +1504,6 @@ static gboolean read_current_word(GeanyDocument *doc, gboolean sci_word)
 
 	return (*editor_info.current_word != 0);
 }
-
-
-static gboolean check_current_word(GeanyDocument *doc, gboolean sci_word)
-{
-	if (! read_current_word(doc, sci_word))
-	{
-		utils_beep();
-		return FALSE;
-	}
-	return TRUE;
-}
-
 
 static gchar *get_current_word_or_sel(GeanyDocument *doc, gboolean sci_word)
 {
@@ -1828,71 +1864,6 @@ static gboolean cb_func_goto_action(guint key_id)
 			break;
 		case GEANY_KEYS_GOTO_NEXTWORDPART:
 			sci_send_command(doc->editor->sci, SCI_WORDPARTRIGHT);
-			break;
-	}
-	return TRUE;
-}
-
-
-/* common function for editor keybindings, only valid when scintilla has focus. */
-static gboolean cb_func_editor_action(guint key_id)
-{
-	GeanyDocument *doc = document_get_current();
-	GtkWidget *focusw = gtk_window_get_focus(GTK_WINDOW(main_widgets.window));
-
-	/* edit keybindings only valid when scintilla widget has focus */
-	if (doc == NULL || focusw != GTK_WIDGET(doc->editor->sci))
-		return FALSE; /* also makes tab work outside editor */
-
-	switch (key_id)
-	{
-		case GEANY_KEYS_EDITOR_SNIPPETNEXTCURSOR:
-			editor_goto_next_snippet_cursor(doc->editor);
-			break;
-		case GEANY_KEYS_EDITOR_AUTOCOMPLETE:
-			editor_start_auto_complete(doc->editor, sci_get_current_position(doc->editor->sci), TRUE);
-			break;
-		case GEANY_KEYS_EDITOR_CALLTIP:
-			editor_show_calltip(doc->editor, -1);
-			break;
-		case GEANY_KEYS_EDITOR_MACROLIST:
-			editor_show_macro_list(doc->editor);
-			break;
-		case GEANY_KEYS_EDITOR_CONTEXTACTION:
-			if (check_current_word(doc, FALSE))
-				on_context_action1_activate(GTK_MENU_ITEM(ui_lookup_widget(main_widgets.editor_menu,
-					"context_action1")), NULL);
-			break;
-		case GEANY_KEYS_EDITOR_COMPLETESNIPPET:
-			/* allow tab to be overloaded */
-			return check_snippet_completion(doc);
-
-		case GEANY_KEYS_EDITOR_SUPPRESSSNIPPETCOMPLETION:
-		{
-			GeanyKeyBinding *kb = keybindings_lookup_item(GEANY_KEY_GROUP_EDITOR,
-				GEANY_KEYS_EDITOR_COMPLETESNIPPET);
-
-			switch (kb->key)
-			{
-				case GDK_space:
-					sci_add_text(doc->editor->sci, " ");
-					break;
-				case GDK_Tab:
-					sci_send_command(doc->editor->sci, SCI_TAB);
-					break;
-				default:
-					break;
-			}
-			break;
-		}
-		case GEANY_KEYS_EDITOR_WORDPARTCOMPLETION:
-			return editor_complete_word_part(doc->editor);
-
-		case GEANY_KEYS_EDITOR_MOVELINEUP:
-			sci_move_selected_lines_up(doc->editor->sci);
-			break;
-		case GEANY_KEYS_EDITOR_MOVELINEDOWN:
-			sci_move_selected_lines_down(doc->editor->sci);
 			break;
 	}
 	return TRUE;

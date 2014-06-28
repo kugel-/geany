@@ -348,6 +348,8 @@ gint ui_encodings_combo_box_get_active_encoding(GtkComboBox *combo);
 
 gboolean ui_encodings_combo_box_set_active_encoding(GtkComboBox *combo, gint enc);
 
+GPtrArray *ui_get_action_groups(void);
+
 G_END_DECLS
 
 #endif /* GEANY_UI_UTILS_H */

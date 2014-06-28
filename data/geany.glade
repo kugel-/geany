@@ -7749,20 +7749,22 @@
                                 </child>
                                 <child>
                                   <object class="GtkMenuItem" id="move_lines_up1">
+                                    <property name="use_action_appearance">False</property>
+                                    <property name="related_action">edit_movelineup</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="label" translatable="yes">_Move Line(s) Up</property>
                                     <property name="use_underline">True</property>
-                                    <signal name="activate" handler="on_move_lines_up1_activate" swapped="no"/>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkMenuItem" id="move_lines_down1">
+                                    <property name="use_action_appearance">False</property>
+                                    <property name="related_action">edit_movelinedown</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="label" translatable="yes">M_ove Line(s) Down</property>
                                     <property name="use_underline">True</property>
-                                    <signal name="activate" handler="on_move_lines_down1_activate" swapped="no"/>
                                   </object>
                                 </child>
                                 <child>
