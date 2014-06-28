@@ -340,6 +340,11 @@ on_editor_transposeline_action_activate(GtkAction *action, gpointer user_data)
 G_MODULE_EXPORT void
 on_editor_scrolltoline_action_activate(GtkAction *action, gpointer user_data)
 {
+	GeanyDocument *doc = document_get_current();
+
+	g_return_if_fail(doc != NULL);
+
+	editor_scroll_to_line(doc->editor, -1, 0.5F);
 }
 
 
