@@ -53,6 +53,8 @@
 #include "ui_utils.h"
 #include "utils.h"
 
+#include "peas-engine.h"
+
 #include "gtkcompat.h"
 
 #include <string.h>
@@ -74,6 +76,7 @@ static GtkWidget *menu_separator = NULL;
 static gchar *get_plugin_path(void);
 static void pm_show_dialog(GtkMenuItem *menuitem, gpointer user_data);
 
+static PeasEngine *peas;
 
 static PluginFuncs plugin_funcs = {
 	&plugin_add_toolbar_item,
@@ -1129,9 +1132,25 @@ void plugins_init(void)
 {
 	StashGroup *group;
 	gchar *path;
+	GList *list;
 
 	path = get_plugin_path();
 	geany_debug("System plugin path: %s", path);
+
+	peas = peas_engine_get_default();
+	peas_engine_add_search_path(peas, path, app->configdir);
+
+	peas_engine_enable_loader(peas, "geany");
+
+	peas_engine_rescan_plugins(peas);
+
+	foreach_list(list, peas_engine_get_plugin_list(peas))
+	{
+		PeasPluginInfo *info = list->data;
+
+		printf("Plugin: %s (Version %s)\n", peas_plugin_info_get_name(info), peas_plugin_info_get_version(info));
+	}
+
 	g_free(path);
 
 	group = stash_group_new("plugins");
