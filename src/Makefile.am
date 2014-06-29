@@ -111,6 +111,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
+	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
 	$(INTLLIBS) \
@@ -146,6 +147,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
+	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
 	$(INTLLIBS)

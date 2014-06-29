@@ -72,20 +72,49 @@ AS_IF([test "x$enable_gtk3" = xyes],
 	   gtk_min_version=2.16])
 AM_CONDITIONAL([GTK3], [test "x$gtk_package" = "xgtk+-3.0"])
 
-# GTK/GLib/GIO checks
-gtk_modules="$gtk_package >= $gtk_min_version glib-2.0 >= 2.20"
-gtk_modules_private="gio-2.0 >= 2.20 gmodule-2.0"
-PKG_CHECK_MODULES([GTK], [$gtk_modules $gtk_modules_private])
+# GTK
+gtk_modules="$gtk_package >= $gtk_min_version"
+PKG_CHECK_MODULES([GTK], [$gtk_modules])
 AC_SUBST([DEPENDENCIES], [$gtk_modules])
 AC_SUBST([GTK_CFLAGS])
 AC_SUBST([GTK_LIBS])
 GTK_VERSION=`$PKG_CONFIG --modversion $gtk_package`
 GEANY_STATUS_ADD([Using GTK version], [${GTK_VERSION}])
+# GLib
+# geany itself requires only 2.20+, but libpeas wants 2.30
+glib_modules="glib-2.0 >= 2.30.0 gmodule-2.0 gio-2.0"
+PKG_CHECK_MODULES([GLIB], [$glib_modules])
+AC_SUBST([DEPENDENCIES], [$glib_modules])
+AC_SUBST([GLIB_CFLAGS])
+AC_SUBST([GLIB_LIBS])
+GLIB_VERSION=`$PKG_CONFIG --modversion glib-2.0`
+GEANY_STATUS_ADD([Using GLib version], [${GLIB_VERSION}])
+# GIR
+# libpeas wants 1.39.0
+gir_modules="gobject-introspection-1.0 >= 1.39.0"
+PKG_CHECK_MODULES([GIR], [$gir_modules])
+AC_SUBST([DEPENDENCIES], [$gir_modules])
+AC_SUBST([GIR_CFLAGS])
+AC_SUBST([GIR_LIBS])
+GOBJECT_INTROSPECTION_REQUIRE(1.39.0)
 # GTHREAD checks
 gthread_modules="gthread-2.0"
 PKG_CHECK_MODULES([GTHREAD], [$gthread_modules])
 AC_SUBST([GTHREAD_CFLAGS])
 AC_SUBST([GTHREAD_LIBS])
+
+VAPIGEN_CHECK
+
+# so that PEAS_CFLAGS/LIBS get properly defined
+PKG_CHECK_MODULES(PEAS, [
+	glib-2.0
+	gobject-2.0
+	gmodule-2.0
+	gio-2.0
+	gobject-introspection-1.0
+])
+AC_SUBST([PEAS_CFLAGS])
+AC_SUBST([PEAS_LIBS])
 
 # --disable-deprecated switch for GTK2 purification
 AC_ARG_ENABLE([deprecated],
@@ -117,6 +146,124 @@ AC_SUBST([GEANY_DATA_DIR])
 GEANY_CHECK_DOCUTILS
 GEANY_CHECK_DOXYGEN
 
+# libpeas
+
+AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
+AC_PATH_PROG(GLIB_MKENUMS, glib-mkenums)
+LOADER_LIBTOOL_FLAGS="-module -avoid-version -no-undefined"
+AC_SUBST(LOADER_LIBTOOL_FLAGS)
+
+dnl ================================================================
+dnl Python
+dnl ================================================================
+
+PYTHON2_REQUIRED=2.5.2
+PYTHON3_REQUIRED=3.2.0
+
+dnl Used by the Python loader to check the PyGObject version at runtime
+PYGOBJECT_MAJOR_VERSION=3
+PYGOBJECT_MINOR_VERSION=0
+PYGOBJECT_MICRO_VERSION=0
+PYGOBJECT_REQUIRED=$PYGOBJECT_MAJOR_VERSION.$PYGOBJECT_MINOR_VERSION.$PYGOBJECT_MICRO_VERSION
+AC_DEFINE_UNQUOTED(PYGOBJECT_MAJOR_VERSION,[$PYGOBJECT_MAJOR_VERSION], [PyGObject major version.])
+AC_DEFINE_UNQUOTED(PYGOBJECT_MINOR_VERSION,[$PYGOBJECT_MINOR_VERSION], [PyGObject minor version.])
+AC_DEFINE_UNQUOTED(PYGOBJECT_MICRO_VERSION,[$PYGOBJECT_MICRO_VERSION], [PyGObject micro version.])
+
+AC_MSG_CHECKING([for Python 2 availability.])
+
+AC_ARG_ENABLE(python2,
+    AS_HELP_STRING([--enable-python2],[Enable Python 2 support]),
+    [enable_python2=$enableval],
+    [enable_python2=auto])
+
+if test "x$enable_python2" = "xno"; then
+    found_python2="no (disabled, use --enable-python2 to enable)"
+else
+    dnl NOTE: we do not use AM_PATH_PYTHON, since it does not allow
+    dnl to call it twice for py2 and py3, so we just check the prog
+    AC_PATH_PROGS(PYTHON2, [python2 python2.7 python2.6 python2.5])
+    if test -z "${PYTHON2}"; then
+        found_python2="no (python2 not found)"
+    else
+        AM_PYTHON_CHECK_VERSION($PYTHON2, $PYTHON2_REQUIRED, [
+            AC_PATH_PROGS(PYTHON2_CONFIG, [python2-config python-config python2.7-config python2.6-config python2.5-config])
+            if test -n "${PYTHON2_CONFIG}"; then
+                PKG_CHECK_MODULES(PYGOBJECT, pygobject-3.0 >= $PYGOBJECT_REQUIRED, [
+                    found_python2=yes
+                    PYTHON2_CFLAGS=`${PYTHON2_CONFIG} --includes`
+                    PYTHON2_LIBS=`${PYTHON2_CONFIG} --libs`
+                    PYTHON2_LDFLAGS=`${PYTHON2_CONFIG} --ldflags`
+                    PYTHON2_PYEXECDIR=`$PYTHON2 -c "from distutils import sysconfig; print(sysconfig.get_python_lib(1, 0, prefix='\\$' '{exec_prefix}'))"`
+                    AC_SUBST(PYTHON2_CFLAGS)
+                    AC_SUBST(PYTHON2_LIBS)
+                    AC_SUBST(PYTHON2_LDFLAGS)
+                    AC_SUBST(PYTHON2_PYEXECDIR)
+                    AC_DEFINE(ENABLE_PYTHON2, 1, [Define to compile with Python 2 support])
+                ], [
+                    found_python2="no (PyGObject not found)"
+                ])
+            else
+                found_python2="no (python2-config not found)"
+            fi
+        ], [
+            found_python2="no (python2 version too old)"
+        ])
+    fi
+fi
+
+if test "x$enable_python2" = "xyes" -a "x$found_python2" != "xyes"; then
+    AC_MSG_ERROR([You need to have Python 2 and PyGobject installed to build libpeas])
+fi
+AC_MSG_RESULT([$found_python2])
+
+AM_CONDITIONAL([ENABLE_PYTHON2],[test "x$found_python2" = "xyes"])
+
+
+AC_MSG_CHECKING([for Python 3 availability.])
+
+AC_ARG_ENABLE(python3,
+    AS_HELP_STRING([--enable-python3],[Enable Python 3 support]),
+    [enable_python3=$enableval],
+    [enable_python3=auto])
+
+if test "x$enable_python3" = "xno"; then
+    found_python3="no (disabled, use --enable-python3 to enable)"
+else
+    AM_PATH_PYTHON($PYTHON3_REQUIRED, [
+        AC_PATH_TOOL(PYTHON3_CONFIG, "python3-config")
+        if test -n "${PYTHON3_CONFIG}"; then
+            PKG_CHECK_MODULES(PYGOBJECT, pygobject-3.0 >= $PYGOBJECT_REQUIRED, [
+                found_python3=yes
+                PYTHON3_CFLAGS=`${PYTHON3_CONFIG} --includes`
+                PYTHON3_LIBS=`${PYTHON3_CONFIG} --libs`
+                PYTHON3_LDFLAGS=`${PYTHON3_CONFIG} --ldflags`
+                PYTHON3_PYEXECDIR="${pyexecdir}"
+                AC_SUBST(PYTHON3_CFLAGS)
+                AC_SUBST(PYTHON3_LIBS)
+                AC_SUBST(PYTHON3_LDFLAGS)
+                AC_SUBST(PYTHON3_PYEXECDIR)
+                AC_DEFINE(ENABLE_PYTHON3, 1, [Define to compile with Python 3 support])
+            ], [
+                found_python3="no (PyGObject not found)"
+            ])
+        else
+            found_python3="no (python3-config not found)"
+        fi
+    ], [
+        found_python3="no (python3 not found)"
+    ])
+fi
+
+if test "x$enable_python3" = "xyes" -a "x$found_python3" != "xyes"; then
+    AC_MSG_ERROR([You need to have Python 3 and PyGObject installed to build libpeas])
+fi
+AC_MSG_RESULT([$found_python3])
+
+AM_CONDITIONAL([ENABLE_PYTHON3],[test "x$found_python3" = "xyes"])
+
+# FIXME: always disabled
+AM_CONDITIONAL([ENABLE_SEED],[test "1" = "0"])
+
 # Output
 AC_CONFIG_FILES([
 		Makefile
@@ -132,6 +279,11 @@ AC_CONFIG_FILES([
 		icons/tango/32x32/Makefile
 		icons/tango/48x48/Makefile
 		icons/tango/scalable/Makefile
+		libpeas/Makefile
+		libpeas-loaders/Makefile
+		libpeas-loaders/python/Makefile
+		libpeas-loaders/python3/Makefile
+		libpeas-loaders/geany/Makefile
 		tagmanager/Makefile
 		tagmanager/ctags/Makefile
 		tagmanager/mio/Makefile
