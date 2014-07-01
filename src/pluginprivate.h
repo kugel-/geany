@@ -27,6 +27,9 @@
 #include "ui_utils.h"	/* GeanyAutoSeparator */
 #include "keybindings.h"	/* GeanyKeyGroup */
 
+#include "peas-geany.h"
+#include "peas-plugin-info.h"
+
 #include "gtkcompat.h"
 
 
@@ -42,16 +45,11 @@ SignalConnection;
 
 typedef struct GeanyPluginPrivate
 {
-	GModule 		*module;
-	gchar			*filename;				/* plugin filename (/path/libname.so) */
+	PeasGeany		*object;
+	PeasPluginInfo	*peas_info;
 	PluginInfo		info;				/* plugin name, description, etc */
 	GeanyPlugin		public;				/* fields the plugin can read */
-
-	void		(*init) (GeanyData *data);			/* Called when the plugin is enabled */
-	GtkWidget*	(*configure) (GtkDialog *dialog);	/* plugins configure dialog, optional */
-	void		(*configure_single) (GtkWidget *parent); /* plugin configure dialog, optional */
-	void		(*help) (void);						/* Called when the plugin should show some help, optional */
-	void		(*cleanup) (void);					/* Called when the plugin is disabled or when Geany exits */
+	GModule 		*module;			/* GModule loaded for the plugin */
 
 	/* extra stuff */
 	PluginFields	fields;
@@ -64,8 +62,33 @@ GeanyPluginPrivate;
 
 typedef GeanyPluginPrivate Plugin;	/* shorter alias */
 
+#define PRIV_FIELD "__priv"
+/* store this in a private (TODO: _set_qdata() ?) */
+static Plugin *peas_geany_set_priv(PeasGeany *this, Plugin *priv)
+{
+	g_object_set_data(G_OBJECT(this), PRIV_FIELD, priv);
+}
+
+static Plugin *peas_geany_get_priv(PeasGeany *this)
+{
+	return g_object_get_data(G_OBJECT(this), PRIV_FIELD);
+}
 
 void plugin_watch_object(Plugin *plugin, gpointer object);
+
+extern GHashTable *active_plugins;
+
+#define foreach_active_plugin(obj, info)                                                       \
+	for (PeasGeany *obj = NULL; 0;)                                                            \
+		for (const GList *node = peas_engine_get_plugin_list(peas_engine_get_default()); 0;)   \
+			for (PeasPluginInfo *info = NULL;                                                  \
+				node && (info = node->data);                                                   \
+				node = g_list_next(node))                                                      \
+		if (NULL == ((obj) = g_hash_table_lookup(active_plugins, info)))                       \
+			continue;                                                                          \
+		else
+
+
 
 G_END_DECLS
 

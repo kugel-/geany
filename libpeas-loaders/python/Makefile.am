@@ -1,6 +1,6 @@
 # Python plugin loader
 
-loaderdir = $(libdir)/geany/libpeas-loaders
+loaderdir = $(libdir)/geany/libpeas-1.0/loaders
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)			\
@@ -20,7 +20,7 @@ libpythonloader_la_SOURCES = \
 	peas-plugin-loader-python.h
 
 libpythonloader_la_LDFLAGS = \
-	-Wl,rpath,$(libdir)/geany/libpeas \
+	-Wl,-rpath,$(libdir)/geany/libpeas \
 	$(LOADER_LIBTOOL_FLAGS)		\
 	$(PYTHON2_LDFLAGS)
 

@@ -159,6 +159,20 @@ _peas_plugin_info_new_from_so(const char *filename,
 
   g_module_symbol(module, "plugin_set_info", (gpointer *)&set_info);
 
+  /* set basic fields here to allow plugins to call Geany functions in set_info()
+   * NOTE: This is a hack because it relies on being linked to Geany proper, but it
+   * is necessary to be able to load legacy plugins */
+  void **sym;
+  struct Foo {
+    int i;
+  };
+  extern struct Foo INT_geany_data;
+  extern struct Foo INT_geany_functions;
+  g_module_symbol(module, "geany_data", (void *) &sym);
+  if (sym) *sym = &INT_geany_data;
+  g_module_symbol(module, "geany_functions", (void *) &sym);
+  if (sym) *sym = &INT_geany_functions;
+
   if (set_info == NULL)
     {
       g_warning ("Bad plugin (description not available): '%s'", filename);

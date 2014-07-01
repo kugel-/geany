@@ -1,4 +1,4 @@
-libpeasdir = $(libdir)/geany/libpeas
+libpeasdir = $(libdir)/geany/libpeas-1.0
 libpeas_LTLIBRARIES = libpeas-1.0.la
 
 AM_CPPFLAGS =				\
@@ -9,7 +9,7 @@ AM_CPPFLAGS =				\
 	$(WARN_CFLAGS)			\
 	$(DISABLE_DEPRECATED)		\
 	-DDATADIR=\""$(datadir)"\"	\
-	-DLIBDIR=\""$(libdir)"\" \
+	-DLIBDIR=\""$(libdir)/geany"\" \
 	@GLIB_CFLAGS@ \
 	@GIR_CFLAGS@
 

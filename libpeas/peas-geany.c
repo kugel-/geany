@@ -57,6 +57,16 @@ peas_geany_init (PeasGeany *obj, PeasGeanyData *data)
   iface->init(obj, data);
 }
 
+gboolean
+peas_geany_provides_method (PeasGeany *obj, int which)
+{
+  PeasGeanyInterface *iface;
+
+  iface = GET_IFACE(obj, init);
+
+  return iface->provides_method(obj, which);
+}
+
 GtkWidget *
 peas_geany_configure (PeasGeany *obj, GtkDialog *dialog)
 {

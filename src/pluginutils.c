@@ -41,6 +41,11 @@
 #include "ui_utils.h"
 #include "utils.h"
 
+#include "peas-engine.h"
+#include "peas-plugin-info.h"
+#include "peas-geany.h"
+
+
 
 /** Inserts a toolbar item before the Quit button, or after the previous plugin toolbar item.
  * A separator is added on the first call to this function, and will be shown when @a item is
@@ -301,24 +306,24 @@ GeanyKeyGroup *plugin_set_key_group(GeanyPlugin *plugin,
 }
 
 
-static void on_pref_btn_clicked(gpointer btn, Plugin *p)
+static void on_pref_btn_clicked(gpointer btn, PeasGeany *p)
 {
-	p->configure_single(main_widgets.window);
+	peas_geany_configure_single(p, main_widgets.window);
 }
 
 
-static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
+static GtkWidget *create_pref_page(PeasGeany *plugin, PeasPluginInfo *info, GtkWidget *dialog)
 {
 	GtkWidget *page = NULL;	/* some plugins don't have prefs */
 
-	if (p->configure)
+	if (peas_geany_provides_method(plugin, PEAS_GEANY_CONFIGURE))
 	{
-		page = p->configure(GTK_DIALOG(dialog));
+		page = peas_geany_configure(plugin, GTK_DIALOG(dialog));
 
 		if (! GTK_IS_WIDGET(page))
 		{
 			geany_debug("Invalid widget returned from plugin_configure() in plugin \"%s\"!",
-				p->info.name);
+				peas_plugin_info_get_name(info));
 			return NULL;
 		}
 		else
@@ -331,7 +336,7 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 			gtk_box_pack_start(GTK_BOX(page), align, TRUE, TRUE, 0);
 		}
 	}
-	else if (p->configure_single)
+	else if (peas_geany_provides_method(plugin, PEAS_GEANY_CONFIGURE_SINGLE))
 	{
 		GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
 		GtkWidget *btn;
@@ -339,7 +344,7 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 		gtk_alignment_set_padding(GTK_ALIGNMENT(align), 6, 6, 6, 6);
 
 		btn = gtk_button_new_from_stock(GTK_STOCK_PREFERENCES);
-		g_signal_connect(btn, "clicked", G_CALLBACK(on_pref_btn_clicked), p);
+		g_signal_connect_object(btn, "clicked", G_CALLBACK(on_pref_btn_clicked), plugin, 0);
 		gtk_container_add(GTK_CONTAINER(align), btn);
 		page = align;
 	}
@@ -349,10 +354,9 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 
 /* multiple plugin configure dialog
  * current_plugin can be NULL */
-static void configure_plugins(Plugin *current_plugin)
+static void configure_plugins(PeasGeany *current, PeasPluginInfo *current_info)
 {
 	GtkWidget *dialog, *vbox, *nb;
-	GList *node;
 	gint cur_page = -1;
 
 	dialog = gtk_dialog_new_with_buttons(_("Configure Plugins"),
@@ -367,17 +371,16 @@ static void configure_plugins(Plugin *current_plugin)
 	gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
 	gtk_box_pack_start(GTK_BOX(vbox), nb, TRUE, TRUE, 0);
 
-	foreach_list(node, active_plugin_list)
+	foreach_active_plugin(plugin, info)
 	{
-		Plugin *p = node->data;
-		GtkWidget *page = create_pref_page(p, dialog);
+		GtkWidget *page = create_pref_page(plugin, info, dialog);
 
 		if (page)
 		{
-			GtkWidget *label = gtk_label_new(p->info.name);
+			GtkWidget *label = gtk_label_new(peas_plugin_info_get_name(info));
 			gint n = gtk_notebook_append_page(GTK_NOTEBOOK(nb), page, label);
 
-			if (p == current_plugin)
+			if (plugin == current)
 				cur_page = n;
 		}
 	}
@@ -404,21 +407,25 @@ static void configure_plugins(Plugin *current_plugin)
 /* if NULL, show all plugins */
 void plugin_show_configure(GeanyPlugin *plugin)
 {
-	Plugin *p;
+	Plugin         *priv;
+	PeasGeany      *current;
+	PeasPluginInfo *info;
 
 	if (!plugin)
 	{
-		configure_plugins(NULL);
+		configure_plugins(NULL, NULL);
 		return;
 	}
-	p = plugin->priv;
+	priv    = plugin->priv;
+	current = priv->object;
+	info    = priv->peas_info;
 
-	if (p->configure)
-		configure_plugins(p);
+	if (peas_geany_provides_method(current, PEAS_GEANY_CONFIGURE))
+		configure_plugins(current, info);
 	else
 	{
-		g_return_if_fail(p->configure_single);
-		p->configure_single(main_widgets.window);
+		g_return_if_fail(peas_geany_provides_method(current, PEAS_GEANY_CONFIGURE_SINGLE));
+		peas_geany_configure_single(current, main_widgets.window);
 	}
 }
 

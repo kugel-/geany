@@ -1,6 +1,6 @@
 # Seed plugin loader
 
-loaderdir = $(libdir)/geany/loaders
+loaderdir = $(libdir)/libpeas-1.0/loaders
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)			\

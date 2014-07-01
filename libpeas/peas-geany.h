@@ -48,12 +48,20 @@ typedef struct _PeasGeanyData       PeasGeanyData;
 typedef struct _GtkWidget           GtkWidget;
 typedef struct _GtkDialog           GtkDialog;
 
+enum {
+  PEAS_GEANY_CONFIGURE,
+  PEAS_GEANY_CONFIGURE_SINGLE,
+  PEAS_GEANY_HELP,
+  PEAS_GEANY_CLEANUP
+};
+
 /**
  * PeasGeanyInterface:
  * @g_iface: The parent interface.
  * @set_info: plugin_set_info.
  * @version_check: plugin_version_check.
  * @init: plugin_init.
+ * @provides_method: check
  * @configure: plugin_configure.
  * @configure_single: plugin_configure_single.
  * @help: plugin_help.
@@ -66,6 +74,7 @@ struct _PeasGeanyInterface {
 
   gint		(*version_check)        (PeasGeany *pg, gint abi_ver);
   void		(*init)                 (PeasGeany *pg, PeasGeanyData *data);
+  gboolean	(*provides_method)    (PeasGeany *pg, int which);
   GtkWidget*	(*configure)        (PeasGeany *pg, GtkDialog *dialog);
   void		(*configure_single)     (PeasGeany *pg, GtkWidget *parent);
   void		(*help)                 (PeasGeany *pg);
@@ -79,6 +88,7 @@ GType       peas_geany_get_type             (void)  G_GNUC_CONST;
 
 gint        peas_geany_version_check        (PeasGeany *pg, gint abi_ver);
 void        peas_geany_init                 (PeasGeany *pg, PeasGeanyData *data);
+gboolean    peas_geany_provides_method      (PeasGeany *obj, int which);
 /**
  * peas_geany_configure:
  *

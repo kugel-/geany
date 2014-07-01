@@ -54,22 +54,21 @@
 #include "utils.h"
 
 #include "peas-engine.h"
+#include "peas-geany.h"
+#include "peas-plugin-info.h"
 
 #include "gtkcompat.h"
 
 #include <string.h>
 
 
-GList *active_plugin_list = NULL; /* list of only actually loaded plugins, always valid */
-
-
 static gboolean want_plugins = FALSE;
 
 /* list of all available, loadable plugins, only valid as long as the plugin manager dialog is
  * opened, afterwards it will be destroyed */
-static GList *plugin_list = NULL;
 static gchar **active_plugins_pref = NULL; 	/* list of plugin filenames to load at startup */
-static GList *failed_plugins_list = NULL;	/* plugins the user wants active but can't be used */
+/* non-static because needed by pluginutils */
+GHashTable *active_plugins;
 
 static GtkWidget *menu_separator = NULL;
 
@@ -77,6 +76,7 @@ static gchar *get_plugin_path(void);
 static void pm_show_dialog(GtkMenuItem *menuitem, gpointer user_data);
 
 static PeasEngine *peas;
+
 
 static PluginFuncs plugin_funcs = {
 	&plugin_add_toolbar_item,
@@ -362,7 +362,7 @@ static BuildFuncs build_funcs = {
 	&build_get_group_count
 };
 
-static GeanyFunctions geany_functions = {
+/*static*/ GeanyFunctions INT_geany_functions = {
 	&doc_funcs,
 	&sci_funcs,
 	&template_funcs,
@@ -388,7 +388,8 @@ static GeanyFunctions geany_functions = {
 	&build_funcs
 };
 
-static GeanyData geany_data;
+#define geany_data INT_geany_data
+/*static*/ GeanyData geany_data;
 
 
 static void
@@ -415,97 +416,24 @@ geany_data_init(void)
 }
 
 
-/* Prevent the same plugin filename being loaded more than once.
- * Note: g_module_name always returns the .so name, even when Plugin::filename is a .la file. */
 static gboolean
-plugin_loaded(GModule *module)
+plugin_check_version(PeasGeany *plugin, PeasPluginInfo *info)
 {
-	gchar *basename_module, *basename_loaded;
-	GList *item;
+	gint result = peas_geany_version_check(plugin, GEANY_ABI_VERSION);
 
-	basename_module = g_path_get_basename(g_module_name(module));
-	for (item = plugin_list; item != NULL; item = g_list_next(item))
+	if (result < 0)
 	{
-		basename_loaded = g_path_get_basename(
-			g_module_name(((Plugin*)item->data)->module));
-
-		if (utils_str_equal(basename_module, basename_loaded))
-		{
-			g_free(basename_loaded);
-			g_free(basename_module);
-			return TRUE;
-		}
-		g_free(basename_loaded);
-	}
-	/* Look also through the list of active plugins. This prevents problems when we have the same
-	 * plugin in libdir/geany/ AND in configdir/plugins/ and the one in libdir/geany/ is loaded
-	 * as active plugin. The plugin manager list would only take the one in configdir/geany/ and
-	 * the plugin manager would list both plugins. Additionally, unloading the active plugin
-	 * would cause a crash. */
-	for (item = active_plugin_list; item != NULL; item = g_list_next(item))
-	{
-		basename_loaded = g_path_get_basename(g_module_name(((Plugin*)item->data)->module));
-
-		if (utils_str_equal(basename_module, basename_loaded))
-		{
-			g_free(basename_loaded);
-			g_free(basename_module);
-			return TRUE;
-		}
-		g_free(basename_loaded);
-	}
-	g_free(basename_module);
-	return FALSE;
-}
-
-
-static Plugin *find_active_plugin_by_name(const gchar *filename)
-{
-	GList *item;
-
-	g_return_val_if_fail(filename, FALSE);
-
-	for (item = active_plugin_list; item != NULL; item = g_list_next(item))
-	{
-		if (utils_str_equal(filename, ((Plugin*)item->data)->filename))
-			return item->data;
-	}
-
-	return NULL;
-}
-
-
-static gboolean
-plugin_check_version(GModule *module)
-{
-	gint (*version_check)(gint) = NULL;
-
-	g_module_symbol(module, "plugin_version_check", (void *) &version_check);
-
-	if (G_UNLIKELY(! version_check))
-	{
-		geany_debug("Plugin \"%s\" has no plugin_version_check() function - ignoring plugin!",
-				g_module_name(module));
+		msgwin_status_add(_("The plugin \"%s\" is not binary compatible with this "
+			"release of Geany - please recompile it."), peas_plugin_info_get_name(info));
+		geany_debug("Plugin \"%s\" is not binary compatible with this "
+			"release of Geany - recompile it.", peas_plugin_info_get_name(info));
 		return FALSE;
 	}
-	else
+	if (result > GEANY_API_VERSION)
 	{
-		gint result = version_check(GEANY_ABI_VERSION);
-
-		if (result < 0)
-		{
-			msgwin_status_add(_("The plugin \"%s\" is not binary compatible with this "
-				"release of Geany - please recompile it."), g_module_name(module));
-			geany_debug("Plugin \"%s\" is not binary compatible with this "
-				"release of Geany - recompile it.", g_module_name(module));
-			return FALSE;
-		}
-		if (result > GEANY_API_VERSION)
-		{
-			geany_debug("Plugin \"%s\" requires a newer version of Geany (API >= v%d).",
-				g_module_name(module), result);
-			return FALSE;
-		}
+		geany_debug("Plugin \"%s\" requires a newer version of Geany (API >= v%d).",
+			peas_plugin_info_get_name(info), result);
+		return FALSE;
 	}
 	return TRUE;
 }
@@ -582,190 +510,85 @@ static gint cmp_plugin_names(gconstpointer a, gconstpointer b)
 }
 
 
-static void
-plugin_init(Plugin *plugin)
-{
-	GeanyPlugin **p_geany_plugin;
-	PluginCallback *callbacks;
-	PluginInfo **p_info;
-	PluginFields **plugin_fields;
-
-	/* set these symbols before plugin_init() is called
-	 * we don't set geany_functions and geany_data since they are set directly by plugin_new() */
-	g_module_symbol(plugin->module, "geany_plugin", (void *) &p_geany_plugin);
-	if (p_geany_plugin)
-		*p_geany_plugin = &plugin->public;
-	g_module_symbol(plugin->module, "plugin_info", (void *) &p_info);
-	if (p_info)
-		*p_info = &plugin->info;
-	g_module_symbol(plugin->module, "plugin_fields", (void *) &plugin_fields);
-	if (plugin_fields)
-		*plugin_fields = &plugin->fields;
-	read_key_group(plugin);
-
-	/* start the plugin */
-	g_return_if_fail(plugin->init);
-	plugin->init(&geany_data);
-
-	/* store some function pointers for later use */
-	g_module_symbol(plugin->module, "plugin_configure", (void *) &plugin->configure);
-	g_module_symbol(plugin->module, "plugin_configure_single", (void *) &plugin->configure_single);
-	if (app->debug_mode && plugin->configure && plugin->configure_single)
-		g_warning("Plugin '%s' implements plugin_configure_single() unnecessarily - "
-			"only plugin_configure() will be used!",
-			plugin->info.name);
-
-	g_module_symbol(plugin->module, "plugin_help", (void *) &plugin->help);
-	g_module_symbol(plugin->module, "plugin_cleanup", (void *) &plugin->cleanup);
-	if (plugin->cleanup == NULL)
-	{
-		if (app->debug_mode)
-			g_warning("Plugin '%s' has no plugin_cleanup() function - there may be memory leaks!",
-				plugin->info.name);
-	}
-
-	/* now read any plugin-owned data that might have been set in plugin_init() */
-
-	if (plugin->fields.flags & PLUGIN_IS_DOCUMENT_SENSITIVE)
-	{
-		ui_add_document_sensitive(plugin->fields.menu_item);
-	}
-
-	g_module_symbol(plugin->module, "plugin_callbacks", (void *) &callbacks);
-	if (callbacks)
-		add_callbacks(plugin, callbacks);
-
-	/* remember which plugins are active.
-	 * keep list sorted so tools menu items and plugin preference tabs are
-	 * sorted by plugin name */
-	active_plugin_list = g_list_insert_sorted(active_plugin_list, plugin, cmp_plugin_names);
-
-	geany_debug("Loaded:   %s (%s)", plugin->filename,
-		FALLBACK(plugin->info.name, "<Unknown>"));
-}
-
-
 /* Load and optionally init a plugin.
  * init_plugin decides whether the plugin's plugin_init() function should be called or not. If it is
  * called, the plugin will be started, if not the plugin will be read only (for the list of
  * available plugins in the plugin manager).
  * When add_to_list is set, the plugin will be added to the plugin manager's plugin_list. */
-static Plugin*
-plugin_new(const gchar *fname, gboolean init_plugin, gboolean add_to_list)
+static void
+plugin_init(PeasGeany *plugin, PeasPluginInfo *info)
 {
-	Plugin *plugin;
+	Plugin *plugin_priv;
+	gchar *fname;
 	GModule *module;
-	GeanyData **p_geany_data;
-	GeanyFunctions **p_geany_functions;
-	void (*plugin_set_info)(PluginInfo*);
+	GeanyPlugin **p_geany_plugin;
+	PluginCallback *callbacks;
+	PluginInfo **p_info;
+	PluginFields **plugin_fields;
 
-	g_return_val_if_fail(fname, NULL);
-	g_return_val_if_fail(g_module_supported(), NULL);
-
-	/* find the plugin in the list of already loaded, active plugins and use it, otherwise
-	 * load the module */
-	plugin = find_active_plugin_by_name(fname);
-	if (plugin != NULL)
-	{
-		geany_debug("Plugin \"%s\" already loaded.", fname);
-		if (add_to_list)
-		{
-			/* do not add to the list twice */
-			if (g_list_find(plugin_list, plugin) != NULL)
-				return NULL;
-
-			plugin_list = g_list_prepend(plugin_list, plugin);
-		}
-		return plugin;
-	}
-
-	/* Don't use G_MODULE_BIND_LAZY otherwise we can get unresolved symbols at runtime,
-	 * causing a segfault. Without that flag the module will safely fail to load.
-	 * G_MODULE_BIND_LOCAL also helps find undefined symbols e.g. app when it would
-	 * otherwise not be detected due to the shadowing of Geany's app variable.
-	 * Also without G_MODULE_BIND_LOCAL calling public functions e.g. the old info()
-	 * function from a plugin will be shadowed. */
+	/* The module is already loaded by libpeas, so this will just grab another reference.
+	 * This cannot fail too */
+	fname = g_build_path(G_DIR_SEPARATOR_S, peas_plugin_info_get_module_dir(info),
+						peas_plugin_info_get_module_name(info), NULL);
 	module = g_module_open(fname, G_MODULE_BIND_LOCAL);
-	if (! module)
+
+	plugin_priv              = g_new0(Plugin, 1);
+	plugin_priv->peas_info   = info;
+	plugin_priv->object      = plugin;
+	//~ plugin_priv->filename    = g_strdup(fname);
+	plugin_priv->module      = module;
+	plugin_priv->public.info = &plugin_priv->info;
+	plugin_priv->public.priv = plugin_priv;
+
+	peas_geany_set_priv(plugin, plugin_priv);
+
+	/* set these symbols before plugin_init() is called
+	 * we don't set geany_functions and geany_data since they are set directly by plugin_new() */
+	g_module_symbol(module, "geany_plugin", (void *) &p_geany_plugin);
+	if (p_geany_plugin)
+		*p_geany_plugin = &plugin_priv->public;
+	g_module_symbol(module, "plugin_info", (void *) &p_info);
+	if (p_info)
+		*p_info = &plugin_priv->info;
+	g_module_symbol(module, "plugin_fields", (void *) &plugin_fields);
+	if (plugin_fields)
+		*plugin_fields = &plugin_priv->fields;
+	read_key_group(plugin_priv);
+  void **sym;
+  g_module_symbol(module, "geany_data", (void *) &sym);
+  if (sym) *sym = &INT_geany_data;
+  g_module_symbol(module, "geany_functions", (void *) &sym);
+  if (sym) *sym = &INT_geany_functions;
+
+	/* start the plugin */
+	peas_geany_init(plugin, (PeasGeanyData *) &geany_data);
+
+	if (app->debug_mode &&
+			peas_geany_provides_method(plugin, PEAS_GEANY_CONFIGURE) &&
+			peas_geany_provides_method(plugin, PEAS_GEANY_CONFIGURE_SINGLE))
+		g_warning("Plugin '%s' implements plugin_configure_single() unnecessarily - "
+			"only plugin_configure() will be used!",
+			peas_plugin_info_get_name(info));
+
+	if (!peas_geany_provides_method(plugin, PEAS_GEANY_CLEANUP) && app->debug_mode)
 	{
-		geany_debug("Can't load plugin: %s", g_module_error());
-		return NULL;
+		g_warning("Plugin '%s' has no plugin_cleanup() function - there may be memory leaks!",
+			peas_plugin_info_get_name(info));
 	}
 
-	if (plugin_loaded(module))
-	{
-		geany_debug("Plugin \"%s\" already loaded.", fname);
+	/* now read any plugin-owned data that might have been set in plugin_init() */
 
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		return NULL;
+	if (plugin_priv->fields.flags & PLUGIN_IS_DOCUMENT_SENSITIVE)
+	{
+		ui_add_document_sensitive(plugin_priv->fields.menu_item);
 	}
 
-	if (! plugin_check_version(module))
-	{
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		return NULL;
-	}
+	g_module_symbol(module, "plugin_callbacks", (void *) &callbacks);
+	if (callbacks)
+		add_callbacks(plugin_priv, callbacks);
 
-	g_module_symbol(module, "plugin_set_info", (void *) &plugin_set_info);
-	if (plugin_set_info == NULL)
-	{
-		geany_debug("No plugin_set_info() defined for \"%s\" - ignoring plugin!", fname);
-
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		return NULL;
-	}
-
-	plugin = g_new0(Plugin, 1);
-
-	/* set basic fields here to allow plugins to call Geany functions in set_info() */
-	g_module_symbol(module, "geany_data", (void *) &p_geany_data);
-	if (p_geany_data)
-		*p_geany_data = &geany_data;
-	g_module_symbol(module, "geany_functions", (void *) &p_geany_functions);
-	if (p_geany_functions)
-		*p_geany_functions = &geany_functions;
-
-	/* read plugin name, etc. */
-	plugin_set_info(&plugin->info);
-	if (G_UNLIKELY(EMPTY(plugin->info.name)))
-	{
-		geany_debug("No plugin name set in plugin_set_info() for \"%s\" - ignoring plugin!",
-			fname);
-
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		g_free(plugin);
-		return NULL;
-	}
-
-	g_module_symbol(module, "plugin_init", (void *) &plugin->init);
-	if (plugin->init == NULL)
-	{
-		geany_debug("Plugin '%s' has no plugin_init() function - ignoring plugin!",
-			plugin->info.name);
-
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		g_free(plugin);
-		return NULL;
-	}
-	/*geany_debug("Initializing plugin '%s'", plugin->info.name);*/
-
-	plugin->filename = g_strdup(fname);
-	plugin->module = module;
-	plugin->public.info = &plugin->info;
-	plugin->public.priv = plugin;
-
-	if (init_plugin)
-		plugin_init(plugin);
-
-	if (add_to_list)
-		plugin_list = g_list_prepend(plugin_list, plugin);
-
-	return plugin;
+	geany_debug("Loaded:   %s (%s)",
+		peas_plugin_info_get_module_name(info), peas_plugin_info_get_name(info));
 }
 
 
@@ -833,55 +656,28 @@ static void remove_sources(Plugin *plugin)
 	/* don't free the list here, it is allocated inside each source's data */
 }
 
-
-static gboolean is_active_plugin(Plugin *plugin)
-{
-	return (g_list_find(active_plugin_list, plugin) != NULL);
-}
-
-
 /* Clean up anything used by an active plugin  */
 static void
-plugin_cleanup(Plugin *plugin)
+plugin_cleanup(PeasGeany *plugin, PeasPluginInfo *info)
 {
 	GtkWidget *widget;
+	Plugin *priv = peas_geany_get_priv(plugin);
 
-	if (plugin->cleanup)
-		plugin->cleanup();
+	peas_geany_cleanup(plugin);
 
-	remove_callbacks(plugin);
-	remove_sources(plugin);
+	remove_callbacks(priv);
+	remove_sources(priv);
 
-	if (plugin->key_group)
-		keybindings_free_group(plugin->key_group);
+	if (priv->key_group)
+		keybindings_free_group(priv->key_group);
 
-	widget = plugin->toolbar_separator.widget;
+	widget = priv->toolbar_separator.widget;
 	if (widget)
 		gtk_widget_destroy(widget);
 
-	geany_debug("Unloaded: %s", plugin->filename);
-}
+	g_free(priv);
 
-
-static void
-plugin_free(Plugin *plugin)
-{
-	g_return_if_fail(plugin);
-	g_return_if_fail(plugin->module);
-
-	if (is_active_plugin(plugin))
-		plugin_cleanup(plugin);
-
-	active_plugin_list = g_list_remove(active_plugin_list, plugin);
-
-	if (! g_module_close(plugin->module))
-		g_warning("%s: %s", plugin->filename, g_module_error());
-
-	plugin_list = g_list_remove(plugin_list, plugin);
-
-	g_free(plugin->filename);
-	g_free(plugin);
-	plugin = NULL;
+	geany_debug("Unloaded: %s", peas_plugin_info_get_module_name(info));
 }
 
 
@@ -910,85 +706,42 @@ static gchar *get_custom_plugin_path(const gchar *plugin_path_config,
 
 /* all 3 paths Geany looks for plugins in can change (even system path on Windows)
  * so we need to check active plugins are in the right place before loading */
-static gboolean check_plugin_path(const gchar *fname)
+static void add_plugin_paths(PeasEngine *engine)
 {
-	gchar *plugin_path_config;
-	gchar *plugin_path_system;
-	gchar *plugin_path_custom;
-	gboolean ret = FALSE;
+	gchar *user, *system, *custom;
+	/* add, in reverse order, the following paths for plugin lookup:
+	 * System, e.g. $PREFIX/lib/geany/
+	 * User, e.g. $HOME/.config/geany/plugins
+	 * Prefs, whatever the user has set as custom path */
+	system = get_plugin_path();
+	peas_engine_prepend_search_path(engine, system, app->configdir);
 
-	plugin_path_config = g_build_filename(app->configdir, "plugins", NULL);
-	if (g_str_has_prefix(fname, plugin_path_config))
-		ret = TRUE;
+	user = g_build_filename(app->configdir, "plugins", NULL);
+	peas_engine_prepend_search_path(engine, user, app->configdir);
 
-	plugin_path_system = get_plugin_path();
-	if (g_str_has_prefix(fname, plugin_path_system))
-		ret = TRUE;
+	custom = get_custom_plugin_path(user, system);
+	if (custom) /* Might consider a different data dir for the custom path ones? */
+		peas_engine_prepend_search_path(engine, custom, app->configdir);
 
-	plugin_path_custom = get_custom_plugin_path(plugin_path_config, plugin_path_system);
-	if (plugin_path_custom)
-	{
-		if (g_str_has_prefix(fname, plugin_path_custom))
-			ret = TRUE;
-
-		g_free(plugin_path_custom);
-	}
-	g_free(plugin_path_config);
-	g_free(plugin_path_system);
-	return ret;
+	g_free(user);
+	g_free(system);
+	g_free(custom);
 }
 
 
-/* load active plugins at startup */
-static void
-load_active_plugins(void)
+PeasEngine *get_default_loader(void)
 {
-	guint i, len;
+	static gboolean do_once;
+	PeasEngine *o = NULL;
 
-	if (active_plugins_pref == NULL || (len = g_strv_length(active_plugins_pref)) == 0)
-		return;
-
-	for (i = 0; i < len; i++)
+	if (!do_once)
 	{
-		const gchar *fname = active_plugins_pref[i];
-
-		if (!EMPTY(fname) && g_file_test(fname, G_FILE_TEST_EXISTS))
-		{
-			if (!check_plugin_path(fname) || plugin_new(fname, TRUE, FALSE) == NULL)
-				failed_plugins_list = g_list_prepend(failed_plugins_list, g_strdup(fname));
-		}
-	}
-}
-
-
-static void
-load_plugins_from_path(const gchar *path)
-{
-	GSList *list, *item;
-	gchar *fname, *tmp;
-	gint count = 0;
-
-	list = utils_get_file_list(path, NULL, NULL);
-
-	for (item = list; item != NULL; item = g_slist_next(item))
-	{
-		tmp = strrchr(item->data, '.');
-		if (tmp == NULL || utils_str_casecmp(tmp, "." G_MODULE_SUFFIX) != 0)
-			continue;
-
-		fname = g_build_filename(path, item->data, NULL);
-		if (plugin_new(fname, FALSE, TRUE))
-			count++;
-		g_free(fname);
+		o = peas_engine_get_default();
+		add_plugin_paths(o);
 	}
 
-	g_slist_foreach(list, (GFunc) g_free, NULL);
-	g_slist_free(list);
-
-	if (count)
-		geany_debug("Added %d plugin(s) in '%s'.", count, path);
+	return o;
 }
-
 
 static gchar *get_plugin_path(void)
 {
@@ -1004,36 +757,6 @@ static gchar *get_plugin_path(void)
 	return g_build_filename(GEANY_LIBDIR, "geany", NULL);
 #endif
 }
-
-
-/* Load (but don't initialize) all plugins for the Plugin Manager dialog */
-static void load_all_plugins(void)
-{
-	gchar *plugin_path_config;
-	gchar *plugin_path_system;
-	gchar *plugin_path_custom;
-
-	plugin_path_config = g_build_filename(app->configdir, "plugins", NULL);
-	plugin_path_system = get_plugin_path();
-
-	/* first load plugins in ~/.config/geany/plugins/ */
-	load_plugins_from_path(plugin_path_config);
-
-	/* load plugins from a custom path */
-	plugin_path_custom = get_custom_plugin_path(plugin_path_config, plugin_path_system);
-	if (plugin_path_custom)
-	{
-		load_plugins_from_path(plugin_path_custom);
-		g_free(plugin_path_custom);
-	}
-
-	/* finally load plugins from $prefix/lib/geany */
-	load_plugins_from_path(plugin_path_system);
-
-	g_free(plugin_path_config);
-	g_free(plugin_path_system);
-}
-
 
 static void on_tools_menu_show(GtkWidget *menu_item, G_GNUC_UNUSED gpointer user_data)
 {
@@ -1081,7 +804,10 @@ void plugins_load_active(void)
 	gtk_container_add(GTK_CONTAINER(main_widgets.tools_menu), menu_separator);
 	g_signal_connect(main_widgets.tools_menu, "show", G_CALLBACK(on_tools_menu_show), NULL);
 
-	load_active_plugins();
+	if (active_plugins_pref == NULL)
+		return;
+
+	peas_engine_set_loaded_plugins(peas, (const gchar **)active_plugins_pref);
 }
 
 
@@ -1089,41 +815,42 @@ void plugins_load_active(void)
  * is saved. Called in response to GeanyObject's "save-settings" signal. */
 static void update_active_plugins_pref(void)
 {
-	gint i = 0;
-	GList *list;
-	gsize count;
+	g_return_if_fail(peas != NULL);
+	if (active_plugins_pref)
+		g_strfreev(active_plugins_pref);
+	active_plugins_pref = peas_engine_get_loaded_plugins(peas);
+}
 
-	/* if plugins are disabled, don't clear list of active plugins */
-	if (!want_plugins)
-		return;
-
-	count = g_list_length(active_plugin_list) + g_list_length(failed_plugins_list);
-
-	g_strfreev(active_plugins_pref);
-
-	if (count == 0)
+static void on_plugin_loaded(PeasEngine *engine, PeasPluginInfo *info, gpointer user_data)
+{
+	if (peas_engine_provides_extension(engine, info, PEAS_TYPE_GEANY))
 	{
-		active_plugins_pref = NULL;
-		return;
+		PeasGeany *obj = PEAS_GEANY(peas_engine_create_extension(engine, info, PEAS_TYPE_GEANY, NULL));
+		gboolean success = plugin_check_version(obj, info);
+		if (success)
+		{
+			plugin_init(obj, info);
+			/* remember which plugins are active. */
+			g_hash_table_insert(active_plugins, info, obj);
+		}
+		else
+		{/* Keep the plugin loaded, so that we can save it to the prefs and attempt to reload
+			 * in the future */
+			g_object_unref(obj);
+		}
 	}
+}
 
-	active_plugins_pref = g_new0(gchar*, count + 1);
-
-	for (list = g_list_first(active_plugin_list); list != NULL; list = list->next)
+static void on_plugin_unload(PeasEngine *engine, PeasPluginInfo *info, gpointer user_data)
+{
+	PeasGeany *obj = g_hash_table_lookup(active_plugins, info);
+	if (obj)
 	{
-		Plugin *plugin = list->data;
-
-		active_plugins_pref[i] = g_strdup(plugin->filename);
-		i++;
+		plugin_cleanup(obj, info);
+		g_hash_table_remove(active_plugins, info);
+		g_object_unref(obj);
 	}
-	for (list = g_list_first(failed_plugins_list); list != NULL; list = list->next)
-	{
-		const gchar *fname = list->data;
-
-		active_plugins_pref[i] = g_strdup(fname);
-		i++;
-	}
-	active_plugins_pref[i] = NULL;
+	peas_engine_garbage_collect(engine);
 }
 
 
@@ -1132,24 +859,21 @@ void plugins_init(void)
 {
 	StashGroup *group;
 	gchar *path;
-	GList *list;
+	const GList *list;
 
 	path = get_plugin_path();
 	geany_debug("System plugin path: %s", path);
 
-	peas = peas_engine_get_default();
-	peas_engine_add_search_path(peas, path, app->configdir);
+	peas = get_default_loader();
+
+	g_signal_connect_after(peas, "load-plugin", G_CALLBACK(on_plugin_loaded), NULL);
+	g_signal_connect(peas,     "unload-plugin", G_CALLBACK(on_plugin_unload), NULL);
 
 	peas_engine_enable_loader(peas, "geany");
 
 	peas_engine_rescan_plugins(peas);
 
-	foreach_list(list, peas_engine_get_plugin_list(peas))
-	{
-		PeasPluginInfo *info = list->data;
-
-		printf("Plugin: %s (Version %s)\n", peas_plugin_info_get_name(info), peas_plugin_info_get_version(info));
-	}
+	active_plugins = g_hash_table_new(g_direct_hash, g_direct_equal);
 
 	g_free(path);
 
@@ -1169,16 +893,9 @@ void plugins_init(void)
 /* called even if plugin support is disabled */
 void plugins_finalize(void)
 {
-	if (failed_plugins_list != NULL)
-	{
-		g_list_foreach(failed_plugins_list, (GFunc) g_free,	NULL);
-		g_list_free(failed_plugins_list);
-	}
-	if (active_plugin_list != NULL)
-	{
-		g_list_foreach(active_plugin_list, (GFunc) plugin_free,	NULL);
-		g_list_free(active_plugin_list);
-	}
+	/* This instructs libpeas to unload all plugins, unloading is done in the signal handler */
+	peas_engine_set_loaded_plugins(peas, NULL);
+	g_hash_table_destroy(active_plugins);
 	g_strfreev(active_plugins_pref);
 }
 
@@ -1186,16 +903,17 @@ void plugins_finalize(void)
 /* Check whether there are any plugins loaded which provide a configure symbol */
 gboolean plugins_have_preferences(void)
 {
-	GList *item;
+	const GList *item;
 
-	if (active_plugin_list == NULL)
-		return FALSE;
-
-	foreach_list(item, active_plugin_list)
+	foreach_list(item, peas_engine_get_plugin_list(peas))
 	{
-		Plugin *plugin = item->data;
-		if (plugin->configure != NULL || plugin->configure_single != NULL)
-			return TRUE;
+		PeasPluginInfo *info = item->data;
+		if (peas_plugin_info_is_loaded(info))
+		{
+			PeasGeany *obj = g_hash_table_lookup(active_plugins, info);
+			return peas_geany_provides_method(obj, PEAS_GEANY_CONFIGURE)
+					|| peas_geany_provides_method(obj, PEAS_GEANY_CONFIGURE_SINGLE);
+		}
 	}
 
 	return FALSE;
@@ -1228,16 +946,25 @@ PluginManagerWidgets;
 static PluginManagerWidgets pm_widgets;
 
 
-static void pm_update_buttons(Plugin *p)
+static void pm_update_buttons(PeasPluginInfo *info)
 {
-	gboolean is_active;
-
-	is_active = is_active_plugin(p);
-	gtk_widget_set_sensitive(pm_widgets.configure_button,
-		(p->configure || p->configure_single) && is_active);
-	gtk_widget_set_sensitive(pm_widgets.help_button, p->help != NULL && is_active);
-	gtk_widget_set_sensitive(pm_widgets.keybindings_button,
-		p->key_group && p->key_group->plugin_key_count > 0 && is_active);
+	PeasGeany *obj = g_hash_table_lookup(active_plugins, info);
+	if (obj)
+	{
+		gtk_widget_set_sensitive(pm_widgets.configure_button,
+				peas_geany_provides_method(obj, PEAS_GEANY_CONFIGURE)
+				|| peas_geany_provides_method(obj, PEAS_GEANY_CONFIGURE_SINGLE));
+		gtk_widget_set_sensitive(pm_widgets.help_button,
+				peas_geany_provides_method(obj, PEAS_GEANY_HELP));
+		/* FIXME */
+		gtk_widget_set_sensitive(pm_widgets.keybindings_button, FALSE);
+	}
+	else
+	{
+		gtk_widget_set_sensitive(pm_widgets.configure_button,FALSE);
+		gtk_widget_set_sensitive(pm_widgets.help_button, FALSE);
+		gtk_widget_set_sensitive(pm_widgets.keybindings_button, FALSE);
+	}
 }
 
 
@@ -1245,14 +972,17 @@ static void pm_selection_changed(GtkTreeSelection *selection, gpointer user_data
 {
 	GtkTreeIter iter;
 	GtkTreeModel *model;
-	Plugin *p;
+	gchar *p;
 
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
 	{
 		gtk_tree_model_get(model, &iter, PLUGIN_COLUMN_PLUGIN, &p, -1);
 
 		if (p != NULL)
-			pm_update_buttons(p);
+		{
+			PeasPluginInfo *info = peas_engine_get_plugin_info(peas, p);
+			pm_update_buttons(info);
+		}
 	}
 }
 
@@ -1263,7 +993,8 @@ static void pm_plugin_toggled(GtkCellRendererToggle *cell, gchar *pth, gpointer 
 	gchar *file_name;
 	GtkTreeIter iter;
 	GtkTreePath *path = gtk_tree_path_new_from_string(pth);
-	Plugin *p;
+	gchar *p;
+	PeasPluginInfo *info;
 
 	gtk_tree_model_get_iter(GTK_TREE_MODEL(pm_widgets.store), &iter, path);
 	gtk_tree_path_free(path);
@@ -1275,38 +1006,33 @@ static void pm_plugin_toggled(GtkCellRendererToggle *cell, gchar *pth, gpointer 
 	if (p == NULL)
 		return;
 
-	state = ! old_state; /* toggle the state */
+	info = peas_engine_get_plugin_info(peas, p);
 
-	/* save the filename of the plugin */
-	file_name = g_strdup(p->filename);
+	state = ! old_state; /* toggle the state */
 
 	/* unload plugin module */
 	if (!state)
+	{
 		/* save shortcuts (only need this group, but it doesn't take long) */
 		keybindings_write_to_file();
-
-	plugin_free(p);
-
-	/* reload plugin module and initialize it if item is checked */
-	p = plugin_new(file_name, state, TRUE);
-	if (!p)
-	{
-		/* plugin file may no longer be on disk, or is now incompatible */
-		gtk_list_store_remove(pm_widgets.store, &iter);
+		if (peas_plugin_info_is_loaded(info))
+			peas_engine_unload_plugin(peas, info);
 	}
 	else
 	{
+		/* loading might succeed but the plugin might be incompatible so check if it's really active */
+		state = peas_engine_load_plugin(peas, info) && g_hash_table_lookup(active_plugins, info);
 		if (state)
 			keybindings_load_keyfile();		/* load shortcuts */
-
-		/* update model */
-		gtk_list_store_set(pm_widgets.store, &iter,
-			PLUGIN_COLUMN_CHECK, state,
-			PLUGIN_COLUMN_PLUGIN, p, -1);
-
-		/* set again the sensitiveness of the configure and help buttons */
-		pm_update_buttons(p);
 	}
+
+	/* update model */
+	gtk_list_store_set(pm_widgets.store, &iter,
+		PLUGIN_COLUMN_CHECK, state, -1);
+
+	/* set again the sensitiveness of the configure and help buttons */
+	pm_update_buttons(info);
+
 	g_free(file_name);
 }
 
@@ -1317,7 +1043,8 @@ static gboolean pm_treeview_query_tooltip(GtkWidget *widget, gint x, gint y,
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	GtkTreePath *path;
-	Plugin *p = NULL;
+	gchar          *p;
+	PeasPluginInfo *info = NULL;
 
 	if (! gtk_tree_view_get_tooltip_context(GTK_TREE_VIEW(widget), &x, &y, keyboard_mode,
 			&model, &path, &iter))
@@ -1325,14 +1052,21 @@ static gboolean pm_treeview_query_tooltip(GtkWidget *widget, gint x, gint y,
 
 	gtk_tree_model_get(model, &iter, PLUGIN_COLUMN_PLUGIN, &p, -1);
 	if (p != NULL)
+		info = peas_engine_get_plugin_info(peas, p);
+
+	if (info != NULL)
 	{
 		gchar *markup;
 		gchar *details;
+		gchar *authors;
 
-		details = g_strdup_printf(_("Version:\t%s\nAuthor(s):\t%s\nFilename:\t%s"),
-			p->info.version, p->info.author, p->filename);
+		authors = g_strjoinv(", ", (gchar **)peas_plugin_info_get_authors(info));
+		details = g_strdup_printf(_("Version:\t%s\nAuthor(s):\t%s\nModule:\t%s"),
+			peas_plugin_info_get_version(info), authors,
+			peas_plugin_info_get_module_name(info));
 		markup = g_markup_printf_escaped("<b>%s</b>\n%s\n<small><i>\n%s</i></small>",
-			p->info.name, p->info.description, details);
+			peas_plugin_info_get_name(info),
+			peas_plugin_info_get_description(info), details);
 
 		gtk_tooltip_set_markup(tooltip, markup);
 		gtk_tree_view_set_tooltip_row(GTK_TREE_VIEW(widget), tooltip, path);
@@ -1349,7 +1083,7 @@ static gboolean pm_treeview_query_tooltip(GtkWidget *widget, gint x, gint y,
 static void pm_treeview_text_cell_data_func(GtkTreeViewColumn *column, GtkCellRenderer *cell,
 		GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
-	Plugin *p;
+	gchar *p;
 
 	gtk_tree_model_get(model, iter, PLUGIN_COLUMN_PLUGIN, &p, -1);
 
@@ -1357,7 +1091,14 @@ static void pm_treeview_text_cell_data_func(GtkTreeViewColumn *column, GtkCellRe
 		g_object_set(cell, "text", _("No plugins available."), NULL);
 	else
 	{
-		gchar *markup = g_markup_printf_escaped("<b>%s</b>\n%s", p->info.name, p->info.description);
+		PeasPluginInfo *info = peas_engine_get_plugin_info(peas, p);
+		gchar *markup;
+
+		g_return_if_fail(info != NULL);
+
+		markup = g_markup_printf_escaped("<b>%s</b>\n%s",
+				peas_plugin_info_get_name(info),
+				peas_plugin_info_get_description(info));
 
 		g_object_set(cell, "markup", markup, NULL);
 		g_free(markup);
@@ -1368,13 +1109,13 @@ static void pm_treeview_text_cell_data_func(GtkTreeViewColumn *column, GtkCellRe
 static gint pm_tree_sort_func(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b,
 		gpointer user_data)
 {
-	Plugin *pa, *pb;
+	gchar *pa, *pb;
 
 	gtk_tree_model_get(model, a, PLUGIN_COLUMN_PLUGIN, &pa, -1);
 	gtk_tree_model_get(model, b, PLUGIN_COLUMN_PLUGIN, &pb, -1);
 
 	if (pa && pb)
-		return strcmp(pa->info.name, pb->info.name);
+		return strcmp(pa, pb);
 	else
 		return pa - pb;
 }
@@ -1417,8 +1158,8 @@ static void pm_prepare_treeview(GtkWidget *tree, GtkListStore *store)
 	gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
 	g_signal_connect(sel, "changed", G_CALLBACK(pm_selection_changed), NULL);
 
-	list = g_list_first(plugin_list);
-	if (list == NULL)
+	list = (GList *) peas_engine_get_plugin_list(peas);
+	if (g_list_length(list) == 0)
 	{
 		gtk_list_store_append(store, &iter);
 		gtk_list_store_set(store, &iter, PLUGIN_COLUMN_CHECK, FALSE,
@@ -1426,15 +1167,13 @@ static void pm_prepare_treeview(GtkWidget *tree, GtkListStore *store)
 	}
 	else
 	{
-		Plugin *p;
 		for (; list != NULL; list = list->next)
 		{
-			p = list->data;
-
+			PeasPluginInfo *info = list->data;
 			gtk_list_store_append(store, &iter);
 			gtk_list_store_set(store, &iter,
-				PLUGIN_COLUMN_CHECK, is_active_plugin(p),
-				PLUGIN_COLUMN_PLUGIN, p,
+				PLUGIN_COLUMN_CHECK, FALSE,
+				PLUGIN_COLUMN_PLUGIN, peas_plugin_info_get_module_name(info),
 				-1);
 		}
 	}
@@ -1448,7 +1187,7 @@ static void pm_on_plugin_button_clicked(GtkButton *button, gpointer user_data)
 	GtkTreeModel *model;
 	GtkTreeSelection *selection;
 	GtkTreeIter iter;
-	Plugin *p;
+	gchar *p;
 
 	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(pm_widgets.tree));
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
@@ -1457,27 +1196,18 @@ static void pm_on_plugin_button_clicked(GtkButton *button, gpointer user_data)
 
 		if (p != NULL)
 		{
+			PeasPluginInfo *info = peas_engine_get_plugin_info(peas, p);
+			PeasGeany *obj = g_hash_table_lookup(active_plugins, info);
+			Plugin   *priv = peas_geany_get_priv(obj);
 			if (GPOINTER_TO_INT(user_data) == PM_BUTTON_CONFIGURE)
-				plugin_show_configure(&p->public);
-			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_HELP && p->help != NULL)
-				p->help();
-			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_KEYBINDINGS && p->key_group && p->key_group->plugin_key_count > 0)
-				keybindings_dialog_show_prefs_scroll(p->info.name);
+				plugin_show_configure(&priv->public);
+			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_HELP &&
+					peas_geany_provides_method(obj, PEAS_GEANY_HELP))
+				peas_geany_help(obj);
+			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_KEYBINDINGS && priv->key_group && priv->key_group->plugin_key_count > 0)
+				keybindings_dialog_show_prefs_scroll(priv->info.name);
 		}
 	}
-}
-
-
-static void
-free_non_active_plugin(gpointer data, gpointer user_data)
-{
-	Plugin *plugin = data;
-
-	/* don't do anything when closing the plugin manager and it is an active plugin */
-	if (is_active_plugin(plugin))
-		return;
-
-	plugin_free(plugin);
 }
 
 
@@ -1485,13 +1215,7 @@ free_non_active_plugin(gpointer data, gpointer user_data)
  * GTK_RESPONSE_OK or GTK_RESPONSE_DELETE_EVENT and both are treated the same. */
 static void pm_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 {
-	if (plugin_list != NULL)
-	{
-		/* remove all non-active plugins from the list */
-		g_list_foreach(plugin_list, free_non_active_plugin, NULL);
-		g_list_free(plugin_list);
-		plugin_list = NULL;
-	}
+	/* TODO: free non-active plugins (?) */
 	gtk_widget_destroy(GTK_WIDGET(dialog));
 
 	configuration_save();
@@ -1501,9 +1225,6 @@ static void pm_dialog_response(GtkDialog *dialog, gint response, gpointer user_d
 static void pm_show_dialog(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *vbox, *vbox2, *hbox, *swin, *label;
-
-	/* before showing the dialog, we need to create the list of available plugins */
-	load_all_plugins();
 
 	pm_widgets.dialog = gtk_dialog_new_with_buttons(_("Plugins"), GTK_WINDOW(main_widgets.window),
 						GTK_DIALOG_DESTROY_WITH_PARENT,

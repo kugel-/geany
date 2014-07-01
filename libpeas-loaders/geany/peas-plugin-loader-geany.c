@@ -80,28 +80,57 @@ void pgo_init(PeasGeany *obj, GeanyData *data)
   PEAS_GEANY_OBJECT(obj)->init(data);
 }
 
+gboolean
+pgo_provides_method(PeasGeany *obj, int which)
+{
+  PeasGeanyObject *pgo = PEAS_GEANY_OBJECT(obj);
+  switch (which)
+  {
+    case PEAS_GEANY_CONFIGURE:
+      return pgo->configure != NULL;
+    case PEAS_GEANY_CONFIGURE_SINGLE:
+      return pgo->configure_single != NULL;
+    case PEAS_GEANY_HELP:
+      return pgo->help != NULL;
+    case PEAS_GEANY_CLEANUP:
+      return pgo->cleanup != NULL;
+    default:
+      return TRUE;
+  }
+}
+
 GtkWidget *
 pgo_configure(PeasGeany *obj, GtkDialog *dialog)
 {
-  return PEAS_GEANY_OBJECT(obj)->configure(dialog);
+  PeasGeanyObject *pgo = PEAS_GEANY_OBJECT(obj);
+  if (pgo->configure)
+    return pgo->configure(dialog);
+  else
+    return NULL;
 }
 
 void
 pgo_configure_single(PeasGeany *obj, GtkWidget *parent)
 {
-  PEAS_GEANY_OBJECT(obj)->configure_single(parent);
+  PeasGeanyObject *pgo = PEAS_GEANY_OBJECT(obj);
+  if (pgo->configure_single)
+    pgo->configure_single(parent);
 }
 
 void
 pgo_help(PeasGeany *obj)
 {
-  PEAS_GEANY_OBJECT(obj)->help();
+  PeasGeanyObject *pgo = PEAS_GEANY_OBJECT(obj);
+  if (pgo->help)
+    pgo->help();
 }
 
 void
 pgo_cleanup(PeasGeany *obj)
 {
-  PEAS_GEANY_OBJECT(obj)->cleanup();
+  PeasGeanyObject *pgo = PEAS_GEANY_OBJECT(obj);
+  if (pgo->cleanup);
+    pgo->cleanup();
 }
 
 void
@@ -110,6 +139,7 @@ peas_geany_object_iface_init(PeasGeanyInterface *iface)
 #define SET(x) iface->x = pgo_ ## x
   SET(version_check);
   SET(init);
+  SET(provides_method);
   SET(configure);
   SET(configure_single);
   SET(help);
