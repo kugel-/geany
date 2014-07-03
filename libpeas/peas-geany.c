@@ -25,6 +25,26 @@
 
 #include "peas-geany.h"
 
+/**
+ * SECTION:peas-geany
+ * @short_description: Interface for geany plugins.
+ * @see_also: #PeasExtensionSet
+ *
+ * #PeasGeany is an interface which should be implemented by plugins
+ * that should be activated on an object of a certain type (depending on the
+ * application). For instance, in a typical windowed application,
+ * #PeasGeany plugin instances could be bound to individual toplevel
+ * windows.
+ *
+ * It is typical to use #PeasGeany along with #PeasExtensionSet in order
+ * to activate and deactivate extensions automatically when plugins are loaded
+ * or unloaded.
+ *
+ * You can also use the code of this interface as a base for your own
+ * extension types, as illustrated by gedit's %GeditWindowActivatable and
+ * %GeditDocumentActivatable interfaces.
+ **/
+
 G_DEFINE_INTERFACE(PeasGeany, peas_geany, G_TYPE_OBJECT)
 
 void

@@ -6,6 +6,11 @@ EXTRA_DIST = \
 
 plugindir = $(libdir)/geany
 
+nobase_dist_plugin_DATA = \
+	Peas-1.0.typelib \
+	extension.plugin \
+	extension.py
+
 plugins_includedir = $(includedir)/geany
 plugins_include_HEADERS = \
 	geanyplugin.h \

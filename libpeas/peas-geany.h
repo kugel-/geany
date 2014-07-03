@@ -48,12 +48,19 @@ typedef struct _PeasGeanyData       PeasGeanyData;
 typedef struct _GtkWidget           GtkWidget;
 typedef struct _GtkDialog           GtkDialog;
 
-enum {
+/**
+ * PeasGeanyFuncs:
+ * @PEAS_GEANY_CONFIGURE: plugin provides configure()
+ * @PEAS_GEANY_CONFIGURE_SINGLE: plugin provides configure_single()
+ * @PEAS_GEANY_HELP: plugin provides help()
+ * @PEAS_GEANY_CLEANUP plugin privdes cleanup()
+ */
+typedef enum {
   PEAS_GEANY_CONFIGURE,
   PEAS_GEANY_CONFIGURE_SINGLE,
   PEAS_GEANY_HELP,
   PEAS_GEANY_CLEANUP
-};
+} PeasGeanyFuncs;
 
 /**
  * PeasGeanyInterface:

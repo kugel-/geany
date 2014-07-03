@@ -113,12 +113,7 @@ peas_plugin_info_error_quark (void)
 	return quark;
 }
 
-PeasPluginInfo *
-_peas_plugin_info_new_from_so(const char *filename,
-                              const gchar *module_dir,
-                              const gchar *data_dir);
-
-PeasPluginInfo *
+static PeasPluginInfo *
 _peas_plugin_info_new_from_so(const char *filename,
                               const gchar *module_dir,
                               const gchar *data_dir)
@@ -157,21 +152,13 @@ _peas_plugin_info_new_from_so(const char *filename,
       goto error;
     }
 
-  g_module_symbol(module, "plugin_set_info", (gpointer *)&set_info);
+  /* Use geany_functions symbol to determine whether this is a geany plugin at all
+   * it must be present because otherwise it was rejected by the original loader */
+  if (!g_module_symbol(module, "geany_functions", (gpointer *) &module_name))
+    goto error;
 
-  /* set basic fields here to allow plugins to call Geany functions in set_info()
-   * NOTE: This is a hack because it relies on being linked to Geany proper, but it
-   * is necessary to be able to load legacy plugins */
-  void **sym;
-  struct Foo {
-    int i;
-  };
-  extern struct Foo INT_geany_data;
-  extern struct Foo INT_geany_functions;
-  g_module_symbol(module, "geany_data", (void *) &sym);
-  if (sym) *sym = &INT_geany_data;
-  g_module_symbol(module, "geany_functions", (void *) &sym);
-  if (sym) *sym = &INT_geany_functions;
+  /* from now on assume it's a geany plugin and print warnings */
+  g_module_symbol(module, "plugin_set_info", (gpointer *)&set_info);
 
   if (set_info == NULL)
     {
@@ -693,6 +680,27 @@ peas_plugin_info_has_dependency (const PeasPluginInfo *info,
   return FALSE;
 }
 
+/**
+ * peas_plugin_info_get_loader_name:
+ * @info: A #PeasPluginInfo.
+ *
+ * Gets the name of the plugin's loader.
+ *
+ * The loader's name identifies the loader engine which is used to load and interpret the
+ * plugin.
+ *
+ * The relevant key in the plugin info file is "Loader".
+ *
+ * Returns: the loader's name.
+ */
+const gchar *
+peas_plugin_info_get_loader_name (const PeasPluginInfo *info)
+{
+  g_return_val_if_fail (info != NULL, NULL);
+  g_return_val_if_fail (info->loader != NULL, NULL);
+
+  return info->loader;
+}
 
 /**
  * peas_plugin_info_get_name:

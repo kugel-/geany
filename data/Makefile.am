@@ -107,11 +107,11 @@ nobase_dist_pkgdata_DATA = \
 	filetype_extensions.conf \
 	snippets.conf \
 	ui_toolbar.xml \
-	geany.glade
+	geany.glade \
+	Peas-1.0.gir
 
 if GTK3
 nobase_dist_pkgdata_DATA += geany.css
 else
 nobase_dist_pkgdata_DATA += geany.gtkrc
 endif
-

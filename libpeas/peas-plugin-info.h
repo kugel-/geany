@@ -85,6 +85,7 @@ GSettings    *peas_plugin_info_get_settings     (const PeasPluginInfo *info,
 const gchar **peas_plugin_info_get_dependencies (const PeasPluginInfo *info);
 gboolean      peas_plugin_info_has_dependency   (const PeasPluginInfo *info,
                                                  const gchar          *module_name);
+const gchar  *peas_plugin_info_get_loader_name  (const PeasPluginInfo *info);
 
 const gchar  *peas_plugin_info_get_name         (const PeasPluginInfo *info);
 const gchar  *peas_plugin_info_get_description  (const PeasPluginInfo *info);

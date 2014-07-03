@@ -525,12 +525,15 @@ plugin_init(PeasGeany *plugin, PeasPluginInfo *info)
 	PluginCallback *callbacks;
 	PluginInfo **p_info;
 	PluginFields **plugin_fields;
+	gboolean is_legacy;
+
+	is_legacy = g_str_equal(peas_plugin_info_get_loader_name(info), "geany");
 
 	/* The module is already loaded by libpeas, so this will just grab another reference.
 	 * This cannot fail too */
 	fname = g_build_path(G_DIR_SEPARATOR_S, peas_plugin_info_get_module_dir(info),
 						peas_plugin_info_get_module_name(info), NULL);
-	module = g_module_open(fname, G_MODULE_BIND_LOCAL);
+	module = is_legacy ? g_module_open(fname, G_MODULE_BIND_LOCAL) : NULL;
 
 	plugin_priv              = g_new0(Plugin, 1);
 	plugin_priv->peas_info   = info;
@@ -544,21 +547,20 @@ plugin_init(PeasGeany *plugin, PeasPluginInfo *info)
 
 	/* set these symbols before plugin_init() is called
 	 * we don't set geany_functions and geany_data since they are set directly by plugin_new() */
-	g_module_symbol(module, "geany_plugin", (void *) &p_geany_plugin);
-	if (p_geany_plugin)
-		*p_geany_plugin = &plugin_priv->public;
-	g_module_symbol(module, "plugin_info", (void *) &p_info);
-	if (p_info)
-		*p_info = &plugin_priv->info;
-	g_module_symbol(module, "plugin_fields", (void *) &plugin_fields);
-	if (plugin_fields)
-		*plugin_fields = &plugin_priv->fields;
-	read_key_group(plugin_priv);
-  void **sym;
-  g_module_symbol(module, "geany_data", (void *) &sym);
-  if (sym) *sym = &INT_geany_data;
-  g_module_symbol(module, "geany_functions", (void *) &sym);
-  if (sym) *sym = &INT_geany_functions;
+	if (is_legacy)
+	{
+		g_module_symbol(module, "geany_plugin", (void *) &p_geany_plugin);
+		if (p_geany_plugin)
+			*p_geany_plugin = &plugin_priv->public;
+		g_module_symbol(module, "plugin_info", (void *) &p_info);
+		if (p_info)
+			*p_info = &plugin_priv->info;
+		g_module_symbol(module, "plugin_fields", (void *) &plugin_fields);
+		if (plugin_fields)
+			*plugin_fields = &plugin_priv->fields;
+		read_key_group(plugin_priv);
+		/* geany_data, geany_functions are set by the loader */
+	}
 
 	/* start the plugin */
 	peas_geany_init(plugin, (PeasGeanyData *) &geany_data);
@@ -583,9 +585,12 @@ plugin_init(PeasGeany *plugin, PeasPluginInfo *info)
 		ui_add_document_sensitive(plugin_priv->fields.menu_item);
 	}
 
-	g_module_symbol(module, "plugin_callbacks", (void *) &callbacks);
-	if (callbacks)
-		add_callbacks(plugin_priv, callbacks);
+	if (is_legacy)
+	{
+		g_module_symbol(module, "plugin_callbacks", (void *) &callbacks);
+		if (callbacks)
+			add_callbacks(plugin_priv, callbacks);
+	}
 
 	geany_debug("Loaded:   %s (%s)",
 		peas_plugin_info_get_module_name(info), peas_plugin_info_get_name(info));
@@ -731,16 +736,14 @@ static void add_plugin_paths(PeasEngine *engine)
 
 PeasEngine *get_default_loader(void)
 {
-	static gboolean do_once;
-	PeasEngine *o = NULL;
-
-	if (!do_once)
+	if (!peas)
 	{
-		o = peas_engine_get_default();
-		add_plugin_paths(o);
+		peas = peas_engine_get_default();
+		peas_engine_enable_loader(peas, "python");
+		peas_engine_enable_loader(peas, "geany");
+		add_plugin_paths(peas);
 	}
-
-	return o;
+	return peas;
 }
 
 static gchar *get_plugin_path(void)
@@ -850,7 +853,6 @@ static void on_plugin_unload(PeasEngine *engine, PeasPluginInfo *info, gpointer 
 		g_hash_table_remove(active_plugins, info);
 		g_object_unref(obj);
 	}
-	peas_engine_garbage_collect(engine);
 }
 
 
@@ -866,10 +868,9 @@ void plugins_init(void)
 
 	peas = get_default_loader();
 
-	g_signal_connect_after(peas, "load-plugin", G_CALLBACK(on_plugin_loaded), NULL);
-	g_signal_connect(peas,     "unload-plugin", G_CALLBACK(on_plugin_unload), NULL);
-
-	peas_engine_enable_loader(peas, "geany");
+	g_signal_connect_after(peas,   "load-plugin", G_CALLBACK(on_plugin_loaded), NULL);
+	g_signal_connect(peas,       "unload-plugin", G_CALLBACK(on_plugin_unload), NULL);
+	g_signal_connect_after(peas, "unload-plugin", G_CALLBACK(peas_engine_garbage_collect), NULL);
 
 	peas_engine_rescan_plugins(peas);
 
@@ -1172,7 +1173,7 @@ static void pm_prepare_treeview(GtkWidget *tree, GtkListStore *store)
 			PeasPluginInfo *info = list->data;
 			gtk_list_store_append(store, &iter);
 			gtk_list_store_set(store, &iter,
-				PLUGIN_COLUMN_CHECK, FALSE,
+				PLUGIN_COLUMN_CHECK, g_hash_table_lookup(active_plugins, info) != NULL,
 				PLUGIN_COLUMN_PLUGIN, peas_plugin_info_get_module_name(info),
 				-1);
 		}

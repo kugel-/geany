@@ -84,7 +84,6 @@ geany_include_HEADERS = \
 	ui_utils.h \
 	utils.h
 
-
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/libpeas \
@@ -110,6 +109,7 @@ geany_LDADD = \
 	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
+	@GIR_LIBS@ \
 	$(INTLLIBS) \
 	-lole32 -luuid -liberty -lwsock32 \
 	geany_private.res
@@ -144,6 +144,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
+	-lgmodule-2.0 -lgio-2.0 -lgirepository-1.0 -lgobject-2.0 -lglib-2.0 \
 	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
