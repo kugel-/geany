@@ -2,6 +2,7 @@ import gi
 
 from gi.repository import GObject
 from gi.repository import Peas
+from gi.repository import GeanyGObject
 
 class PythonHelloPlugin2(GObject.Object, Peas.Geany):
     __gtype_name__ = 'PythonHelloPlugin2'
@@ -9,6 +10,7 @@ class PythonHelloPlugin2(GObject.Object, Peas.Geany):
     #~ object = GObject.property(type=GObject.Object)
 
     def do_init(self, data):
+        self.doc = GeanyGObject.Document.new_file(None, None, "Hallo");
         print("PythonHelloPlugin.do_init\n")
 
     def do_version_check(self, abi):

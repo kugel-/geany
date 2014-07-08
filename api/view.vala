@@ -1,4 +1,4 @@
-using GeanyInternal;
+using GeanyRaw;
 
 namespace Geany
 {

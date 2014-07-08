@@ -10,21 +10,21 @@ libgeany_1_0_la_CFLAGS = \
 libgeany_1_0_la_LIBADD = $(GTK_LIBS)
 
 libgeany_1_0_la_VALAFLAGS = \
-	--pkg gtk+-3.0 \
+	--pkg gtk+-2.0 \
 	--vapidir=. --pkg geany_ \
 	--header=geanyapi.h --use-header \
 	--library=geany-1.0 \
-	--gir=Geany-1.0.gir \
-	--vapi=geany-1.0.vapi \
+	--gir=GeanyGObject-1.0.gir \
+	--vapi=geanygobject-1.0.vapi \
 	--Xcc="-I$(top_srcdir)/src" \
 	--Xcc="-I$(top_srcdir)/tagmanager/src" \
 	--Xcc="-I$(top_srcdir)/scintilla/include"
 
 libgeany_1_0_la_SOURCES = \
-	document.vala \
-	filetype.vala \
-	view.vala \
-	window.vala
+	document.vala
+
+CLEANFILES = \
+	document.c document.o
 
 girdir = $(datadir)/gir-1.0
 gir_DATA = Geany-1.0.gir

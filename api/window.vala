@@ -1,19 +1,15 @@
-using GeanyInternal;
+using GeanyRaw;
 
 namespace Geany
 {
 	public class Window : GLib.Object
 	{
 		HashTable<unowned Document?, Doc> docs;
-		Gtk.Window win;
-		Gtk.Notebook nb;
 
 		construct
 		{
 			docs = new HashTable<unowned Document?, Doc>(
 				direct_hash, direct_equal);
-			win = UiUtils.get_object("window1") as Gtk.Window;
-			nb = UiUtils.get_object("notebook1") as Gtk.Notebook;
 		}
 
 		unowned Doc add_or_lookup(Document gdoc)
@@ -23,14 +19,13 @@ namespace Geany
 				return doc;
 			Doc new_doc = new Doc(gdoc);
 			docs.insert(gdoc, new_doc);
-			weak GeanyInternal.Object gobj = GeanyInternal.Object.instance();
-			gobj.document_close.connect(on_document_close);
-			gobj.document_new.connect(on_document_new);
-			gobj.document_open.connect(on_document_opened);
-			gobj.document_activate.connect(on_document_activated);
-			gobj.document_filetype_set.connect(on_document_filetype_set);
-			gobj.document_reload.connect(on_document_reloaded);
-			gobj.document_save.connect(on_document_saved);
+			GeanyRaw.geany_object.document_close.connect(on_document_close);
+			GeanyRaw.geany_object.document_new.connect(on_document_new);
+			GeanyRaw.geany_object.document_open.connect(on_document_opened);
+			GeanyRaw.geany_object.document_activate.connect(on_document_activated);
+			GeanyRaw.geany_object.document_filetype_set.connect(on_document_filetype_set);
+			GeanyRaw.geany_object.document_reload.connect(on_document_reloaded);
+			GeanyRaw.geany_object.document_save.connect(on_document_saved);
 			return docs.lookup(gdoc);
 		}
 
@@ -59,8 +54,6 @@ namespace Geany
 			}
 		}
 
-		public Gtk.Window win_ptr { get { return win; } }
-
 		internal bool is_doc_valid(Doc doc)
 		{
 			return (docs.lookup(doc.doc_ptr) != null);
@@ -78,7 +71,7 @@ namespace Geany
 
 		// Signal handlers
 		[CCode(target_pos=0.9, instance_pos=2.1)]
-		void on_document_close(GeanyInternal.Object obj, Document gdoc)
+		void on_document_close(GeanyRaw.Object obj, Document gdoc)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			doc.closed();
@@ -87,7 +80,7 @@ namespace Geany
 		}
 
 		[CCode(target_pos=0.9, instance_pos=2.1)]
-		void on_document_new(GeanyInternal.Object obj, Document gdoc)
+		void on_document_new(GeanyRaw.Object obj, Document gdoc)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			document_new(doc);
@@ -95,7 +88,7 @@ namespace Geany
 		}
 
 		[CCode(target_pos=0.9, instance_pos=2.1)]
-		void on_document_opened(GeanyInternal.Object obj, Document gdoc)
+		void on_document_opened(GeanyRaw.Object obj, Document gdoc)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			document_opened(doc);
@@ -103,7 +96,7 @@ namespace Geany
 		}
 
 		[CCode(target_pos=0.9, instance_pos=2.1)]
-		void on_document_activated(GeanyInternal.Object obj, Document gdoc)
+		void on_document_activated(GeanyRaw.Object obj, Document gdoc)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			doc.activated();
@@ -111,7 +104,7 @@ namespace Geany
 		}
 
 		[CCode(target_pos=0.9, instance_pos=2.1)]
-		void on_document_reloaded(GeanyInternal.Object obj, Document gdoc)
+		void on_document_reloaded(GeanyRaw.Object obj, Document gdoc)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			doc.reloaded();
@@ -119,7 +112,7 @@ namespace Geany
 		}
 
 		[CCode(target_pos=0.9, instance_pos=2.1)]
-		void on_document_saved(GeanyInternal.Object obj, Document gdoc)
+		void on_document_saved(GeanyRaw.Object obj, Document gdoc)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			doc.saved();
@@ -127,7 +120,7 @@ namespace Geany
 		}
 
 		[CCode(target_pos=0.9, instance_pos=3.1)]
-		void on_document_filetype_set(GeanyInternal.Object obj, Document gdoc, Filetype old_ft)
+		void on_document_filetype_set(GeanyRaw.Object obj, Document gdoc, Filetype old_ft)
 		{
 			unowned Doc doc = add_or_lookup(gdoc);
 			unowned FileType ft = FileTypeManager.get_default().lookup_ft(old_ft);

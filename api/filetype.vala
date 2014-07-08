@@ -1,4 +1,4 @@
-using GeanyInternal;
+using GeanyRaw;
 
 namespace Geany
 {
@@ -9,7 +9,7 @@ namespace Geany
 		internal FileType(Filetype? ftype=null)
 		{
 			if (ftype == null)
-				ft = Filetype.from_id(0 /* NONE */);
+				ft = Filetype.index(FiletypeID.NONE);
 			else
 				ft = ftype;
 		}
