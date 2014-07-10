@@ -138,7 +138,10 @@ else
 
 geany_SOURCES = $(SRCS) vte.c vte.h
 
+geany_LDFLAGS = -Wl,-rpath,$(top_builddir)/api/.libs/ -Wl,--export-dynamic
+
 geany_LDADD = \
+	$(top_builddir)/api/.libs/libgeany-1.0.so \
 	$(top_builddir)/libpeas/libpeas-1.0.la \
 	$(top_builddir)/scintilla/libscintilla.a \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
