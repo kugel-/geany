@@ -18,7 +18,7 @@ namespace GeanyGObject
 		public signal void before_save();
 		public signal void saved();
 		public signal void activate();
-		public signal void filetype_set(GeanyRaw.Filetype old_ft);
+//~ 		public signal void filetype_set(GeanyRaw.Filetype old_ft);
 
 		/* properties */
 		public bool is_readonly {
@@ -59,7 +59,7 @@ namespace GeanyGObject
 		{
 			GeanyRaw.geany_object.document_close.connect((doc)            => { if (doc == _doc) this.closed(); });
 			GeanyRaw.geany_object.document_activate.connect((doc)         => { if (doc == _doc) this.activate(); });
-			GeanyRaw.geany_object.document_filetype_set.connect((doc, ft) => { if (doc == _doc) this.filetype_set(ft); });
+//~ 			GeanyRaw.geany_object.document_filetype_set.connect((doc, ft) => { if (doc == _doc) this.filetype_set(ft); });
 			GeanyRaw.geany_object.document_reload.connect((doc)           => { if (doc == _doc) this.reloaded(); });
 			GeanyRaw.geany_object.document_before_save.connect((doc)      => { if (doc == _doc) this.before_save(); });
 			GeanyRaw.geany_object.document_save.connect((doc)             => { if (doc == _doc) this.saved(); });
@@ -67,17 +67,19 @@ namespace GeanyGObject
 
 		/* constructors */
 		public Document.new_file(string? utf8_filename = null,
-		                         GeanyRaw.Filetype? ft = null, string? text = null)
+//~ 		                         GeanyRaw.Filetype? ft = null,
+		                         string? text = null)
 		{
 			this();
-			_doc = GeanyRaw.Document.new_file(utf8_filename, ft, text);
+			_doc = GeanyRaw.Document.new_file(utf8_filename, null, text);
 			owns_doc = true;
 		}
 		public Document.from_file(string locale_filename, bool readonly = false,
-		                          GeanyRaw.Filetype? ft = null,  string? forced_enc = null)
+//~ 		                          GeanyRaw.Filetype? ft = null,
+		                          string? forced_enc = null)
 		{
 			this();
-			_doc = GeanyRaw.Document.open_file(locale_filename, readonly, ft, forced_enc);
+			_doc = GeanyRaw.Document.open_file(locale_filename, readonly, null, forced_enc);
 			owns_doc = true;
 		}
 

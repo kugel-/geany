@@ -10,7 +10,7 @@ class PythonHelloPlugin2(GObject.Object, Peas.Geany):
     #~ object = GObject.property(type=GObject.Object)
 
     def do_init(self, data):
-        self.doc = GeanyGObject.Document.new_file(None, None, "Hallo");
+        self.doc = GeanyGObject.Document.new_file(None, "Hallo");
         print("PythonHelloPlugin.do_init\n")
 
     def do_version_check(self, abi):

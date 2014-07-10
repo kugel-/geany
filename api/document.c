@@ -7,7 +7,6 @@
 #include "geanyapi.h"
 #include <document.h>
 #include <geanyobject.h>
-#include <filetypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <editor.h>
@@ -42,14 +41,12 @@ static void __lambda3_ (GeanyGObjectDocument* self, struct GeanyDocument* doc);
 static void ___lambda3__geany_raw_object_document_close (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
 static void __lambda4_ (GeanyGObjectDocument* self, struct GeanyDocument* doc);
 static void ___lambda4__geany_raw_object_document_activate (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
-static void __lambda5_ (GeanyGObjectDocument* self, struct GeanyDocument* doc, struct GeanyFiletype* ft);
-static void ___lambda5__geany_raw_object_document_filetype_set (GeanyObject* _sender, struct GeanyDocument* doc, struct GeanyFiletype* old_ft, gpointer self);
+static void __lambda5_ (GeanyGObjectDocument* self, struct GeanyDocument* doc);
+static void ___lambda5__geany_raw_object_document_reload (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
 static void __lambda6_ (GeanyGObjectDocument* self, struct GeanyDocument* doc);
-static void ___lambda6__geany_raw_object_document_reload (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
+static void ___lambda6__geany_raw_object_document_before_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
 static void __lambda7_ (GeanyGObjectDocument* self, struct GeanyDocument* doc);
-static void ___lambda7__geany_raw_object_document_before_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
-static void __lambda8_ (GeanyGObjectDocument* self, struct GeanyDocument* doc);
-static void ___lambda8__geany_raw_object_document_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
+static void ___lambda7__geany_raw_object_document_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self);
 static void geany_gobject_document_finalize (GObject* obj);
 static void _vala_geany_gobject_document_get_property (GObject * object, guint property_id, GValue * value, GParamSpec * pspec);
 static void _vala_geany_gobject_document_set_property (GObject * object, guint property_id, const GValue * value, GParamSpec * pspec);
@@ -89,27 +86,7 @@ static void ___lambda4__geany_raw_object_document_activate (GeanyObject* _sender
 }
 
 
-static void __lambda5_ (GeanyGObjectDocument* self, struct GeanyDocument* doc, struct GeanyFiletype* ft) {
-	struct GeanyDocument* _tmp0_ = NULL;
-	struct GeanyDocument* _tmp1_ = NULL;
-	g_return_if_fail (doc != NULL);
-	g_return_if_fail (ft != NULL);
-	_tmp0_ = doc;
-	_tmp1_ = self->priv->_doc;
-	if (_tmp0_ == _tmp1_) {
-		struct GeanyFiletype* _tmp2_ = NULL;
-		_tmp2_ = ft;
-		g_signal_emit_by_name (self, "filetype-set", _tmp2_);
-	}
-}
-
-
-static void ___lambda5__geany_raw_object_document_filetype_set (GeanyObject* _sender, struct GeanyDocument* doc, struct GeanyFiletype* old_ft, gpointer self) {
-	__lambda5_ ((GeanyGObjectDocument*) self, doc, old_ft);
-}
-
-
-static void __lambda6_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
+static void __lambda5_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
 	struct GeanyDocument* _tmp0_ = NULL;
 	struct GeanyDocument* _tmp1_ = NULL;
 	g_return_if_fail (doc != NULL);
@@ -121,12 +98,12 @@ static void __lambda6_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
 }
 
 
-static void ___lambda6__geany_raw_object_document_reload (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self) {
-	__lambda6_ ((GeanyGObjectDocument*) self, doc);
+static void ___lambda5__geany_raw_object_document_reload (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self) {
+	__lambda5_ ((GeanyGObjectDocument*) self, doc);
 }
 
 
-static void __lambda7_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
+static void __lambda6_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
 	struct GeanyDocument* _tmp0_ = NULL;
 	struct GeanyDocument* _tmp1_ = NULL;
 	g_return_if_fail (doc != NULL);
@@ -138,12 +115,12 @@ static void __lambda7_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
 }
 
 
-static void ___lambda7__geany_raw_object_document_before_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self) {
-	__lambda7_ ((GeanyGObjectDocument*) self, doc);
+static void ___lambda6__geany_raw_object_document_before_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self) {
+	__lambda6_ ((GeanyGObjectDocument*) self, doc);
 }
 
 
-static void __lambda8_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
+static void __lambda7_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
 	struct GeanyDocument* _tmp0_ = NULL;
 	struct GeanyDocument* _tmp1_ = NULL;
 	g_return_if_fail (doc != NULL);
@@ -155,8 +132,8 @@ static void __lambda8_ (GeanyGObjectDocument* self, struct GeanyDocument* doc) {
 }
 
 
-static void ___lambda8__geany_raw_object_document_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self) {
-	__lambda8_ ((GeanyGObjectDocument*) self, doc);
+static void ___lambda7__geany_raw_object_document_save (GeanyObject* _sender, struct GeanyDocument* doc, gpointer self) {
+	__lambda7_ ((GeanyGObjectDocument*) self, doc);
 }
 
 
@@ -167,20 +144,17 @@ static GeanyGObjectDocument* geany_gobject_document_construct (GType object_type
 	GeanyObject* _tmp2_ = NULL;
 	GeanyObject* _tmp3_ = NULL;
 	GeanyObject* _tmp4_ = NULL;
-	GeanyObject* _tmp5_ = NULL;
 	self = (GeanyGObjectDocument*) g_object_new (object_type, NULL);
 	_tmp0_ = geany_object;
 	g_signal_connect_object (_tmp0_, "document-close", (GCallback) ___lambda3__geany_raw_object_document_close, self, 0);
 	_tmp1_ = geany_object;
 	g_signal_connect_object (_tmp1_, "document-activate", (GCallback) ___lambda4__geany_raw_object_document_activate, self, 0);
 	_tmp2_ = geany_object;
-	g_signal_connect_object (_tmp2_, "document-filetype-set", (GCallback) ___lambda5__geany_raw_object_document_filetype_set, self, 0);
+	g_signal_connect_object (_tmp2_, "document-reload", (GCallback) ___lambda5__geany_raw_object_document_reload, self, 0);
 	_tmp3_ = geany_object;
-	g_signal_connect_object (_tmp3_, "document-reload", (GCallback) ___lambda6__geany_raw_object_document_reload, self, 0);
+	g_signal_connect_object (_tmp3_, "document-before-save", (GCallback) ___lambda6__geany_raw_object_document_before_save, self, 0);
 	_tmp4_ = geany_object;
-	g_signal_connect_object (_tmp4_, "document-before-save", (GCallback) ___lambda7__geany_raw_object_document_before_save, self, 0);
-	_tmp5_ = geany_object;
-	g_signal_connect_object (_tmp5_, "document-save", (GCallback) ___lambda8__geany_raw_object_document_save, self, 0);
+	g_signal_connect_object (_tmp4_, "document-save", (GCallback) ___lambda7__geany_raw_object_document_save, self, 0);
 	return self;
 }
 
@@ -190,50 +164,46 @@ static GeanyGObjectDocument* geany_gobject_document_new (void) {
 }
 
 
-GeanyGObjectDocument* geany_gobject_document_construct_new_file (GType object_type, const gchar* utf8_filename, struct GeanyFiletype* ft, const gchar* text) {
+GeanyGObjectDocument* geany_gobject_document_construct_new_file (GType object_type, const gchar* utf8_filename, const gchar* text) {
 	GeanyGObjectDocument * self = NULL;
 	const gchar* _tmp0_ = NULL;
-	struct GeanyFiletype* _tmp1_ = NULL;
-	const gchar* _tmp2_ = NULL;
-	struct GeanyDocument* _tmp3_ = NULL;
+	const gchar* _tmp1_ = NULL;
+	struct GeanyDocument* _tmp2_ = NULL;
 	self = (GeanyGObjectDocument*) geany_gobject_document_construct (object_type);
 	_tmp0_ = utf8_filename;
-	_tmp1_ = ft;
-	_tmp2_ = text;
-	_tmp3_ = document_new_file (_tmp0_, _tmp1_, _tmp2_);
+	_tmp1_ = text;
+	_tmp2_ = document_new_file (_tmp0_, NULL, _tmp1_);
+	self->priv->_doc = _tmp2_;
+	self->priv->owns_doc = TRUE;
+	return self;
+}
+
+
+GeanyGObjectDocument* geany_gobject_document_new_new_file (const gchar* utf8_filename, const gchar* text) {
+	return geany_gobject_document_construct_new_file (GEANY_GOBJECT_TYPE_DOCUMENT, utf8_filename, text);
+}
+
+
+GeanyGObjectDocument* geany_gobject_document_construct_from_file (GType object_type, const gchar* locale_filename, gboolean readonly, const gchar* forced_enc) {
+	GeanyGObjectDocument * self = NULL;
+	const gchar* _tmp0_ = NULL;
+	gboolean _tmp1_ = FALSE;
+	const gchar* _tmp2_ = NULL;
+	struct GeanyDocument* _tmp3_ = NULL;
+	g_return_val_if_fail (locale_filename != NULL, NULL);
+	self = (GeanyGObjectDocument*) geany_gobject_document_construct (object_type);
+	_tmp0_ = locale_filename;
+	_tmp1_ = readonly;
+	_tmp2_ = forced_enc;
+	_tmp3_ = document_open_file (_tmp0_, _tmp1_, NULL, _tmp2_);
 	self->priv->_doc = _tmp3_;
 	self->priv->owns_doc = TRUE;
 	return self;
 }
 
 
-GeanyGObjectDocument* geany_gobject_document_new_new_file (const gchar* utf8_filename, struct GeanyFiletype* ft, const gchar* text) {
-	return geany_gobject_document_construct_new_file (GEANY_GOBJECT_TYPE_DOCUMENT, utf8_filename, ft, text);
-}
-
-
-GeanyGObjectDocument* geany_gobject_document_construct_from_file (GType object_type, const gchar* locale_filename, gboolean readonly, struct GeanyFiletype* ft, const gchar* forced_enc) {
-	GeanyGObjectDocument * self = NULL;
-	const gchar* _tmp0_ = NULL;
-	gboolean _tmp1_ = FALSE;
-	struct GeanyFiletype* _tmp2_ = NULL;
-	const gchar* _tmp3_ = NULL;
-	struct GeanyDocument* _tmp4_ = NULL;
-	g_return_val_if_fail (locale_filename != NULL, NULL);
-	self = (GeanyGObjectDocument*) geany_gobject_document_construct (object_type);
-	_tmp0_ = locale_filename;
-	_tmp1_ = readonly;
-	_tmp2_ = ft;
-	_tmp3_ = forced_enc;
-	_tmp4_ = document_open_file (_tmp0_, _tmp1_, _tmp2_, _tmp3_);
-	self->priv->_doc = _tmp4_;
-	self->priv->owns_doc = TRUE;
-	return self;
-}
-
-
-GeanyGObjectDocument* geany_gobject_document_new_from_file (const gchar* locale_filename, gboolean readonly, struct GeanyFiletype* ft, const gchar* forced_enc) {
-	return geany_gobject_document_construct_from_file (GEANY_GOBJECT_TYPE_DOCUMENT, locale_filename, readonly, ft, forced_enc);
+GeanyGObjectDocument* geany_gobject_document_new_from_file (const gchar* locale_filename, gboolean readonly, const gchar* forced_enc) {
+	return geany_gobject_document_construct_from_file (GEANY_GOBJECT_TYPE_DOCUMENT, locale_filename, readonly, forced_enc);
 }
 
 
@@ -471,7 +441,6 @@ static void geany_gobject_document_class_init (GeanyGObjectDocumentClass * klass
 	g_signal_new ("before_save", GEANY_GOBJECT_TYPE_DOCUMENT, G_SIGNAL_RUN_LAST, 0, NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 	g_signal_new ("saved", GEANY_GOBJECT_TYPE_DOCUMENT, G_SIGNAL_RUN_LAST, 0, NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 	g_signal_new ("activate", GEANY_GOBJECT_TYPE_DOCUMENT, G_SIGNAL_RUN_LAST, 0, NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
-	g_signal_new ("filetype_set", GEANY_GOBJECT_TYPE_DOCUMENT, G_SIGNAL_RUN_LAST, 0, NULL, NULL, g_cclosure_marshal_VOID__POINTER, G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 

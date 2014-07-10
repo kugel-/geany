@@ -8,7 +8,6 @@
 #include <glib-object.h>
 #include <stdlib.h>
 #include <string.h>
-#include <filetypes.h>
 
 G_BEGIN_DECLS
 
@@ -35,10 +34,10 @@ struct _GeanyGObjectDocumentClass {
 
 
 GType geany_gobject_document_get_type (void) G_GNUC_CONST;
-GeanyGObjectDocument* geany_gobject_document_new_new_file (const gchar* utf8_filename, struct GeanyFiletype* ft, const gchar* text);
-GeanyGObjectDocument* geany_gobject_document_construct_new_file (GType object_type, const gchar* utf8_filename, struct GeanyFiletype* ft, const gchar* text);
-GeanyGObjectDocument* geany_gobject_document_new_from_file (const gchar* locale_filename, gboolean readonly, struct GeanyFiletype* ft, const gchar* forced_enc);
-GeanyGObjectDocument* geany_gobject_document_construct_from_file (GType object_type, const gchar* locale_filename, gboolean readonly, struct GeanyFiletype* ft, const gchar* forced_enc);
+GeanyGObjectDocument* geany_gobject_document_new_new_file (const gchar* utf8_filename, const gchar* text);
+GeanyGObjectDocument* geany_gobject_document_construct_new_file (GType object_type, const gchar* utf8_filename, const gchar* text);
+GeanyGObjectDocument* geany_gobject_document_new_from_file (const gchar* locale_filename, gboolean readonly, const gchar* forced_enc);
+GeanyGObjectDocument* geany_gobject_document_construct_from_file (GType object_type, const gchar* locale_filename, gboolean readonly, const gchar* forced_enc);
 GeanyGObjectDocument* geany_gobject_document_get_current (void);
 gboolean geany_gobject_document_close (GeanyGObjectDocument* self);
 gboolean geany_gobject_document_save (GeanyGObjectDocument* self, gboolean force);
