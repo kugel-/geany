@@ -6,6 +6,9 @@ EXTRA_DIST = \
 
 plugindir = $(libdir)/geany
 
+nobase_dist_plugin_DATA = \
+	valatest.plugin
+
 plugins_includedir = $(includedir)/geany
 plugins_include_HEADERS = \
 	geanyplugin.h \
@@ -25,6 +28,7 @@ export_la_LDFLAGS        = -module -avoid-version
 saveactions_la_LDFLAGS   = -module -avoid-version
 filebrowser_la_LDFLAGS   = -module -avoid-version
 splitwindow_la_LDFLAGS   = -module -avoid-version
+libvalatest_la_LDFLAGS   = -module -avoid-version
 
 if PLUGINS
 
@@ -51,7 +55,8 @@ all-local: \
 	export.dll \
 	saveactions.dll \
 	splitwindow.dll \
-	filebrowser.dll
+	filebrowser.dll \
+	libvalatest.dll
 
 .c.dll:
 	$(CC) $(MINGW_CFLAGS) -o $@.o -c $<
@@ -69,7 +74,8 @@ plugin_LTLIBRARIES = \
 	export.la \
 	saveactions.la \
 	filebrowser.la \
-	splitwindow.la
+	splitwindow.la \
+	libvalatest.la
 
 # Plugins not to be installed
 noinst_LTLIBRARIES = \
@@ -82,6 +88,7 @@ export_la_SOURCES        = export.c
 saveactions_la_SOURCES   = saveactions.c
 filebrowser_la_SOURCES   = filebrowser.c
 splitwindow_la_SOURCES   = splitwindow.c
+libvalatest_la_SOURCES   = valatest.vala
 
 demoplugin_la_CFLAGS    = -DG_LOG_DOMAIN=\""Demoplugin"\"
 classbuilder_la_CFLAGS  = -DG_LOG_DOMAIN=\""Classbuilder"\"
@@ -90,6 +97,12 @@ export_la_CFLAGS        = -DG_LOG_DOMAIN=\""Export"\"
 saveactions_la_CFLAGS   = -DG_LOG_DOMAIN=\""SaveActions"\"
 filebrowser_la_CFLAGS   = -DG_LOG_DOMAIN=\""FileBrowser"\"
 splitwindow_la_CFLAGS   = -DG_LOG_DOMAIN=\""SplitWindow"\"
+libvalatest_la_CFLAGS   = -DG_LOG_DOMAIN=\""ValaTest"\" @PEAS_CFLAGS@ -I$(top_srcdir)/api
+
+libvalatest_la_VALAFLAGS = -v \
+	--vapidir $(top_srcdir)/api \
+	--pkg gtk+-2.0 --pkg libpeas-1.0 \
+	--pkg geany --pkg scintilla
 
 demoplugin_la_LIBADD    = $(GTK_LIBS)
 classbuilder_la_LIBADD  = $(GTK_LIBS)
@@ -98,6 +111,7 @@ export_la_LIBADD        = $(GTK_LIBS) -lm
 saveactions_la_LIBADD   = $(GTK_LIBS)
 filebrowser_la_LIBADD   = $(GTK_LIBS)
 splitwindow_la_LIBADD   = $(GTK_LIBS)
+libvalatest_la_LIBADD   = $(GTK_LIBS)
 
 endif # MINGW
 endif # PLUGINS

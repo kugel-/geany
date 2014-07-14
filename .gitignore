@@ -123,3 +123,9 @@ Makefile.in
 /libpeas/Peas-1.0.gir
 /libpeas/Peas-1.0.typelib
 /libpeas/libpeas-1.0.vapi
+
+#-----------------------------------------------------------------------
+# /plugins/
+#-----------------------------------------------------------------------
+/plugins/valatest.[ch]
+/plugins/libvalatest_la_vala.stamp

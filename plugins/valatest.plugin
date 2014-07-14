@@ -1,0 +1,5 @@
+[Plugin]
+Module=valatest
+Name=Vala Test Plugin
+Description=Opens a dummy dialog
+Authors=Thomas
