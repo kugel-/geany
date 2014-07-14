@@ -23,19 +23,19 @@
 #ifndef GEANY_EDITOR_H
 #define GEANY_EDITOR_H 1
 
+#ifndef G_IR_SCANNER
+
 #include "tm_tag.h" /* for TMTag */
 
 #include "gtkcompat.h" /* Needed by ScintillaWidget.h */
 #include "Scintilla.h" /* Needed by ScintillaWidget.h */
 #include "ScintillaWidget.h" /* for ScintillaObject */
 
+#endif /* G_IR_SCANNER */
+
 #include <glib.h>
 
-
 G_BEGIN_DECLS
-
-/* Forward-declared to avoid including document.h since it includes this header */
-struct GeanyDocument;
 
 /** Default character set to define which characters should be treated as part of a word. */
 #define GEANY_WORDCHARS					"_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -136,6 +136,11 @@ typedef struct GeanyEditorPrefs
 	gint		autocompletion_update_freq;
 }
 GeanyEditorPrefs;
+
+#ifndef G_IR_SCANNER
+
+/* Forward-declared to avoid including document.h since it includes this header */
+struct GeanyDocument;
 
 /** Editor-owned fields for each document. */
 typedef struct GeanyEditor
@@ -326,6 +331,8 @@ gchar *editor_get_calltip_text(GeanyEditor *editor, const TMTag *tag);
 void editor_toggle_fold(GeanyEditor *editor, gint line, gint modifiers);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

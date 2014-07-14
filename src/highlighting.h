@@ -23,12 +23,15 @@
 #ifndef GEANY_HIGHLIGHTING_H
 #define GEANY_HIGHLIGHTING_H 1
 
+#ifndef G_IR_SCANNER
+
 #include "filetypes.h"
 
 #include "gtkcompat.h" /* Needed by ScintillaWidget.h */
 #include "Scintilla.h" /* Needed by ScintillaWidget.h */
 #include "ScintillaWidget.h" /* for ScintillaObject */
 
+#endif /* G_IR_SCANNER */
 
 #include <glib.h>
 
@@ -45,6 +48,7 @@ typedef struct GeanyLexerStyle
 }
 GeanyLexerStyle;
 
+#ifndef G_IR_SCANNER
 
 const GeanyLexerStyle *highlighting_get_style(gint ft_id, gint style_id);
 
@@ -64,6 +68,8 @@ void highlighting_free_styles(void);
 void highlighting_show_color_scheme_dialog(void);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

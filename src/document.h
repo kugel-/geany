@@ -29,6 +29,8 @@
 #ifndef GEANY_DOCUMENT_H
 #define GEANY_DOCUMENT_H 1
 
+#ifndef G_IR_SCANNER
+
 #include "editor.h"
 #include "filetypes.h"
 #include "geany.h"
@@ -37,6 +39,8 @@
 #include "gtkcompat.h" /* Needed by ScintillaWidget.h */
 #include "Scintilla.h" /* Needed by ScintillaWidget.h */
 #include "ScintillaWidget.h" /* For ScintillaObject */
+
+#endif
 
 #include <glib.h>
 
@@ -67,6 +71,7 @@ typedef struct GeanyFilePrefs
 }
 GeanyFilePrefs;
 
+#ifndef G_IR_SCANNER
 
 /**
  *  Structure for representing an open tab with all its properties.
@@ -313,6 +318,8 @@ void document_grab_focus(GeanyDocument *doc);
 GeanyDocument *document_clone(GeanyDocument *old_doc);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

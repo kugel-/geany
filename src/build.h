@@ -61,6 +61,19 @@ typedef enum GeanyBuildCmdEntries
 	GEANY_BC_CMDENTRIES_COUNT	/* *< Count of entries */
 } GeanyBuildCmdEntries;
 
+typedef struct GeanyBuildInfo
+{
+	GeanyBuildGroup	 grp;
+	guint			 cmd;
+	GPid			 pid;	/* process id of the spawned process */
+	gchar			*dir;
+	guint			 file_type_id;
+	gchar			*custom_target;
+	gint			 message_count;
+} GeanyBuildInfo;
+
+#ifndef G_IR_SCANNER
+
 void build_activate_menu_item(const GeanyBuildGroup grp, const guint cmd);
 
 const gchar *build_get_current_menu_item(const GeanyBuildGroup grp, const guint cmd, 
@@ -135,17 +148,6 @@ enum GeanyBuildFixedMenuItems
 	GBF_COUNT
 };
 
-typedef struct GeanyBuildInfo
-{
-	GeanyBuildGroup	 grp;
-	guint			 cmd;
-	GPid			 pid;	/* process id of the spawned process */
-	gchar			*dir;
-	guint			 file_type_id;
-	gchar			*custom_target;
-	gint			 message_count;
-} GeanyBuildInfo;
-
 extern GeanyBuildInfo build_info;
 
 /* * The command for a menu item. */
@@ -213,6 +215,8 @@ void build_set_group_count(GeanyBuildGroup grp, gint count);
 gchar **build_get_regex(GeanyBuildGroup grp, GeanyFiletype *ft, guint *from);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

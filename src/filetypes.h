@@ -23,6 +23,8 @@
 #ifndef GEANY_FILETYPES_H
 #define GEANY_FILETYPES_H 1
 
+#ifndef G_IR_SCANNER
+
 #include "geany.h" /* for GEANY() macro */
 #include "tm_source_file.h" /* for langType */
 
@@ -30,13 +32,11 @@
 #include "Scintilla.h" /* Needed by ScintillaWidget.h */
 #include "ScintillaWidget.h" /* for ScintillaObject */
 
+#endif /* G_IR_SCANNER */
+
 #include <glib.h>
 
-
 G_BEGIN_DECLS
-
-/* Forward-declared to avoid including document.h since it includes this header */
-struct GeanyDocument;
 
 /* Do not change the order, only append. */
 typedef enum
@@ -101,9 +101,12 @@ typedef enum
 	GEANY_FILETYPES_POWERSHELL,
 	GEANY_FILETYPES_RUST,
 	/* ^ append items here */
+
+#ifndef G_IR_SCANNER
 	GEANY_MAX_BUILT_IN_FILETYPES	/* Don't use this, use filetypes_array->len instead */
+#endif
 }
-filetype_id;
+GeanyFiletypeID;
 
 typedef enum
 {
@@ -112,10 +115,21 @@ typedef enum
 	GEANY_FILETYPE_GROUP_SCRIPT,
 	GEANY_FILETYPE_GROUP_MARKUP,
 	GEANY_FILETYPE_GROUP_MISC,
+	/* ^ append items here */
+
+#ifndef G_IR_SCANNER
 	GEANY_FILETYPE_GROUP_COUNT
+#endif
 }
 GeanyFiletypeGroupID;
 
+/* hide some stuff for g-ir-scanner */
+#ifndef G_IR_SCANNER
+/* Forward-declared to avoid including document.h since it includes this header */
+struct GeanyDocument;
+
+/* compat typedef */
+typedef GeanyFiletypeID filetype_id;
 
 /* Safe wrapper to get the id field of a possibly NULL filetype pointer.
  * This shouldn't be necessary since GeanyDocument::file_type is always non-NULL. */
@@ -216,6 +230,8 @@ gboolean filetype_get_comment_open_close(const GeanyFiletype *ft, gboolean singl
 		const gchar **co, const gchar **cc);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

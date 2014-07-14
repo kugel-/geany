@@ -22,9 +22,15 @@
 #ifndef GEANY_UI_UTILS_H
 #define GEANY_UI_UTILS_H 1
 
+#ifndef G_IR_SCANNER
+
 #include "document.h"
 
 #include "gtkcompat.h"
+
+#endif /* G_IR_SCANNER */
+
+#include <glib.h>
 
 G_BEGIN_DECLS
 
@@ -71,6 +77,7 @@ typedef struct GeanyInterfacePrefs
 }
 GeanyInterfacePrefs;
 
+#ifndef G_IR_SCANNER
 
 /** Important widgets in the main window.
  * Accessed by @c geany->main_widgets. */
@@ -145,7 +152,6 @@ const gchar *ui_lookup_stock_label(const gchar *stock_id);
 extern GeanyInterfacePrefs interface_prefs;
 
 extern GeanyMainWidgets main_widgets;
-
 
 /* User Interface settings not shown in the Prefs dialog. */
 typedef struct UIPrefs
@@ -352,6 +358,8 @@ gint ui_encodings_combo_box_get_active_encoding(GtkComboBox *combo);
 gboolean ui_encodings_combo_box_set_active_encoding(GtkComboBox *combo, gint enc);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

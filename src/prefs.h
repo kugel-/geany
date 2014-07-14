@@ -52,6 +52,7 @@ typedef struct GeanyToolPrefs
 }
 GeanyToolPrefs;
 
+#ifndef G_IR_SCANNER
 
 #ifdef GEANY_PRIVATE
 
@@ -64,6 +65,8 @@ void prefs_show_dialog(void);
 void prefs_kb_search_name(const gchar *search);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

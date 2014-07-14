@@ -23,6 +23,7 @@
 #define GEANY_TOOLBAR_H 1
 
 #include "gtkcompat.h"
+#include <glib.h>
 
 G_BEGIN_DECLS
 
@@ -38,11 +39,11 @@ typedef struct GeanyToolbarPrefs
 }
 GeanyToolbarPrefs;
 
+#ifndef G_IR_SCANNER
 
 #ifdef GEANY_PRIVATE
 
 extern GeanyToolbarPrefs toolbar_prefs;
-
 
 GtkWidget *toolbar_get_widget_child_by_name(const gchar *name);
 
@@ -67,6 +68,8 @@ void toolbar_finalize(void);
 void toolbar_configure(GtkWindow *parent);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 
