@@ -217,19 +217,17 @@ plugin_load(GeanyPlugin2 *plugin, PeasPluginInfo *info)
 	Plugin *plugin_priv;
 	gchar *fname;
 	GModule *module;
-	GeanyPlugin **p_geany_plugin;
 	PluginCallback *callbacks;
-	PluginInfo **p_info;
-	PluginFields **plugin_fields;
-	GeanyData **p_geany_data;
-	GeanyFunctions **p_geany_funcs;
 	gint methods, configure_mask;
+	gboolean is_legacy;
+
+	is_legacy = g_str_equal(peas_plugin_info_get_loader_name(info), "geany");
 
 	/* The module is already loaded by libpeas, so this will just grab another reference.
 	 * This cannot fail too */
 	fname = g_build_path(G_DIR_SEPARATOR_S, peas_plugin_info_get_module_dir(info),
 						peas_plugin_info_get_module_name(info), NULL);
-	module = g_module_open(fname, G_MODULE_BIND_LOCAL);
+	module = is_legacy ? g_module_open(fname, G_MODULE_BIND_LOCAL) : NULL;
 
 	plugin_priv              = g_new0(Plugin, 1);
 	plugin_priv->peas_info   = info;
@@ -240,25 +238,36 @@ plugin_load(GeanyPlugin2 *plugin, PeasPluginInfo *info)
 
 	geany_plugin2_set_priv(plugin, plugin_priv);
 
-	/* set these symbols before plugin_init() is called
-	 * we don't set geany_functions and geany_data since they are set directly by plugin_new() */
-	g_module_symbol(module, "geany_plugin", (void *) &p_geany_plugin);
-	if (p_geany_plugin)
-		*p_geany_plugin = &plugin_priv->public;
-	g_module_symbol(module, "plugin_info", (void *) &p_info);
-	if (p_info)
-		*p_info = &plugin_priv->info;
-	g_module_symbol(module, "plugin_fields", (void *) &plugin_fields);
-	if (plugin_fields)
-		*plugin_fields = &plugin_priv->fields;
-	read_key_group(plugin_priv);
+	if (is_legacy)
+	{
+		GeanyPlugin **p_geany_plugin;
+		PluginInfo **p_info;
+		PluginFields **plugin_fields;
+		GeanyData **p_geany_data;
+		GeanyFunctions **p_geany_funcs;
 
-	g_module_symbol(module, "geany_data", (void *) &p_geany_data);
-	if (p_geany_data)
-		*p_geany_data = geany_data;
-	g_module_symbol(module, "geany_functions", (void *) &p_geany_funcs);
-	if (p_geany_funcs)
-		*p_geany_funcs = &geany_functions;
+		/* set these symbols before plugin_init() is called
+		 * this should only be done for legacy .so file plugins, not for the new-style ones.
+		 * this might not even be C plugins */
+		g_module_symbol(module, "geany_plugin", (void *) &p_geany_plugin);
+		if (p_geany_plugin)
+			*p_geany_plugin = &plugin_priv->public;
+		g_module_symbol(module, "plugin_info", (void *) &p_info);
+		if (p_info)
+			*p_info = &plugin_priv->info;
+		g_module_symbol(module, "plugin_fields", (void *) &plugin_fields);
+		if (plugin_fields)
+			*plugin_fields = &plugin_priv->fields;
+
+		g_module_symbol(module, "geany_data", (void *) &p_geany_data);
+		if (p_geany_data)
+			*p_geany_data = geany_data;
+		g_module_symbol(module, "geany_functions", (void *) &p_geany_funcs);
+		if (p_geany_funcs)
+			*p_geany_funcs = &geany_functions;
+
+		read_key_group(plugin_priv);
+	}
 
 	/* start the plugin */
 	geany_plugin2_initialize(plugin);
@@ -284,9 +293,12 @@ plugin_load(GeanyPlugin2 *plugin, PeasPluginInfo *info)
 		ui_add_document_sensitive(plugin_priv->fields.menu_item);
 	}
 
-	g_module_symbol(module, "plugin_callbacks", (void *) &callbacks);
-	if (callbacks)
-		add_callbacks(plugin_priv, callbacks);
+	if (is_legacy)
+	{
+		g_module_symbol(module, "plugin_callbacks", (void *) &callbacks);
+		if (callbacks)
+			add_callbacks(plugin_priv, callbacks);
+	}
 
 	geany_debug("Loaded:   %s (%s)",
 		peas_plugin_info_get_module_name(info), peas_plugin_info_get_name(info));
