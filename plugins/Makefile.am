@@ -7,6 +7,8 @@ EXTRA_DIST = \
 plugindir = $(libdir)/geany
 
 nobase_dist_plugin_DATA = \
+	extension.plugin \
+	extension.py \
 	valatest.plugin
 
 plugins_includedir = $(includedir)/geany

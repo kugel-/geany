@@ -34,6 +34,13 @@ geany.vapi: geany.vapi.in geanyheaders.vapi geanyplugin2.vapi
 scintilla.vapi: scintilla.vapi.in
 	@cp $< $@
 
+Geany-0.9.gir: libgeany-1.0.la
+# g-ir-compiler has some issues with some .gir files so the merging must be done in a slightly
+# intelligent way. Note that the merge is only necessary in the first place because g-ir-compiler
+# can only compile one .gir into one .typelib
+Geany-1.0.gir: Geany-0.9.gir filetypes.gir
+	$(AM_V_GEN)python girmerge.py $+ -o $@
+
 # geanyplugin2 section
 libgeanydir = $(libdir)/geany/geany
 libgeany_LTLIBRARIES = libgeany-1.0.la
@@ -52,7 +59,7 @@ libgeany_1_0_la_VALAFLAGS = \
 	--header geanyplugin2.h --use-header \
 	--library geany-1.0 \
 	--vapi geanyplugin2.vapi \
-	--gir Geany-1.0.gir
+	--gir Geany-0.9.gir
 
 libgeany_1_0_la_SOURCES = geanyplugin2.vala
 
@@ -70,8 +77,6 @@ gir_DATA = Geany-1.0.gir
 
 typelibdir =  $(libdir)/geany/geany
 typelib_DATA = Geany-1.0.typelib
-
-Geany-1.0.gir: libgeany-1.0.la
 
 if HAVE_INTROSPECTION
 -include $(INTROSPECTION_MAKEFILE)
