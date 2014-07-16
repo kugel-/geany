@@ -45,6 +45,7 @@
 #include "pluginprivate.h"
 #include "pluginutils.h"
 #include "prefs.h"
+#include "prefix.h"
 #include "sciwrappers.h"
 #include "stash.h"
 #include "support.h"
@@ -60,6 +61,7 @@
 #include <string.h>
 #include <libpeas/peas.h>
 #include <libpeas/peas-plugin-info-priv.h>
+#include <girepository.h>
 
 static gboolean want_plugins = FALSE;
 
@@ -442,6 +444,18 @@ static void add_plugin_paths(PeasEngine *engine)
 }
 
 
+static void add_typelib_paths(void)
+{
+	gchar *path;
+
+	path = g_build_filename(GEANY_LIBDIR, "geany", "geany", NULL);
+	g_irepository_prepend_search_path(path);
+	g_free(path);
+	path = g_build_filename(GEANY_LIBDIR, "geany", "libpeas-1.0", NULL);
+	g_irepository_prepend_search_path(path);
+	g_free(path);
+}
+
 static gchar *get_plugin_path(void)
 {
 #ifdef G_OS_WIN32
@@ -586,6 +600,7 @@ void plugins_init(void)
 	g_signal_connect_after(peas, "unload-plugin", G_CALLBACK(peas_engine_garbage_collect), NULL);
 
 	add_plugin_paths(peas);
+	add_typelib_paths();
 	peas_engine_install_provider(peas, "so", plugins_provide_info, NULL, NULL);
 	peas_engine_rescan_plugins(peas);
 

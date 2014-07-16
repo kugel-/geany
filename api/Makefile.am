@@ -56,9 +56,24 @@ libgeany_1_0_la_VALAFLAGS = \
 
 libgeany_1_0_la_SOURCES = geanyplugin2.vala
 
+libgeany_DATA = Geany-1.0.typelib
+
 # do not add generated *.{c,h,vapi} to CLEANFILES
 # https://blogs.gnome.org/jessevdk/2014/01/07/vala-and-autobuild/
 CLEANFILES = geanyplugin2.o geany.vapi geanyheaders.vapi geanyplugin2.vapi scintilla.vapi
 
 vapidir = $(datadir)/vala/vapi
 vapi_DATA =  geany.vapi scintilla.vapi geany.deps
+
+girdir = $(libdir)/geany/geany
+gir_DATA = Geany-1.0.gir
+
+typelibdir =  $(libdir)/geany/geany
+typelib_DATA = Geany-1.0.typelib
+
+Geany-1.0.gir: libgeany-1.0.la
+
+if HAVE_INTROSPECTION
+-include $(INTROSPECTION_MAKEFILE)
+
+endif

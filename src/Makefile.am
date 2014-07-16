@@ -116,6 +116,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
 	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
+	@GIR_LIBS@ \
 	@GTHREAD_LIBS@ \
 	$(INTLLIBS) \
 	-lole32 -luuid -liberty -lwsock32 \
@@ -154,6 +155,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
 	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
+	@GIR_LIBS@ \
 	@GTHREAD_LIBS@ \
 	$(INTLLIBS)
 
