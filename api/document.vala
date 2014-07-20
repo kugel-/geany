@@ -1,0 +1,121 @@
+using Geany;
+
+namespace GeanyGI
+{
+	public int loadhelper()
+	{
+		return 42;
+	}
+
+	public class Document : GLib.Object
+	{
+		private bool owns_doc;
+
+		/* properties */
+		public bool is_readonly
+		{
+			get
+			{
+				return _doc.readonly;
+			}
+			set
+			{
+				_doc.editor.sci.send_message(Scintilla.SCI_SETREADONLY, value?1:0, 0);
+				_doc.readonly = value;
+			}
+		}
+
+		public bool changed
+		{
+			get { return _doc.changed; }
+			set { _doc.set_text_changed(value); }
+		}
+
+		public string encoding
+		{
+			get { return _doc.encoding; }
+			set { _doc.set_encoding(value); }
+		}
+
+		public bool   is_valid     { get { return _doc.is_valid; } }
+		public bool   has_bom      { get { return _doc.has_bom; } }
+		public bool   has_tags     { get { return _doc.has_tags; } }
+		public int    index        { get { return _doc.index; } }
+		public string display_name { owned get { return _doc.get_basename_for_display(); } }
+
+		/* constructors */
+		internal Document(Geany.Document doc)
+		{
+			_doc = doc;
+			/* this only gets the reference to the current doc, must not close on
+			 * destruction (note that GeanyDocument is not reference counted) */
+			owns_doc = false;
+		}
+
+		public Document.new_file(string? utf8_filename = null,
+								 Filetype? ft = null,
+								 string? text = null)
+		{
+			unowned Geany.Filetype gft = ft != null ? ft._ft : null;
+			_doc = Geany.Document.new_file(utf8_filename, gft, text);
+			owns_doc = true;
+		}
+		public Document.from_file(string locale_filename, bool readonly = false,
+								  Filetype? ft = null, string? forced_enc = null)
+		{
+			unowned Geany.Filetype gft = ft != null ? ft._ft : null;
+			_doc = Geany.Document.open_file(locale_filename, readonly, gft, forced_enc);
+			owns_doc = true;
+		}
+
+		public static Document? get_current()
+		{
+			return new Document(Geany.Document.get_current());
+		}
+
+		/* destructor */
+		~Document()
+		{
+			if (owns_doc)
+			{
+				if (!close())
+				{
+					/* force close if user didnt save */
+					changed = false;
+					close();
+				}
+			}
+		}
+
+		/* instance methods */
+		public bool close()
+		{
+			/* on shutdown it might be closed before the plugin can close it in the cleanup method */
+			if (! is_valid)
+				return true;
+			owns_doc = !_doc.close();
+			return !owns_doc;
+		}
+
+		public bool save(bool force = false)
+		{
+			return _doc.save_file(force);
+		}
+
+		public bool save_as(string? file_name = null)
+		{
+			return _doc.save_file_as(file_name);
+		}
+
+		public bool reload(string? forced_enc = null)
+		{
+			return _doc.reload_file(forced_enc);
+		}
+
+		/* internal fields
+		 * must be last due to bug in vala's gir generation */
+
+		/* this is the actual GeanyDocument instance */
+		internal unowned Geany.Document _doc;
+	}
+}
