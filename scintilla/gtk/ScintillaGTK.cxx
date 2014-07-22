@@ -2964,13 +2964,22 @@ __declspec(dllexport)
 #else
 __attribute__((visibility("default")))
 #endif
-sptr_t scintilla_send_message(ScintillaObject *sci, unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
+sptr_t scintilla_object_send_message(ScintillaObject *sci, unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	ScintillaGTK *psci = reinterpret_cast<ScintillaGTK *>(sci->pscin);
 	return psci->WndProc(iMessage, wParam, lParam);
 }
 
-static void scintilla_class_init(ScintillaClass *klass);
-static void scintilla_init(ScintillaObject *sci);
+/* deprecated, for compatibility */
+#if PLAT_GTK_WIN32
+__declspec(dllexport)
+#endif
+sptr_t scintilla_send_message(ScintillaObject *sci, unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
+
+	return scintilla_object_send_message(sci, iMessage, wParam, lParam);
+}
+
+static void scintilla_object_class_init(ScintillaObjectClass *klass);
+static void scintilla_object_init(ScintillaObject *sci);
 
 extern void Platform_Initialise();
 extern void Platform_Finalise();
@@ -2980,34 +2989,42 @@ __declspec(dllexport)
 #else
 __attribute__((visibility("default")))
 #endif
-GType scintilla_get_type() {
+GType scintilla_object_get_type() {
 	static GType scintilla_type = 0;
 	try {
 
 		if (!scintilla_type) {
-			scintilla_type = g_type_from_name("Scintilla");
+			scintilla_type = g_type_from_name("ScintillaObject");
 			if (!scintilla_type) {
 				static GTypeInfo scintilla_info = {
-					(guint16) sizeof (ScintillaClass),
+					(guint16) sizeof (ScintillaObjectClass),
 					NULL, //(GBaseInitFunc)
 					NULL, //(GBaseFinalizeFunc)
-					(GClassInitFunc) scintilla_class_init,
+					(GClassInitFunc) scintilla_object_class_init,
 					NULL, //(GClassFinalizeFunc)
 					NULL, //gconstpointer data
 					(guint16) sizeof (ScintillaObject),
 					0, //n_preallocs
-					(GInstanceInitFunc) scintilla_init,
+					(GInstanceInitFunc) scintilla_object_init,
 					NULL //(GTypeValueTable*)
 				};
-
 				scintilla_type = g_type_register_static(
-				            GTK_TYPE_CONTAINER, "Scintilla", &scintilla_info, (GTypeFlags) 0);
+				            GTK_TYPE_CONTAINER, "ScintillaObject", &scintilla_info, (GTypeFlags) 0);
 			}
 		}
 
 	} catch (...) {
 	}
 	return scintilla_type;
+}
+
+/* deprecated, for compatibility */
+#if PLAT_GTK_WIN32
+__declspec(dllexport)
+#endif
+GType scintilla_get_type() {
+
+	return scintilla_object_get_type();
 }
 
 void ScintillaGTK::ClassInit(OBJECT_CLASS* object_class, GtkWidgetClass *widget_class, GtkContainerClass *container_class) {
@@ -3068,7 +3085,7 @@ void ScintillaGTK::ClassInit(OBJECT_CLASS* object_class, GtkWidgetClass *widget_
 #define SIG_MARSHAL scintilla_marshal_NONE__INT_POINTER
 #define MARSHAL_ARGUMENTS G_TYPE_INT, G_TYPE_POINTER
 
-static void scintilla_class_init(ScintillaClass *klass) {
+static void scintilla_object_class_init(ScintillaObjectClass *klass) {
 	try {
 		OBJECT_CLASS *object_class = (OBJECT_CLASS*) klass;
 		GtkWidgetClass *widget_class = (GtkWidgetClass*) klass;
@@ -3079,7 +3096,7 @@ static void scintilla_class_init(ScintillaClass *klass) {
 		            "command",
 		            G_TYPE_FROM_CLASS(object_class),
 		            sigflags,
-		            G_STRUCT_OFFSET(ScintillaClass, command),
+		            G_STRUCT_OFFSET(ScintillaObjectClass, command),
 		            NULL, //(GSignalAccumulator)
 		            NULL, //(gpointer)
 		            SIG_MARSHAL,
@@ -3090,7 +3107,7 @@ static void scintilla_class_init(ScintillaClass *klass) {
 		            SCINTILLA_NOTIFY,
 		            G_TYPE_FROM_CLASS(object_class),
 		            sigflags,
-		            G_STRUCT_OFFSET(ScintillaClass, notify),
+		            G_STRUCT_OFFSET(ScintillaObjectClass, notify),
 		            NULL,
 		            NULL,
 		            SIG_MARSHAL,
@@ -3105,7 +3122,7 @@ static void scintilla_class_init(ScintillaClass *klass) {
 	}
 }
 
-static void scintilla_init(ScintillaObject *sci) {
+static void scintilla_object_init(ScintillaObject *sci) {
 	try {
 #if GTK_CHECK_VERSION(2,20,0)
 		gtk_widget_set_can_focus(GTK_WIDGET(sci), TRUE);
@@ -3122,16 +3139,30 @@ __declspec(dllexport)
 #else
 __attribute__((visibility("default")))
 #endif
-GtkWidget* scintilla_new() {
+GtkWidget* scintilla_object_new() {
 	GtkWidget *widget = GTK_WIDGET(g_object_new(scintilla_get_type(), NULL));
 	gtk_widget_set_direction(widget, GTK_TEXT_DIR_LTR);
 
 	return widget;
 }
 
-void scintilla_set_id(ScintillaObject *sci, uptr_t id) {
+/* deprecated, for compatibility */
+#if PLAT_GTK_WIN32
+__declspec(dllexport)
+#endif
+GtkWidget* scintilla_new() {
+	return scintilla_object_new();
+}
+
+void scintilla_object_set_id(ScintillaObject *sci, uptr_t id) {
 	ScintillaGTK *psci = reinterpret_cast<ScintillaGTK *>(sci->pscin);
 	psci->ctrlID = id;
+}
+
+/* deprecated, for compatibility */
+void scintilla_set_id(ScintillaObject *sci, uptr_t id) {
+
+	scintilla_object_set_id(sci, id);
 }
 
 void scintilla_release_resources(void) {
