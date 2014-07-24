@@ -71,11 +71,9 @@ gint				sci_get_tab_width			(ScintillaObject *sci);
 gchar				sci_get_char_at				(ScintillaObject *sci, gint pos);
 
 void				sci_scroll_caret			(ScintillaObject *sci);
-gint				sci_find_text				(ScintillaObject *sci, gint flags, struct Sci_TextToFind *ttf);
 void				sci_set_font				(ScintillaObject *sci, gint style, const gchar *font, gint size);
 void				sci_goto_line				(ScintillaObject *sci, gint line, gboolean unfold);
 gint				sci_get_style_at			(ScintillaObject *sci, gint position);
-void				sci_get_text_range			(ScintillaObject *sci, gint start, gint end, gchar *text);
 gchar*				sci_get_contents_range		(ScintillaObject *sci, gint start, gint end);
 void				sci_insert_text				(ScintillaObject *sci, gint pos, const gchar *text);
 
@@ -95,10 +93,14 @@ void				sci_set_line_indentation	(ScintillaObject *sci, gint line, gint indent);
 gint				sci_get_line_indentation	(ScintillaObject *sci, gint line);
 gint				sci_find_matching_brace		(ScintillaObject *sci, gint pos);
 
+#ifndef G_IR_SCANNER
+/* TODO: This is exported but the ttf parameter complicates things for the g-ir-scanner */
+gint				sci_find_text				(ScintillaObject *sci, gint flags, struct Sci_TextToFind *ttf);
 
 #ifdef GEANY_PRIVATE
 
 gchar*				sci_get_string				(ScintillaObject *sci, guint msg, gulong wParam);
+void				sci_get_text_range			(ScintillaObject *sci, gint start, gint end, gchar *text);
 
 void 				sci_set_line_numbers		(ScintillaObject *sci,  gboolean set);
 void				sci_set_mark_long_lines		(ScintillaObject *sci,	gint type, gint column, const gchar *color);
@@ -209,6 +211,8 @@ void				sci_move_selected_lines_down    (ScintillaObject *sci);
 void				sci_move_selected_lines_up      (ScintillaObject *sci);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 
