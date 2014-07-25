@@ -81,6 +81,8 @@ static void pm_show_dialog(GtkMenuItem *menuitem, gpointer user_data);
 /* legacy vtable defined in pluginfuncs.c */
 extern GeanyFunctions geany_functions;
 
+static GModule *geanygi_module;
+
 GEANY_EXPORT GeanyData *geany_data;
 
 static void
@@ -586,7 +588,19 @@ plugins_provide_info(PeasPluginInfo *info,
 void plugins_init(void)
 {
 	StashGroup *group;
-	gchar *path;
+	gchar *dir, *path;
+
+	dir = g_build_path(G_DIR_SEPARATOR_S, GEANY_LIBDIR, "geany", "geany", NULL);
+	path = g_module_build_path(dir, "geanygi-1.0");
+	g_free(dir);
+
+	geanygi_module = g_module_open(path, 0);
+	g_free(path);
+	if (geanygi_module == NULL)
+	{
+		g_warning("Loading geanygi module failed: %s\n", g_module_error());
+		return;
+	}
 
 	path = get_plugin_path();
 	geany_debug("System plugin path: %s", path);
@@ -628,6 +642,8 @@ void plugins_finalize(void)
 	peas_engine_set_loaded_plugins(peas, NULL);
 	g_hash_table_destroy(active_plugins);
 	g_strfreev(active_plugins_pref);
+	if (geanygi_module != NULL)
+		g_module_close(geanygi_module);
 }
 
 
