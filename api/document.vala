@@ -37,11 +37,12 @@ namespace GeanyGI
 			set { _doc.set_encoding(value); }
 		}
 
-		public bool   is_valid     { get { return _doc.is_valid; } }
-		public bool   has_bom      { get { return _doc.has_bom; } }
-		public bool   has_tags     { get { return _doc.has_tags; } }
-		public int    index        { get { return _doc.index; } }
-		public string display_name { owned get { return _doc.get_basename_for_display(); } }
+		public bool   is_valid      { get { return _doc.is_valid; } }
+		public bool   has_bom       { get { return _doc.has_bom; } }
+		public bool   has_tags      { get { return _doc.has_tags; } }
+		public int    index         { get { return _doc.index; } }
+		public string display_name  { owned get { return _doc.get_basename_for_display(); } }
+		public Scintilla.Object sci { get { return _doc.editor.sci; }}
 
 		/* signals */
 		public signal void closed();

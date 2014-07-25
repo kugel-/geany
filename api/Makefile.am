@@ -107,18 +107,79 @@ libgeanygi_DATA = Geany-1.0.typelib geany.vapi
 
 CLEANFILES += document.o filetype.o
 
+
+# everything for Scintilla-1.0.typelib
+check_PROGRAMS = girhelperscintilla
+
+girhelperscintilla_SOURCES = girhelperscintilla.c
+
+girhelperscintilla_CFLAGS = \
+	@INTROSPECTION_CFLAGS@ \
+	@GTK_CFLAGS@ \
+	@GLIB_CFLAGS@ \
+	-I$(top_srcdir)/scintilla/include
+
+girhelperscintilla_LDADD = \
+	$(top_builddir)/scintilla/libscintilla.a \
+	-lstdc++ -lm \
+	@INTROSPECTION_LIBS@ \
+	@GTK_LIBS@ \
+	@GLIB_LIBS@
+
+# scidefines.gir: gen-sci-defines.py $(top_srcdir)/scintilla/scrips/Face.py $(top_srcdir)/scintilla/scrips/HFacer.py
+
+scidefines.h: $(top_srcdir)/scintilla/include/Scintilla.iface
+	$(AM_V_GEN)python gen-sci-defines.py $< -o $@
+
+# this cannot be part of the scintilla.gir rule because the additional --accept-unprefixed
+# option which is not desired for other headers
+scidefines.gir: scidefines.h
+	$(AM_V_GEN)\
+	$(INTROSPECTION_SCANNER) --header-only \
+	-n Scintilla --nsversion 0.1 --accept-unprefixed \
+	$(filter %.h,$^) -o $@
+
+scintilla.gir: $(top_srcdir)/scintilla/include/ScintillaWidget.h $(top_srcdir)/src/sciwrappers.h girhelperscintilla
+	$(AM_V_GEN)\
+	$(INTROSPECTION_SCANNER) --program ./girhelperscintilla \
+	-DGTK -Duptr_t=gulong -Dsptr_t=glong \
+	@GTK_CFLAGS@ -I$(top_srcdir)/scintilla/include \
+	--cflags-begin -include gtk/gtk.h --cflags-end \
+	-n Scintilla --symbol-prefix=scintilla --symbol-prefix=sci --nsversion 0.1 \
+	-i Gtk-2.0 -i GObject-2.0 \
+	--warn-all \
+	--c-include sciwrappers.h \
+	$(filter %.h,$^) -o $@
+
+# sciwrappers.gir as name is required for vapigen to generate [CCode (cheader_filename="sciwrappers.h")]
+sciwrappers.gir: scintilla.gir scidefines.gir
+	$(AM_V_GEN)python girmerge.py $^ -o $@
+
+scintilla.vapi: sciwrappers.gir scintilla.vapi.in
+	$(AM_V_GEN)\
+	$(VAPIGEN) $< --library scintilla-tmp \
+	--pkg gtk+-2.0 --pkg gobject-2.0
+	@cat scintilla.vapi.in scintilla-tmp.vapi > $@
+
+CLEANFILES += scidefines.h scidefines.gir scintilla.gir
+
+# the filename must match the <namespace> for g-ir-compiler
+Scintilla-0.1.gir: sciwrappers.gir
+	$(AM_V_GEN)cp $< $@
+
 vapidir = $(datadir)/vala/vapi
 vapi_DATA =  geany.vapi scintilla.vapi geany.deps
 
 girdir = $(libdir)/geany/geany
-gir_DATA = Geany-1.0.gir GeanyGI-1.0.gir
+gir_DATA = Geany-1.0.gir GeanyGI-1.0.gir Scintilla-0.1.gir
 
 typelibdir =  $(libdir)/geany/geany
-typelib_DATA = Geany-1.0.typelib GeanyGI-1.0.typelib
+typelib_DATA = Geany-1.0.typelib GeanyGI-1.0.typelib Scintilla-0.1.typelib
 
 if HAVE_INTROSPECTION
 -include $(INTROSPECTION_MAKEFILE)
 
 endif
 
-CLEANFILES += Geany-1.0.gir GeanyGI-1.0.gir Geany-1.0.typelib GeanyGI-1.0.typelib
+CLEANFILES += Geany-1.0.gir GeanyGI-1.0.gir Scintilla-0.1.gir \
+	Geany-1.0.typelib GeanyGI-1.0.typelib Scintilla-0.1.typelib
