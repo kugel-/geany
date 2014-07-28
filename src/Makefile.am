@@ -45,7 +45,7 @@ SRCS = \
 	prefs.c prefs.h \
 	printing.c printing.h \
 	project.c project.h \
-	sciwrappers.c sciwrappers.h \
+	sciwrappers.c sciwrappers.h scimethods.h \
 	search.c search.h \
 	socket.c socket.h \
 	stash.c stash.h \
@@ -175,3 +175,7 @@ AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \
 clean-local:
 
 endif
+
+# systems without python should continue to build OK
+scimethods.c scimethods.h: sciwrappers.h
+	$(AM_V_GEN)python ../scripts/gen-sci-methods.py sciwrappers -H scimethods.h -o scimethods.c ||  true

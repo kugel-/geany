@@ -1338,3 +1338,6 @@ gint sci_word_end_position(ScintillaObject *sci, gint position, gboolean onlyWor
 {
 	return SSM(sci, SCI_WORDENDPOSITION, position, onlyWordCharacters);
 }
+
+/* scimethods.c is full of aliases which need to be in the same translation unit, i.e. here */
+#include "scimethods.c"

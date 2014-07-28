@@ -139,16 +139,16 @@ scidefines.gir: scidefines.h
 	-n Scintilla --nsversion 0.1 --accept-unprefixed \
 	$(filter %.h,$^) -o $@
 
-scintilla.gir: $(top_srcdir)/scintilla/include/ScintillaWidget.h $(top_srcdir)/src/sciwrappers.h girhelperscintilla
+scintilla.gir: $(top_srcdir)/scintilla/include/ScintillaWidget.h $(top_srcdir)/src/sciwrappers.h $(top_srcdir)/src/scimethods.h girhelperscintilla
 	$(AM_V_GEN)\
 	$(INTROSPECTION_SCANNER) --program ./girhelperscintilla \
-	-DGTK -Duptr_t=gulong -Dsptr_t=glong \
+	-DG_IR_SCANNER -DGTK -Duptr_t=gulong -Dsptr_t=glong \
 	@GTK_CFLAGS@ -I$(top_srcdir)/scintilla/include \
 	--cflags-begin -include gtk/gtk.h --cflags-end \
 	-n Scintilla --symbol-prefix=scintilla --symbol-prefix=sci --nsversion 0.1 \
 	-i Gtk-2.0 -i GObject-2.0 \
 	--warn-all \
-	--c-include sciwrappers.h \
+	--c-include sciwrappers.h --c-include scimethods.h \
 	$(filter %.h,$^) -o $@
 
 # sciwrappers.gir as name is required for vapigen to generate [CCode (cheader_filename="sciwrappers.h")]
