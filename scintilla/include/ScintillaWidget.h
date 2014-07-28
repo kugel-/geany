@@ -40,8 +40,8 @@ struct _ScintillaObject {
 struct _ScintillaObjectClass {
 	GtkContainerClass parent_class;
 
-	void (* command) (ScintillaObject *ttt);
-	void (* notify) (ScintillaObject *ttt);
+	void (* command)	(gint sci_id, SCNotification *notif);
+	void (* notify)		(gint sci_id, SCNotification *notif);
 };
 
 
