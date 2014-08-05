@@ -40,8 +40,8 @@ struct _ScintillaObject {
 struct _ScintillaObjectClass {
 	GtkContainerClass parent_class;
 
-	void (* command)	(gint sci_id, SCNotification *notif);
-	void (* notify)		(gint sci_id, SCNotification *notif);
+	void (* command)	(gint sci_id, void *notif);
+	void (* notify)		(gint sci_id, void *notif);
 };
 
 
@@ -60,9 +60,9 @@ void		scintilla_release_resources(void);
 }
 #endif
 
-#endif /* GTK */
-
 /* include compat header for now, remove this after deprecation period */
 #include "ScintillaWidgetCompat.h"
+
+#endif /* GTK */
 
 #endif
