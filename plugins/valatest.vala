@@ -19,6 +19,10 @@ public class ValaTest : GLib.Object, Geany.Plugin2
 
 		Geany.Object o = (Geany.Object) Geany.object;
 		o.document_new.connect( (doc) => { stdout.printf("new document\n"); });
+		GeanyGI.Document.signals().document_new.connect( (doc) => { stdout.printf("new gi document\n"); });
+
+		stdout.printf("valatest: %s\n", Document.get_current().editor.sci.get_contents(-1));
+		stdout.printf("valatest gi: %s\n", GeanyGI.Document.get_current().editor.sci.get_contents(-1));
 	}
 
 	public int version_check(int abi)

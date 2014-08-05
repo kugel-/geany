@@ -99,12 +99,12 @@ export_la_CFLAGS        = -DG_LOG_DOMAIN=\""Export"\"
 saveactions_la_CFLAGS   = -DG_LOG_DOMAIN=\""SaveActions"\"
 filebrowser_la_CFLAGS   = -DG_LOG_DOMAIN=\""FileBrowser"\"
 splitwindow_la_CFLAGS   = -DG_LOG_DOMAIN=\""SplitWindow"\"
-libvalatest_la_CFLAGS   = -DG_LOG_DOMAIN=\""ValaTest"\" @PEAS_CFLAGS@ -I$(top_srcdir)/api
+libvalatest_la_CFLAGS   = -DG_LOG_DOMAIN=\""ValaTest"\" @PEAS_CFLAGS@ -I$(top_srcdir)/api -DGEANY_FUNCTIONS_H
 
 libvalatest_la_VALAFLAGS = -v \
 	--vapidir $(top_srcdir)/api \
 	--pkg gtk+-2.0 --pkg libpeas-1.0 \
-	--pkg geany --pkg scintilla
+	--pkg geany --pkg scintilla --pkg geanygi-1.0
 
 demoplugin_la_LIBADD    = $(GTK_LIBS)
 classbuilder_la_LIBADD  = $(GTK_LIBS)
