@@ -9,7 +9,9 @@ namespace GeanyGI
 
 	public class Document : GLib.Object
 	{
-		private bool owns_doc;
+		/* fields */
+		private        bool    owns_doc;
+		public         Editor  editor;
 
 		/* properties */
 		public bool is_readonly
@@ -76,6 +78,7 @@ namespace GeanyGI
 		internal Document(Geany.Document doc)
 		{
 			_doc = doc;
+			editor = new GeanyGI.Editor.create(this);
 			/* this only gets the reference to the current doc, must not close on
 			 * destruction (note that GeanyDocument is not reference counted) */
 			owns_doc = false;
@@ -87,6 +90,7 @@ namespace GeanyGI
 		{
 			unowned Geany.Filetype gft = ft != null ? ft._ft : null;
 			_doc = Geany.Document.new_file(utf8_filename, gft, text);
+			editor = new GeanyGI.Editor.create(this);
 			owns_doc = true;
 		}
 		public Document.from_file(string locale_filename, bool readonly = false,
@@ -94,6 +98,7 @@ namespace GeanyGI
 		{
 			unowned Geany.Filetype gft = ft != null ? ft._ft : null;
 			_doc = Geany.Document.open_file(locale_filename, readonly, gft, forced_enc);
+			editor = new GeanyGI.Editor.create(this);
 			owns_doc = true;
 		}
 
@@ -116,7 +121,6 @@ namespace GeanyGI
 			}
 		}
 
-		/* instance methods */
 		public bool close()
 		{
 			/* on shutdown it might be closed before the plugin can close it in the cleanup method */
