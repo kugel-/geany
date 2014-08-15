@@ -9,6 +9,8 @@ plugindir = $(libdir)/geany
 nobase_dist_plugin_DATA = \
 	extension.plugin \
 	extension.py \
+	console.plugin \
+	console.py \
 	valatest.plugin
 
 plugins_includedir = $(includedir)/geany
