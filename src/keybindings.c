@@ -38,6 +38,7 @@
 #include "callbacks.h"
 #include "documentprivate.h"
 #include "filetypes.h"
+#include "geany.h"
 #include "keybindingsprivate.h"
 #include "main.h"
 #include "msgwindow.h"
@@ -178,6 +179,40 @@ GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
 	kb->handler_data = NULL;
 	kb->menu_item = menu_item;
 	kb->id = key_id;
+	return kb;
+}
+
+
+/** Creates a new keybinding using a GeanyKeyHandler and attaches is to a keybinding group
+ *
+ * If given the callback should return @c TRUE if the keybinding was handled, otherwise @c FALSE
+ * to allow other handlers to be run. This allows for multiplexing keybindings on the same keys,
+ * depending on the focused widget (or context). If the callback is NULL the group's handler will
+ * be invoked, but the same rule applies.
+ *
+ * @param group Group.
+ * @param key_id Keybinding index for the group.
+ * @param handler Function to call when activated, or @c NULL to use the group callback.
+ * @param user_data User data passed back to the handler.
+ * @param key (Lower case) default key, e.g. @c GDK_j, but usually 0 for unset.
+ * @param mod Default modifier, e.g. @c GDK_CONTROL_MASK, but usually 0 for unset.
+ * @param kf_name Key name for the configuration file, such as @c "menu_new".
+ * @param label Label used in the preferences dialog keybindings tab. May contain
+ * underscores - these won't be displayed.
+ * @param menu_item Optional widget to set an accelerator for, or @c NULL.
+ * @return The keybinding - normally this is ignored.
+ *
+ * @since 1.25
+ * @see See plugin_set_key_group_with_handler
+ **/
+GEANY_EXPORT
+GeanyKeyBinding *keybindings_add_item_with_handler(GeanyKeyGroup *group, gsize key_id,
+		GeanyKeyHandler handler, gpointer user_data, guint key, GdkModifierType mod,
+		const gchar *kf_name, const gchar *label, GtkWidget *menu_item)
+{
+	GeanyKeyBinding *kb = keybindings_set_item(group, key_id, NULL, 0, 0, kf_name, label, menu_item);
+	kb->handler = handler;
+	kb->handler_data = user_data;
 	return kb;
 }
 

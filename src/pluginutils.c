@@ -32,7 +32,9 @@
 #include "pluginutils.h"
 
 #include "app.h"
+#include "geany.h"
 #include "geanyobject.h"
+#include "keybindingsprivate.h"
 #include "plugindata.h"
 #include "pluginprivate.h"
 #include "plugins.h"
@@ -305,6 +307,31 @@ GeanyKeyGroup *plugin_set_key_group(GeanyPlugin *plugin,
 	priv->key_group = keybindings_set_group(priv->key_group, section_name,
 		priv->info.name, count, callback);
 	return priv->key_group;
+}
+
+/** Sets up or resizes a keybinding group for the plugin.
+ * You should then call keybindings_set_item() or keybindings_add_item_with_handler() for each
+ * keybinding in the group.
+ * @param plugin Must be @ref geany_plugin.
+ * @param section_name Name used in the configuration file, such as @c "html_chars".               r
+ * @param count Number of keybindings for the group.
+ * @param callback Group callback, or @c NULL if you only want individual keybinding callbacks.
+ * @return The plugin's keybinding group.
+ *
+ * @since 1.25.
+ * @see See keybindings_set_item
+ * @see See keybindings_add_item_with_handler */
+GEANY_EXPORT
+GeanyKeyGroup *plugin_set_key_group_with_handler(GeanyPlugin *plugin,
+		const gchar *section_name, gsize count, GeanyKeyGroupHandler handler, gpointer handler_data)
+{
+	GeanyKeyGroup *group;
+
+	group = plugin_set_key_group(plugin, section_name, count, NULL);
+	group->handler = handler;
+	group->handler_data = handler_data;
+
+	return group;
 }
 
 

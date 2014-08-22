@@ -254,6 +254,10 @@ GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
 		GeanyKeyCallback callback, guint key, GdkModifierType mod,
 		const gchar *name, const gchar *label, GtkWidget *menu_item);
 
+GeanyKeyBinding *keybindings_add_item_with_handler(GeanyKeyGroup *group, gsize key_id,
+		GeanyKeyHandler handler, gpointer user_data, guint key, GdkModifierType mod,
+		const gchar *kf_name, const gchar *label, GtkWidget *menu_item);
+
 GeanyKeyBinding *keybindings_get_item(GeanyKeyGroup *group, gsize key_id);
 
 
