@@ -255,10 +255,10 @@ typedef struct GeanyData
 }
 GeanyData;
 
+extern GeanyData *geany_data;
 #define geany			geany_data	/**< Simple macro for @c geany_data that reduces typing. */
 
 typedef void *GeanyFunctions[];
-
 
 /* Deprecated aliases */
 #ifndef GEANY_DISABLE_DEPRECATED

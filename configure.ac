@@ -131,6 +131,9 @@ AC_DEFINE([HAVE_REGCOMP], [1], [Should always be 1, required for CTags.])
 GEANY_CHECK_PLUGINS
 # check for mingw specific settings
 GEANY_CHECK_MINGW
+# API
+AM_PROG_VALAC
+
 
 GEANY_CHECK_SOCKET
 GEANY_CHECK_VTE
@@ -279,6 +282,7 @@ AC_CONFIG_FILES([
 		icons/tango/32x32/Makefile
 		icons/tango/48x48/Makefile
 		icons/tango/scalable/Makefile
+		api/Makefile
 		libpeas/Makefile
 		libpeas-loaders/Makefile
 		libpeas-loaders/python/Makefile

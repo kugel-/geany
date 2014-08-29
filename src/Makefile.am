@@ -93,9 +93,10 @@ geany_include_HEADERS = \
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
+	-I$(top_srcdir)/api \
 	-I$(top_srcdir)/scintilla/include \
 	-I$(top_srcdir)/tagmanager/src \
-	@GTK_CFLAGS@ @GTHREAD_CFLAGS@
+	@GTK_CFLAGS@ @GTHREAD_CFLAGS@ @PEAS_CFLAGS@
 
 # tell automake we have a C++ file so it uses the C++ linker we need for Scintilla
 nodist_EXTRA_geany_SOURCES = dummy.cxx
@@ -107,6 +108,8 @@ if MINGW
 geany_SOURCES = $(SRCS) win32.c win32.h
 
 geany_LDADD = \
+	$(top_builddir)/api/libgeanyplugin2.a \
+	$(top_builddir)/libpeas/libpeas-1.0.la \
 	$(top_builddir)/scintilla/libscintilla.a \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \
@@ -143,6 +146,8 @@ else
 geany_SOURCES = $(SRCS) vte.c vte.h
 
 geany_LDADD = \
+	$(top_builddir)/api/libgeany-1.0.la \
+	$(top_builddir)/libpeas/libpeas-1.0.la \
 	$(top_builddir)/scintilla/libscintilla.a \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \

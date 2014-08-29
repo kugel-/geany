@@ -1087,6 +1087,7 @@ void plugin_init(GeanyData *data)
 	GtkWidget *menu_create_gtk_class;
 	GtkWidget *menu_create_php_class;
 
+	printf("%p\n", geany_functions);
 	menu_create_class1 = ui_image_menu_item_new (GTK_STOCK_ADD, _("Create Cla_ss"));
 	gtk_container_add (GTK_CONTAINER (geany->main_widgets->tools_menu), menu_create_class1);
 

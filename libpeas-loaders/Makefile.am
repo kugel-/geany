@@ -11,3 +11,5 @@ endif
 if ENABLE_SEED
 SUBDIRS += seed
 endif
+
+SUBDIRS += geany

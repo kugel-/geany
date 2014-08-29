@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = libpeas libpeas-loaders tagmanager scintilla src plugins icons po doc data tests
+SUBDIRS = libpeas libpeas-loaders tagmanager scintilla api src plugins icons po doc data tests
 
 AUTOMAKE_OPTIONS =	1.7
 
