@@ -63,16 +63,18 @@ G_BEGIN_DECLS
 /* hack to have a different ABI when built with GTK3 because loading GTK2-linked plugins
  * with GTK3-linked Geany leads to crash */
 #if GTK_CHECK_VERSION(3, 0, 0)
-#	define GEANY_ABI_SHIFT 8
+#	define GEANY_ABI_FACTOR 256
 #else
-#	define GEANY_ABI_SHIFT 0
+#	define GEANY_ABI_FACTOR 1
 #endif
 /** The Application Binary Interface (ABI) version, incremented whenever
  * existing fields in the plugin data types have to be changed or reordered.
  * Changing this forces all plugins to be recompiled before Geany can load them. */
 /* This should usually stay the same if fields are only appended, assuming only pointers to
- * structs and not structs themselves are declared by plugins. */
-#define GEANY_ABI_VERSION (70 << GEANY_ABI_SHIFT)
+ * structs and not structs themselves are declared by plugins. GEANY_ABI_VERSION_EXPR must
+ * be a expr(1) compatible expression, so no parenthesis or bit shifts */
+#define GEANY_ABI_VERSION_EXPR 70 * GEANY_ABI_FACTOR
+#define GEANY_ABI_VERSION (GEANY_ABI_VERSION_EXPR)
 
 
 /** Defines a function to check the plugin is safe to load.
@@ -114,7 +116,7 @@ typedef struct GeanyPlugin
 {
 	PluginInfo	*info;	/**< Fields set in plugin_set_info(). */
 
-	struct GeanyPluginPrivate *priv;	/* private */
+	struct _GeanyPlugin2Base *priv;	/* private */
 }
 GeanyPlugin;
 

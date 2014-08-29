@@ -1,0 +1,11 @@
+[Plugin]
+Version=1.25
+Authors=The Geany developer team
+Copyright=Copyright=Copyright © The Geany developer team
+Module=filebrowser
+Website=http://www.geany.org/Support/Plugins
+X-Geany-ABI=@GEANY_ABI_VERSION@
+X-Geany-API=221
+_Name=File Browser
+_Description=Adds a file browser tab to the sidebar.
+

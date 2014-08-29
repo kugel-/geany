@@ -76,7 +76,6 @@ AM_CONDITIONAL([GTK3], [test "x$gtk_package" = "xgtk+-3.0"])
 gtk_modules="$gtk_package >= $gtk_min_version glib-2.0 >= 2.20"
 gtk_modules_private="gio-2.0 >= 2.20 gmodule-2.0"
 PKG_CHECK_MODULES([GTK], [$gtk_modules $gtk_modules_private])
-AC_SUBST([DEPENDENCIES], [$gtk_modules])
 AC_SUBST([GTK_CFLAGS])
 AC_SUBST([GTK_LIBS])
 GTK_VERSION=`$PKG_CONFIG --modversion $gtk_package`
@@ -87,12 +86,21 @@ PKG_CHECK_MODULES([GTHREAD], [$gthread_modules])
 AC_SUBST([GTHREAD_CFLAGS])
 AC_SUBST([GTHREAD_LIBS])
 
+# libpeas checks
+libpeas_modules="libpeas-1.0"
+PKG_CHECK_MODULES([PEAS], [$libpeas_modules])
+AC_SUBST([PEAS_CFLAGS])
+AC_SUBST([PEAS_LIBS])
+PEAS_VERSION=`$PKG_CONFIG --modversion $libpeas_modules`
+GEANY_STATUS_ADD([Using libpeas version], [${PEAS_VERSION}])
+
+AC_SUBST([DEPENDENCIES], ["$gtk_modules $libpeas_modules"])
+
 # --disable-deprecated switch for GTK2 purification
 AC_ARG_ENABLE([deprecated],
 		[AS_HELP_STRING([--disable-deprecated], [Disable deprecated GTK functions.])],
 		[GTK_CFLAGS="$GTK_CFLAGS -DG_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"],
 		[])
-
 
 # Check for binary relocation support
 GEANY_CHECK_BINRELOC
@@ -102,6 +110,7 @@ AC_DEFINE([HAVE_REGCOMP], [1], [Should always be 1, required for CTags.])
 GEANY_CHECK_PLUGINS
 # check for mingw specific settings
 GEANY_CHECK_MINGW
+
 
 GEANY_CHECK_SOCKET
 GEANY_CHECK_VTE

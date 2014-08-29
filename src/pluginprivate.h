@@ -23,11 +23,13 @@
 #ifndef GEANY_PLUGIN_PRIVATE_H
 #define GEANY_PLUGIN_PRIVATE_H 1
 
+#include "geanyplugin2.h"
 #include "plugindata.h"
 #include "ui_utils.h"	/* GeanyAutoSeparator */
 #include "keybindings.h"	/* GeanyKeyGroup */
 
 #include "gtkcompat.h"
+#include <libpeas/peas.h>
 
 
 G_BEGIN_DECLS
@@ -39,35 +41,43 @@ typedef struct SignalConnection
 }
 SignalConnection;
 
+#define GEANY_PLUGIN2_BASE_GET_PRIVATE(obj)  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GEANY_TYPE_PLUGIN2_BASE, GeanyPlugin2Base)->priv)
+#define PLUGIN_GET_PRIVATE(obj)              (GEANY_PLUGIN2_BASE_GET_PRIVATE(obj))
 
-typedef struct GeanyPluginPrivate
+#define GEANYPLUGIN_TO_PRIV(p)               ((GeanyPlugin2BasePrivate *)(p))
+
+/* shortcuts */
+typedef struct _GeanyPlugin2Base        Plugin;
+typedef struct _GeanyPlugin2BasePrivate PluginPriv;
+
+struct _GeanyPlugin2BasePrivate
 {
-	GModule 		*module;
-	gchar			*filename;				/* plugin filename (/path/libname.so) */
-	PluginInfo		info;				/* plugin name, description, etc */
-	GeanyPlugin		public;				/* fields the plugin can read */
-
-	void		(*init) (GeanyData *data);			/* Called when the plugin is enabled */
-	GtkWidget*	(*configure) (GtkDialog *dialog);	/* plugins configure dialog, optional */
-	void		(*configure_single) (GtkWidget *parent); /* plugin configure dialog, optional */
-	void		(*help) (void);						/* Called when the plugin should show some help, optional */
-	void		(*cleanup) (void);					/* Called when the plugin is disabled or when Geany exits */
-
+	/* This still contains public fields, but we should deprecate it soon in favor of
+	 * renaming GeanyPlugin2 interace to GeanyPlugin. This is also first so that
+	 * pluginutils.c can cast from it to PluginPriv directly */
+	GeanyPlugin          public;
+	GModule             *module;			/* GModule loaded for the plugin */
 	/* extra stuff */
-	PluginFields	fields;
-	GeanyKeyGroup	*key_group;
-	GeanyAutoSeparator	toolbar_separator;
-	GArray			*signal_ids;			/* SignalConnection's to disconnect when unloading */
-	GList			*sources;				/* GSources to destroy when unloading */
-}
-GeanyPluginPrivate;
+	PluginInfo           info;
+	PluginFields         fields;
+	GeanyKeyGroup       *key_group;
+	GeanyAutoSeparator   toolbar_separator;
+	GArray              *signal_ids;			/* SignalConnection's to disconnect when unloading */
+	GList               *sources;				/* GSources to destroy when unloading */
 
-typedef GeanyPluginPrivate Plugin;	/* shorter alias */
+	GeanyPlugin2Configure *(*new_configure)(GeanyPlugin2Base *plugin);
+	GeanyPlugin2Help      *(*new_help)(GeanyPlugin2Base *plugin);
 
+	/* compat hooks from the old interface */
+	void (*configure_single)(GtkWidget *parent);
+};
 
 void plugin_watch_object(Plugin *plugin, gpointer object);
 
 void plugins_configure(Plugin *current);
+
+GeanyData *geany_get_data(void);
+GeanyFunctions *geany_get_funcs(void);
 
 G_END_DECLS
 

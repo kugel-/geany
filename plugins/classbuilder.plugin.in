@@ -1,0 +1,11 @@
+[Plugin]
+Version=1.25
+Authors=Alexander Rodin, Ondrej Donek, the Geany developer team
+Copyright=Copyright=Copyright © Alexander Rodin, Ondrej Donek, the Geany developer team
+Module=classbuilder
+Website=http://www.geany.org/Support/Plugins
+X-Geany-ABI=@GEANY_ABI_VERSION@
+X-Geany-API=221
+_Name=Class Builder
+_Description=Creates source files for new class types.
+

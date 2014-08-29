@@ -6,8 +6,11 @@ EXTRA_DIST = \
 
 plugindir = $(libdir)/geany
 
+# peas-support.c is not a header, but downstream plugins should be able
+# to #include it and compile it with only GEANY_CFLAGS
 plugins_includedir = $(includedir)/geany
 plugins_include_HEADERS = \
+	geany-peas-support.c \
 	geanyplugin.h \
 	geanyfunctions.h
 
@@ -18,13 +21,24 @@ geanyfunctions.h: genapi.py ../src/plugins.c
 all: geanyfunctions.h
 
 
-demoplugin_la_LDFLAGS    = -module -avoid-version
-classbuilder_la_LDFLAGS  = -module -avoid-version
-htmlchars_la_LDFLAGS     = -module -avoid-version
-export_la_LDFLAGS        = -module -avoid-version
-saveactions_la_LDFLAGS   = -module -avoid-version
-filebrowser_la_LDFLAGS   = -module -avoid-version
-splitwindow_la_LDFLAGS   = -module -avoid-version
+libdemoplugin_la_LDFLAGS    = -module -avoid-version
+libclassbuilder_la_LDFLAGS  = -module -avoid-version
+libhtmlchars_la_LDFLAGS     = -module -avoid-version
+libexport_la_LDFLAGS        = -module -avoid-version
+libsaveactions_la_LDFLAGS   = -module -avoid-version
+libfilebrowser_la_LDFLAGS   = -module -avoid-version
+libsplitwindow_la_LDFLAGS   = -module -avoid-version
+
+AM_CPPFLAGS = \
+	-DDATADIR=\"$(datadir)\" \
+	-DGTK \
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/tagmanager/src \
+	-I$(top_srcdir)/scintilla/include \
+	$(GTK_CFLAGS) \
+	$(PEAS_CFLAGS) \
+	$(PLUGIN_CFLAGS) \
+	-fvisibility=protected
 
 if PLUGINS
 
@@ -64,52 +78,65 @@ else
 
 # Plugins to be installed
 plugin_LTLIBRARIES = \
-	classbuilder.la \
-	htmlchars.la \
-	export.la \
-	saveactions.la \
-	filebrowser.la \
-	splitwindow.la
+	libclassbuilder.la \
+	libhtmlchars.la \
+	libexport.la \
+	libsaveactions.la \
+	libfilebrowser.la \
+	libsplitwindow.la
 
 # Plugins not to be installed
 noinst_LTLIBRARIES = \
-	demoplugin.la
+	libdemoplugin.la
 
-demoplugin_la_SOURCES    = demoplugin.c
-classbuilder_la_SOURCES  = classbuilder.c
-htmlchars_la_SOURCES     = htmlchars.c
-export_la_SOURCES        = export.c
-saveactions_la_SOURCES   = saveactions.c
-filebrowser_la_SOURCES   = filebrowser.c
-splitwindow_la_SOURCES   = splitwindow.c
+libdemoplugin_la_SOURCES    = geany-peas-support.c demoplugin.c
+libclassbuilder_la_SOURCES  = geany-peas-support.c classbuilder.c
+libhtmlchars_la_SOURCES     = geany-peas-support.c htmlchars.c
+libexport_la_SOURCES        = geany-peas-support.c export.c
+libsaveactions_la_SOURCES   = geany-peas-support.c saveactions.c
+libfilebrowser_la_SOURCES   = geany-peas-support.c filebrowser.c
+libsplitwindow_la_SOURCES   = geany-peas-support.c splitwindow.c
 
-demoplugin_la_CFLAGS    = -DG_LOG_DOMAIN=\""Demoplugin"\"
-classbuilder_la_CFLAGS  = -DG_LOG_DOMAIN=\""Classbuilder"\"
-htmlchars_la_CFLAGS     = -DG_LOG_DOMAIN=\""HTMLChars"\"
-export_la_CFLAGS        = -DG_LOG_DOMAIN=\""Export"\"
-saveactions_la_CFLAGS   = -DG_LOG_DOMAIN=\""SaveActions"\"
-filebrowser_la_CFLAGS   = -DG_LOG_DOMAIN=\""FileBrowser"\"
-splitwindow_la_CFLAGS   = -DG_LOG_DOMAIN=\""SplitWindow"\"
+libdemoplugin_la_CFLAGS    = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""Demoplugin"\"
+libclassbuilder_la_CFLAGS  = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""Classbuilder"\"
+libhtmlchars_la_CFLAGS     = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""HTMLChars"\"
+libexport_la_CFLAGS        = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""Export"\"
+libsaveactions_la_CFLAGS   = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""SaveActions"\"
+libfilebrowser_la_CFLAGS   = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""FileBrowser"\"
+libsplitwindow_la_CFLAGS   = -I$(top_srcdir)/api -DG_LOG_DOMAIN=\""SplitWindow"\"
 
-demoplugin_la_LIBADD    = $(GTK_LIBS)
-classbuilder_la_LIBADD  = $(GTK_LIBS)
-htmlchars_la_LIBADD     = $(GTK_LIBS)
-export_la_LIBADD        = $(GTK_LIBS) -lm
-saveactions_la_LIBADD   = $(GTK_LIBS)
-filebrowser_la_LIBADD   = $(GTK_LIBS)
-splitwindow_la_LIBADD   = $(GTK_LIBS)
+libdemoplugin_la_LIBADD    = $(GTK_LIBS) $(PEAS_LIBS)
+libclassbuilder_la_LIBADD  = $(GTK_LIBS) $(PEAS_LIBS)
+libhtmlchars_la_LIBADD     = $(GTK_LIBS) $(PEAS_LIBS)
+libexport_la_LIBADD        = $(GTK_LIBS) $(PEAS_LIBS) -lm
+libsaveactions_la_LIBADD   = $(GTK_LIBS) $(PEAS_LIBS)
+libfilebrowser_la_LIBADD   = $(GTK_LIBS) $(PEAS_LIBS)
+libsplitwindow_la_LIBADD   = $(GTK_LIBS) $(PEAS_LIBS)
+
+plugin_DATA = \
+	classbuilder.plugin \
+	htmlchars.plugin    \
+	export.plugin       \
+	saveactions.plugin  \
+	filebrowser.plugin  \
+	splitwindow.plugin
 
 endif # MINGW
+
+# Could be combined in a single rule for single plugins
+abi-replace.sed: geanyplugin.h
+	printf "#include \"geanyplugin.h\"\nGEANY_ABI_VERSION_EXPR" | \
+		$(CPP) $(AM_CPPFLAGS) - | \
+		tail -1 | xargs expr | \
+		xargs printf s,@GEANY_ABI_VERSION@,%d, > $@
+
+%.plugin: %.plugin.in abi-replace.sed
+		sed -f abi-replace.sed $< | \
+		LC_ALL=C $(INTLTOOL_MERGE) -d -u -c $(top_builddir)/po/.intltool-merge-cache $(top_srcdir)/po - $@
+
 endif # PLUGINS
 
-AM_CPPFLAGS = \
-	-DDATADIR=\"$(datadir)\" \
-	-DGTK \
-	-I$(top_srcdir)/src \
-	-I$(top_srcdir)/tagmanager/src \
-	-I$(top_srcdir)/scintilla/include \
-	$(GTK_CFLAGS) \
-	$(PLUGIN_CFLAGS)
+
 
 #
 # This part allows people to build their own plugins in here.

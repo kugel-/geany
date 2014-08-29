@@ -28,6 +28,7 @@ SRCS = \
 	geanymenubuttonaction.c geanymenubuttonaction.h \
 	geanyobject.c geanyobject.h \
 	geanywraplabel.c geanywraplabel.h \
+	geanyplugin2.c geanyplugin2.h \
 	gtkcompat.h \
 	highlighting.c highlighting.h \
 	highlightingmappings.h \
@@ -82,14 +83,15 @@ geany_include_HEADERS = \
 	templates.h \
 	toolbar.h \
 	ui_utils.h \
-	utils.h
+	utils.h \
+	geanyplugin2.h
 
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/scintilla/include \
 	-I$(top_srcdir)/tagmanager/src \
-	@GTK_CFLAGS@ @GTHREAD_CFLAGS@
+	@GTK_CFLAGS@ @GTHREAD_CFLAGS@ @PEAS_CFLAGS@
 
 # tell automake we have a C++ file so it uses the C++ linker we need for Scintilla
 nodist_EXTRA_geany_SOURCES = dummy.cxx
@@ -107,6 +109,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
+	@PEAS_LIBS@ \
 	$(INTLLIBS) \
 	-lole32 -luuid -lwsock32 \
 	geany_private.res
@@ -142,6 +145,7 @@ geany_LDADD = \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
+	@PEAS_LIBS@ \
 	$(INTLLIBS)
 
 AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \
@@ -156,4 +160,3 @@ AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \
 clean-local:
 
 endif
-

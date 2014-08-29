@@ -33,6 +33,8 @@
 
 #include "app.h"
 #include "geanyobject.h"
+#include "geanyplugin2.h"
+#include "keybindingsprivate.h"
 #include "plugindata.h"
 #include "pluginprivate.h"
 #include "plugins.h"
@@ -40,6 +42,9 @@
 #include "toolbar.h"
 #include "ui_utils.h"
 #include "utils.h"
+
+#include <libpeas/peas.h>
+
 
 
 /** Inserts a toolbar item before the Quit button, or after the previous plugin toolbar item.
@@ -53,9 +58,10 @@ void plugin_add_toolbar_item(GeanyPlugin *plugin, GtkToolItem *item)
 	GtkToolbar *toolbar = GTK_TOOLBAR(main_widgets.toolbar);
 	gint pos;
 	GeanyAutoSeparator *autosep;
+	PluginPriv *priv = GEANYPLUGIN_TO_PRIV(plugin);
 
 	g_return_if_fail(plugin);
-	autosep = &plugin->priv->toolbar_separator;
+	autosep = &priv->toolbar_separator;
 
 	if (!autosep->widget)
 	{
@@ -95,7 +101,7 @@ void plugin_module_make_resident(GeanyPlugin *plugin)
 {
 	g_return_if_fail(plugin);
 
-	g_module_make_resident(plugin->priv->module);
+	g_module_make_resident(GEANYPLUGIN_TO_PRIV(plugin)->module);
 }
 
 
@@ -132,6 +138,7 @@ void plugin_signal_connect(GeanyPlugin *plugin,
 {
 	gulong id;
 	SignalConnection sc;
+	PluginPriv *priv = GEANYPLUGIN_TO_PRIV(plugin);
 
 	g_return_if_fail(plugin != NULL);
 	g_return_if_fail(object == NULL || G_IS_OBJECT(object));
@@ -143,12 +150,12 @@ void plugin_signal_connect(GeanyPlugin *plugin,
 		g_signal_connect_after(object, signal_name, callback, user_data) :
 		g_signal_connect(object, signal_name, callback, user_data);
 
-	if (!plugin->priv->signal_ids)
-		plugin->priv->signal_ids = g_array_new(FALSE, FALSE, sizeof(SignalConnection));
+	if (!priv->signal_ids)
+		priv->signal_ids = g_array_new(FALSE, FALSE, sizeof(SignalConnection));
 
 	sc.object = object;
 	sc.handler_id = id;
-	g_array_append_val(plugin->priv->signal_ids, sc);
+	g_array_append_val(priv->signal_ids, sc);
 
 	/* watch the object lifetime to nuke our pointers to it */
 	plugin_watch_object(plugin->priv, object);
@@ -157,7 +164,7 @@ void plugin_signal_connect(GeanyPlugin *plugin,
 
 typedef struct PluginSourceData
 {
-	Plugin		*plugin;
+	PluginPriv	*plugin_priv;
 	GList		list_link;	/* element of plugin->sources cointaining this GSource */
 	GSourceFunc	function;
 	gpointer	user_data;
@@ -169,10 +176,10 @@ static void psd_register(PluginSourceData *psd, GSource *source)
 {
 	psd->list_link.data = source;
 	psd->list_link.prev = NULL;
-	psd->list_link.next = psd->plugin->sources;
+	psd->list_link.next = psd->plugin_priv->sources;
 	if (psd->list_link.next)
 		psd->list_link.next->prev = &psd->list_link;
-	psd->plugin->sources = &psd->list_link;
+	psd->plugin_priv->sources = &psd->list_link;
 }
 
 
@@ -184,7 +191,7 @@ static void psd_unregister(PluginSourceData *psd)
 	if (psd->list_link.prev)
 		psd->list_link.prev->next = psd->list_link.next;
 	else /* we were the first of the list, update the plugin->sources pointer */
-		psd->plugin->sources = psd->list_link.next;
+		psd->plugin_priv->sources = psd->list_link.next;
 }
 
 
@@ -212,7 +219,7 @@ static guint plugin_source_add(GeanyPlugin *plugin, GSource *source, GSourceFunc
 	guint id;
 	PluginSourceData *psd = g_slice_alloc(sizeof *psd);
 
-	psd->plugin = plugin->priv;
+	psd->plugin_priv = GEANYPLUGIN_TO_PRIV(plugin);
 	psd->function = func;
 	psd->user_data = data;
 
@@ -293,10 +300,12 @@ guint plugin_idle_add(GeanyPlugin *plugin, GSourceFunc function, gpointer data)
 GeanyKeyGroup *plugin_set_key_group(GeanyPlugin *plugin,
 		const gchar *section_name, gsize count, GeanyKeyGroupCallback callback)
 {
-	Plugin *priv = plugin->priv;
+	Plugin *p = plugin->priv;
+	PluginPriv *priv = GEANYPLUGIN_TO_PRIV(plugin);
+	PeasPluginInfo *info = peas_extension_base_get_plugin_info(PEAS_EXTENSION_BASE(p));
 
 	priv->key_group = keybindings_set_group(priv->key_group, section_name,
-		priv->info.name, count, callback);
+		peas_plugin_info_get_name(info), count, callback);
 	return priv->key_group;
 }
 
@@ -325,8 +334,9 @@ static void connect_plugin_signals(GtkBuilder *builder, GObject *object,
 {
 	gpointer symbol = NULL;
 	struct BuilderConnectData *data = user_data;
+	PluginPriv *priv = GEANYPLUGIN_TO_PRIV(data->plugin);
 
-	if (!g_module_symbol(data->plugin->priv->module, handler_name, &symbol))
+	if (!g_module_symbol(priv->module, handler_name, &symbol))
 	{
 		g_warning("Failed to locate signal handler for '%s': %s",
 			signal_name, g_module_error());
@@ -382,9 +392,12 @@ void plugin_builder_connect_signals(GeanyPlugin *plugin,
 	GtkBuilder *builder, gpointer user_data)
 {
 	struct BuilderConnectData data = { NULL };
+	PluginPriv *priv;
 
-	g_return_if_fail(plugin != NULL && plugin->priv != NULL);
-	g_return_if_fail(plugin->priv->module != NULL);
+	g_return_if_fail(plugin != NULL);
+	priv = GEANYPLUGIN_TO_PRIV(plugin);
+	g_return_if_fail(priv != NULL);
+	g_return_if_fail(priv->module != NULL);
 	g_return_if_fail(GTK_IS_BUILDER(builder));
 
 	data.user_data = user_data;
