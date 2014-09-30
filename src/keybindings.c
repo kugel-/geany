@@ -2626,6 +2626,25 @@ GeanyKeyGroup *keybindings_set_group(GeanyKeyGroup *group, const gchar *section_
 	return group;
 }
 
+/** Register a key group using a GeanyKeyGroupHandler.
+ *
+ * An existing group can be passed to to resize the key group size. The GeanyKeyGroupHandler
+ * is a callback that is invoked when one of the contained keybinding is triggered, except if the
+ * keybinding has overridden it with a individual keybinding. The callback should return @c TRUE
+ * if the keybinding was handled, otherwise @c FALSE to allow other handlers to be run. This allows
+ * for multiplexing keybindings on the same keys, depending on the focused widget (or context)..
+ *
+ * @param group Existing group or @c NULL
+ * @param section_name Identifier for the configuration file
+ * @param label Human readable label used in the keybindings dialog
+ * @param count Number of keybindings contained in the group
+ * @param handler Group callback that is invoked when a keybinding is triggered
+ * @param user_data User data that is passed back to the handler
+ * @return The newly created GeanyKeyGroup
+ *
+ * @since 1.25
+ **/
+GEANY_EXPORT
 GeanyKeyGroup *keybindings_set_group_with_handler(GeanyKeyGroup *group, const gchar *section_name,
 		const gchar *label, gsize count, GeanyKeyGroupHandler handler, gpointer user_data)
 {

@@ -355,6 +355,10 @@ namespace Geany
 
 	[CCode (lower_case_cprefix = "keybindings_")]
 	namespace Keybindings {
+		[CCode (target_pos = 0.6)]
+		public unowned KeyGroup 	set_group_with_handler(KeyGroup? group,
+													   string section_name, string label,
+													   size_t count, KeyGroupHandler? handler);
 		public void					send_command (KeyGroupID group_id, KeyBindingID key_id);
 	}
 	[Compact]
