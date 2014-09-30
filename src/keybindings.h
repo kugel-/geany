@@ -277,6 +277,11 @@ GeanyKeyGroup *keybindings_get_core_group(guint id);
 GeanyKeyGroup *keybindings_set_group(GeanyKeyGroup *group, const gchar *section_name,
 		const gchar *label, gsize count, GeanyKeyGroupCallback callback) G_GNUC_WARN_UNUSED_RESULT;
 
+GeanyKeyGroup *keybindings_set_group_with_handler(GeanyKeyGroup *group, const gchar *section_name,
+		const gchar *label, gsize count, GeanyKeyGroupHandler handler, gpointer user_data);
+
+void keybindings_set_group_callback(GeanyKeyGroup *group, GeanyKeyGroupCallback callback, gpointer userdata);
+
 void keybindings_free_group(GeanyKeyGroup *group);
 
 gchar *keybindings_get_label(GeanyKeyBinding *kb);

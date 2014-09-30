@@ -2626,6 +2626,22 @@ GeanyKeyGroup *keybindings_set_group(GeanyKeyGroup *group, const gchar *section_
 	return group;
 }
 
+GeanyKeyGroup *keybindings_set_group_with_handler(GeanyKeyGroup *group, const gchar *section_name,
+		const gchar *label, gsize count, GeanyKeyGroupHandler handler, gpointer user_data)
+{
+	GeanyKeyGroup *new_group;
+
+	new_group = keybindings_set_group(group, section_name, label, count, NULL);
+	/* only set handler for the initial call (group == NULL), likewise keybindings_set_group() */
+	if (!group && new_group)
+	{
+		new_group->handler = handler;
+		new_group->handler_data = user_data;
+	}
+
+	return new_group;
+}
+
 
 void keybindings_free_group(GeanyKeyGroup *group)
 {
