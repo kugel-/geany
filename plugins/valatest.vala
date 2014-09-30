@@ -5,8 +5,10 @@ using Geany;
 
 public class ValaTest : GLib.Object, Geany.Plugin2
 {
+	GeanyGI.KeyGroup m_keys = new GeanyGI.KeyGroup("vala", "Vala Test", 1);
 	public int methods { get { return Geany.Methods.CLEANUP; } }
-	public void initialize()
+
+	bool on_key_press(GeanyGI.KeyBinding key, uint key_id)
 	{
 		unowned Gtk.Window w = Geany.data.main_widgets.window as Gtk.Window;
 		var d = new Gtk.Dialog.with_buttons("ValaTest", w,
@@ -17,12 +19,23 @@ public class ValaTest : GLib.Object, Geany.Plugin2
 		d.run();
 		d.destroy();
 
+		return true;
+	}
+
+	public void initialize()
+	{
+		unowned Document doc = Document.get_current();
+		if (doc != null)
+		{
+			stdout.printf("valatest: %s\n", Document.get_current().editor.sci.get_contents(-1));
+			stdout.printf("valatest gi: %s\n", GeanyGI.Document.get_current().editor.sci.get_contents(-1));
+		}
+		m_keys.add_keybinding(new GeanyGI.KeyBinding("test", "Test", on_key_press), 0);
+
 		Geany.Object o = (Geany.Object) Geany.object;
 		o.document_new.connect( (doc) => { stdout.printf("new document\n"); });
 		GeanyGI.Document.signals().document_new.connect( (doc) => { stdout.printf("new gi document\n"); });
 
-		stdout.printf("valatest: %s\n", Document.get_current().editor.sci.get_contents(-1));
-		stdout.printf("valatest gi: %s\n", GeanyGI.Document.get_current().editor.sci.get_contents(-1));
 		stdout.printf("foo %d\n", (int)Geany.data.prefs.load_session);
 		stdout.printf("bar %s\n", Geany.data.tool_prefs.browser_cmd);
 		stdout.printf("bar %s\n", GeanyGI.Data.instance().tool_prefs.browser_cmd);
@@ -37,8 +50,14 @@ public class ValaTest : GLib.Object, Geany.Plugin2
 
 	public void cleanup()
 	{
+		/* have to manually unref before destructor, to break dependency cycle
+		 * KeyGroup <- KeyBinding <- this <- KeyGroup */
+		m_keys = null;
 		stdout.printf("cleanup!\n");
 	}
+
+	construct { stdout.printf("ValaTest()\n"); }
+	~ValaTest() { stdout.printf("~ValaTest()\n"); }
 }
 
 
