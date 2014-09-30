@@ -11,7 +11,11 @@ class PythonHelloPlugin2(GObject.Object, Geany.Plugin2):
 
     methods = GObject.property(type = int, flags = GObject.PARAM_READABLE, default = Geany.Methods.CLEANUP)
     doc = None
+    item = None
     keys = None
+
+    def on_clicked(self, action):
+        self.doc.editor.indent_type = Geany.IndentType.SPACES
 
     def on_test_activate(self, key, key_id):
         print("on_test_activate")
@@ -20,6 +24,10 @@ class PythonHelloPlugin2(GObject.Object, Geany.Plugin2):
         self.doc = GeanyGI.Document.new_file("/tmp/foo.c",
                             GeanyGI.Filetype.get_by_id(Geany.FiletypeID.C), "int")
         self.doc.save(False)
+        self.item = GeanyGI.UiUtils.image_menu_item_new(Gtk.STOCK_GO_BACK, "foo")
+        self.item.connect("activate", self.on_clicked)
+        tmp = GeanyGI.UiWidgets.tools_menu().append(self.item)
+        self.item.show_all()
         self.keys = GeanyGI.KeyGroup.new("h_p", "Hello Python", 1)
         print(self.keys)
         #~ key = GeanyGI.KeyBinding.new("test", "Test", self.on_test_activate)
@@ -43,6 +51,7 @@ class PythonHelloPlugin2(GObject.Object, Geany.Plugin2):
         print("cleanup\n")
         self.doc.close()
         self.keys = None
+        self.item.destroy()
 
 def __init__():
     print("foo")
