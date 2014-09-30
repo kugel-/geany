@@ -2662,6 +2662,13 @@ GeanyKeyGroup *keybindings_set_group_with_handler(GeanyKeyGroup *group, const gc
 }
 
 
+/** Free a keybinding group. This also automatically unbinds any keybindings.
+ *
+ * @param group Group to be freed
+ *
+ * @since 1.25
+ **/
+GEANY_EXPORT
 void keybindings_free_group(GeanyKeyGroup *group)
 {
 	GeanyKeyBinding *kb;
