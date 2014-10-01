@@ -786,13 +786,14 @@ static void pm_update_buttons(PeasPluginInfo *info)
 	GeanyPlugin2 *obj = g_hash_table_lookup(active_plugins, info);
 	if (obj)
 	{
+		Plugin *priv = geany_plugin2_get_priv(obj);
 		gint methods = get_methods(obj);
 		gboolean has_configure_any = methods & (GEANY_METHODS_CONFIGURE|GEANY_METHODS_CONFIGURE_SINGLE);
 		gboolean has_help = methods & GEANY_METHODS_HELP;
+		gboolean has_keys = (methods & GEANY_METHODS_KEY_GROUP) || (priv->key_group && priv->key_group->plugin_key_count);
 		gtk_widget_set_sensitive(pm_widgets.configure_button, has_configure_any);
 		gtk_widget_set_sensitive(pm_widgets.help_button, has_help);
-		/* FIXME */
-		gtk_widget_set_sensitive(pm_widgets.keybindings_button, FALSE);
+		gtk_widget_set_sensitive(pm_widgets.keybindings_button, has_keys);
 	}
 	else
 	{
@@ -1034,13 +1035,23 @@ static void pm_on_plugin_button_clicked(GtkButton *button, gpointer user_data)
 			PeasPluginInfo *info = peas_engine_get_plugin_info(peas, p);
 			GeanyPlugin2   *obj = g_hash_table_lookup(active_plugins, info);
 			Plugin         *priv = geany_plugin2_get_priv(obj);
+			guint           methods = get_methods(obj);
 			if (GPOINTER_TO_INT(user_data) == PM_BUTTON_CONFIGURE)
 				plugin_show_configure(&priv->public);
 			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_HELP &&
-					(get_methods(obj) & GEANY_METHODS_HELP))
+					(methods & GEANY_METHODS_HELP))
 				geany_plugin2_help(obj);
-			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_KEYBINDINGS && priv->key_group && priv->key_group->plugin_key_count > 0)
-				keybindings_dialog_show_prefs_scroll(priv->info.name);
+			else if (GPOINTER_TO_INT(user_data) == PM_BUTTON_KEYBINDINGS)
+			{
+				if (priv->key_group && priv->key_group->plugin_key_count > 0)
+					keybindings_dialog_show_prefs_scroll(priv->info.name);
+				else if (methods & GEANY_METHODS_KEY_GROUP)
+				{
+					gchar *group_name = geany_plugin2_key_group(obj);
+					keybindings_dialog_show_prefs_scroll(group_name);
+					g_free(group_name);
+				}
+			}
 		}
 	}
 }
