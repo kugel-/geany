@@ -623,7 +623,7 @@ def _make_window(start_script="import geany\n"):
 class ConsolePlugin(GObject.Object, Geany.Plugin2):
     __gtype_name__ = 'ConsolePlugin'
 
-    methods = GObject.property(type = int, flags = GObject.PARAM_READABLE, default = Geany.Methods.CLEANUP)
+    methods = GObject.property(type = int, flags = GObject.PARAM_READABLE, default = Geany.Methods.CLEANUP | Geany.Methods.KEY_GROUP)
 
     start_script = \
 """
@@ -668,6 +668,9 @@ from gi.repository import GeanyGI
 
     def do_version_check(self, abi):
         return 218
+
+    def do_key_group(self):
+        return self.keys.props.label
 
     def do_cleanup(self):
         if self.window is not None:
