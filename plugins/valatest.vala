@@ -6,7 +6,7 @@ using Geany;
 public class ValaTest : GLib.Object, Geany.Plugin2
 {
 	GeanyGI.KeyGroup m_keys = new GeanyGI.KeyGroup("vala", "Vala Test", 1);
-	public int methods { get { return Geany.Methods.CLEANUP; } }
+	public int methods { get { return Geany.Methods.CLEANUP | Geany.Methods.KEY_GROUP; } }
 
 	bool on_key_press(GeanyGI.KeyBinding key, uint key_id)
 	{
@@ -46,6 +46,11 @@ public class ValaTest : GLib.Object, Geany.Plugin2
 	public int version_check(int abi)
 	{
 		return Plugin.version_check(abi, Plugin.API_VERSION);
+	}
+
+	public string key_group()
+	{
+		return m_keys.label;
 	}
 
 	public void cleanup()
