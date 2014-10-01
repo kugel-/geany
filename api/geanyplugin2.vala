@@ -8,6 +8,7 @@ namespace Geany
 		CONFIGURE_SINGLE =   2,
 		HELP             =   4,
 		CLEANUP          =   8,
+		KEY_GROUP        =  16,
 	}
 
 	private void w(string msg)
@@ -25,5 +26,6 @@ namespace Geany
 		public virtual  void        configure_single (Gtk.Widget parent) { w("configure_single"); }
 		public virtual  void        help             () { w("help"); }
 		public virtual  void        cleanup          () { w("cleanup"); }
+		public virtual  string      key_group        () { w("key_group"); return ""; }
 	}
 }
