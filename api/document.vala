@@ -43,7 +43,35 @@ namespace GeanyGI
 		public int    index        { get { return _doc.index; } }
 		public string display_name { owned get { return _doc.get_basename_for_display(); } }
 
+		/* signals */
+		public signal void closed();
+		public signal void reloaded();
+		public signal void before_save();
+		public signal void saved();
+		public signal void activate();
+		public signal void filetype_set(Filetype? old_ft);
+
 		/* constructors */
+		construct
+		{
+			/* cast necessary to access signals */
+			Geany.Object o = (Geany.Object) Geany.object;
+			o.document_close.connect((doc)            => { if (doc == _doc) this.closed(); });
+			o.document_activate.connect((doc)         => { if (doc == _doc) this.activate(); });
+			o.document_filetype_set.connect((doc, ft) =>
+			{
+				if (doc == _doc)
+				{
+					/* can signal with ft == null, e.g. during Geany.Document.new_file() */
+					GeanyGI.Filetype gi_ft = ft != null ? Filetype.get_by_id(ft.id) : null;
+					this.filetype_set(gi_ft);
+				}
+			});
+			o.document_reload.connect((doc)           => { if (doc == _doc) this.reloaded(); });
+			o.document_before_save.connect((doc)      => { if (doc == _doc) this.before_save(); });
+			o.document_save.connect((doc)             => { if (doc == _doc) this.saved(); });
+		}
+
 		internal Document(Geany.Document doc)
 		{
 			_doc = doc;
