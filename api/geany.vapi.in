@@ -160,6 +160,7 @@ namespace Geany
 		public void insert_text_block (string text,  int insert_pos,
 									   int cursor_index = -1, int newline_indent_size = -1,
 									   bool replace_newlines = true);
+		public void set_indent_width(int width);
 	}
 	/* reviewed */
 	[CCode (cname = "GeanyEncodingIndex", cprefix = "GEANY_ENCODING_", has_type_id = false)]

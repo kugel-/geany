@@ -4522,6 +4522,16 @@ void editor_set_indent_type(GeanyEditor *editor, GeanyIndentType type)
 }
 
 
+/** Sets the indent width (in chars) for @a editor.
+ *
+ * Depending on the indent_type this sets the tab width or number of spaces to indent
+ *
+ * @param editor Editor.
+ * @param width width in characters.
+ *
+ * @since 1.25
+ **/
+GEANY_EXPORT
 void editor_set_indent_width(GeanyEditor *editor, gint width)
 {
 	editor_set_indent(editor, editor->indent_type, width);
