@@ -140,6 +140,46 @@ namespace GeanyGI
 			return _doc.reload_file(forced_enc);
 		}
 
+		/* there is no proper introsepection for static fields, workaround with accessor */
+		private static Signals _signals;
+		public static Signals signals()
+		{
+			if (_signals == null)
+				_signals = new Signals();
+			return _signals;
+		}
+
+		/* just wraps Geany.object signals */
+		public class Signals : GLib.Object
+		{
+			public signal void document_new(Document doc);
+			public signal void document_open(Document doc);
+			public signal void document_reload(Document doc);
+			public signal void document_before_save(Document doc);
+			public signal void document_save(Document doc);
+			public signal void document_filetype_set(Document doc, Filetype? old_ft);
+			public signal void document_activate(Document doc);
+			public signal void document_close(Document doc);
+
+			construct
+			{
+				Geany.Object o = (Geany.Object) Geany.object;
+				o.document_new.connect((doc)              => { this.document_new(new Document(doc)); });
+				o.document_open.connect((doc)             => { this.document_open(new Document(doc)); });
+				o.document_close.connect((doc)            => { this.document_close(new Document(doc)); });
+				o.document_activate.connect((doc)         => { this.document_activate(new Document(doc)); });
+				o.document_filetype_set.connect((doc, ft) =>
+				{
+					/* can signal with ft == null, e.g. during Geany.Document.new_file() */
+					Filetype gi_ft = ft != null ? Filetype.get_by_id(ft.id) : null;
+					this.document_filetype_set(new Document(doc), gi_ft);
+				});
+				o.document_reload.connect((doc)           => { this.document_reload(new Document(doc)); });
+				o.document_before_save.connect((doc)      => { this.document_before_save(new Document(doc)); });
+				o.document_save.connect((doc)             => { this.document_save(new Document(doc)); });
+			}
+		}
+
 		/* internal fields
 		 * must be last due to bug in vala's gir generation */
 
