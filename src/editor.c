@@ -4500,6 +4500,13 @@ void editor_set_font(GeanyEditor *editor, const gchar *font)
 }
 
 
+/** Enables line wrapping for @a editor.
+ * @param editor Editor.
+ * @param wrap TRUE to enable line wrapping, FALSE otherwise.
+ *
+ * @since 1.25
+ **/
+GEANY_EXPORT
 void editor_set_line_wrapping(GeanyEditor *editor, gboolean wrap)
 {
 	g_return_if_fail(editor != NULL);
