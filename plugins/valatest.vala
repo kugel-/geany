@@ -23,6 +23,11 @@ public class ValaTest : GLib.Object, Geany.Plugin2
 
 		stdout.printf("valatest: %s\n", Document.get_current().editor.sci.get_contents(-1));
 		stdout.printf("valatest gi: %s\n", GeanyGI.Document.get_current().editor.sci.get_contents(-1));
+		stdout.printf("foo %d\n", (int)Geany.data.prefs.load_session);
+		stdout.printf("bar %s\n", Geany.data.tool_prefs.browser_cmd);
+		stdout.printf("bar %s\n", GeanyGI.Data.instance().tool_prefs.browser_cmd);
+		stdout.printf("bar %s\n", GeanyGI.Data.instance().template_prefs.developer);
+		stdout.printf("configdir: %s\n", GeanyGI.Data.instance().app.configdir);
 	}
 
 	public int version_check(int abi)
