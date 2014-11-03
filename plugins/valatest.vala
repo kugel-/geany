@@ -41,6 +41,15 @@ public class ValaTest : GLib.Object, Geany.Plugin2
 		stdout.printf("bar %s\n", GeanyGI.Data.instance().tool_prefs.browser_cmd);
 		stdout.printf("bar %s\n", GeanyGI.Data.instance().template_prefs.developer);
 		stdout.printf("configdir: %s\n", GeanyGI.Data.instance().app.configdir);
+
+		Geany.LexerStyle *s = Geany.Highlighting.get_style(1, 1);
+		stdout.printf("style: #%6X;#%6X;%s;%s\n", s.foreground, s.background,
+					  s.bold.to_string(), s.italic.to_string());
+		assert(Geany.FiletypeID.PHP == 1);
+		Geany.LexerStyle ss = GeanyGI.Highlighting.get_lexer_style(
+				GeanyGI.Filetype.get_by_id(Geany.FiletypeID.PHP), Scintilla.SCE_P_COMMENTLINE);
+		stdout.printf("style: #%6X;#%6X;%s;%s\n", ss.foreground, ss.background,
+					  ss.bold.to_string(), ss.italic.to_string());
 	}
 
 	public int version_check(int abi)

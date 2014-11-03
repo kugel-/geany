@@ -103,13 +103,14 @@ libgeanygi_1_0_la_SOURCES = \
 	data.vala \
 	document.vala \
 	editor.vala \
+	highlighting.vala \
 	keybindings.vala \
 	filetype.vala \
 	utils.vala
 
 libgeanygi_DATA = Geany-1.0.typelib geany.vapi
 
-CLEANFILES += data.o document.o editor.o filetype.o keybindings.o utils.o
+CLEANFILES += data.o document.o editor.o filetype.o highlighting.o keybindings.o utils.o
 
 
 # everything for Scintilla-1.0.typelib
