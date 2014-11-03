@@ -23,6 +23,7 @@
 #define GEANY_SCI_WRAPPERS_H 1
 
 #include "gtkcompat.h" /* Needed by ScintillaWidget.h */
+#include "SciLexer.h" /* Needed by ScintillaWidget.h */
 #include "Scintilla.h" /* Needed by ScintillaWidget.h */
 #include "ScintillaWidget.h" /* for ScintillaObject */
 
