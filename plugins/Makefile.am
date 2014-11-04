@@ -11,6 +11,8 @@ nobase_dist_plugin_DATA = \
 	extension.py \
 	console.plugin \
 	console.py \
+	modeline.plugin \
+	modeline.py \
 	valatest.plugin
 
 plugins_includedir = $(includedir)/geany
