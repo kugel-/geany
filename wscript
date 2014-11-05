@@ -302,6 +302,8 @@ but you then may not have a local copy of the HTML manual.'''
 
     # some more compiler flags
     conf.env.append_value('CFLAGS', ['-DHAVE_CONFIG_H'])
+    if conf.env['CC_NAME'] == 'gcc' and '-O' not in ''.join(conf.env['CFLAGS']):
+        conf.env.append_value('CFLAGS', ['-O2'])
     if revision is not None:
         conf.env.append_value('CFLAGS', ['-g', '-DGEANY_DEBUG'])
     # Scintilla flags
@@ -397,7 +399,7 @@ def build(bld):
         name            = 'tagmanager',
         target          = 'tagmanager',
         includes        = ['.', 'tagmanager', 'tagmanager/ctags'],
-        defines         = 'G_LOG_DOMAIN="Tagmanager"',
+        defines         = ['GEANY_PRIVATE', 'G_LOG_DOMAIN="Tagmanager"'],
         uselib          = ['GTK', 'GLIB'],
         install_path    = None)  # do not install this library
 
@@ -551,8 +553,7 @@ def build(bld):
         scintilla/include/SciLexer.h scintilla/include/Scintilla.h
         scintilla/include/Scintilla.iface scintilla/include/ScintillaWidget.h ''')
     bld.install_files('${PREFIX}/include/geany/tagmanager', '''
-        tagmanager/src/tm_file_entry.h
-        tagmanager/src/tm_source_file.h tagmanager/src/tm_parser.h
+        tagmanager/src/tm_source_file.h
         tagmanager/src/tm_tag.h
         tagmanager/src/tm_tagmanager.h tagmanager/src/tm_work_object.h
         tagmanager/src/tm_workspace.h ''')
