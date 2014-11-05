@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include <string>
 #include <vector>
@@ -20,13 +20,13 @@
 #include "ILexer.h"
 #include "Scintilla.h"
 
+#include "CharacterSet.h"
 #include "SplitVector.h"
 #include "Partitioning.h"
 #include "RunStyles.h"
 #include "CellBuffer.h"
 #include "PerLine.h"
 #include "CharClassify.h"
-#include "CharacterSet.h"
 #include "Decoration.h"
 #include "CaseFolder.h"
 #include "Document.h"
@@ -58,7 +58,7 @@ void LexInterface::Colourise(int start, int end) {
 
 		int styleStart = 0;
 		if (start > 0)
-			styleStart = pdoc->StyleAt(start - 1) & pdoc->stylingBitsMask;
+			styleStart = pdoc->StyleAt(start - 1);
 
 		if (len > 0) {
 			instance->Lex(start, len, styleStart, pdoc);
@@ -90,9 +90,6 @@ Document::Document() {
 #endif
 	dbcsCodePage = 0;
 	lineEndBitSet = SC_LINE_END_TYPE_DEFAULT;
-	stylingBits = 5;
-	stylingBitsMask = 0x1F;
-	stylingMask = 0;
 	endStyled = 0;
 	styleClock = 0;
 	enteredModification = 0;
@@ -218,6 +215,65 @@ void Document::SetSavePoint() {
     } 
 /* CHANGEBAR end */
 	NotifySavePoint(true);
+}
+
+void Document::TentativeUndo() {
+	CheckReadOnly();
+	if (enteredModification == 0) {
+		enteredModification++;
+		if (!cb.IsReadOnly()) {
+			bool startSavePoint = cb.IsSavePoint();
+			bool multiLine = false;
+			int steps = cb.TentativeSteps();
+			//Platform::DebugPrintf("Steps=%d\n", steps);
+			for (int step = 0; step < steps; step++) {
+				const int prevLinesTotal = LinesTotal();
+				const Action &action = cb.GetUndoStep();
+				if (action.at == removeAction) {
+					NotifyModified(DocModification(
+									SC_MOD_BEFOREINSERT | SC_PERFORMED_UNDO, action));
+				} else if (action.at == containerAction) {
+					DocModification dm(SC_MOD_CONTAINER | SC_PERFORMED_UNDO);
+					dm.token = action.position;
+					NotifyModified(dm);
+				} else {
+					NotifyModified(DocModification(
+									SC_MOD_BEFOREDELETE | SC_PERFORMED_UNDO, action));
+				}
+				cb.PerformUndoStep();
+				if (action.at != containerAction) {
+					ModifiedAt(action.position);
+				}
+
+				int modFlags = SC_PERFORMED_UNDO;
+				// With undo, an insertion action becomes a deletion notification
+				if (action.at == removeAction) {
+					modFlags |= SC_MOD_INSERTTEXT;
+				} else if (action.at == insertAction) {
+					modFlags |= SC_MOD_DELETETEXT;
+				}
+				if (steps > 1)
+					modFlags |= SC_MULTISTEPUNDOREDO;
+				const int linesAdded = LinesTotal() - prevLinesTotal;
+				if (linesAdded != 0)
+					multiLine = true;
+				if (step == steps - 1) {
+					modFlags |= SC_LASTSTEPINUNDOREDO;
+					if (multiLine)
+						modFlags |= SC_MULTILINEUNDOREDO;
+				}
+				NotifyModified(DocModification(modFlags, action.position, action.lenData,
+											   linesAdded, action.data));
+			}
+
+			bool endSavePoint = cb.IsSavePoint();
+			if (startSavePoint != endSavePoint)
+				NotifySavePoint(endSavePoint);
+				
+			cb.TentativeCommit();
+		}
+		enteredModification--;
+	}
 }
 
 int Document::GetMark(int line) {
@@ -889,6 +945,8 @@ void Document::CheckReadOnly() {
 // SetStyleAt does not change the persistent state of a document
 
 bool Document::DeleteChars(int pos, int len) {
+	if (pos < 0)
+		return false;
 	if (len <= 0)
 		return false;
 	if ((pos + len) > Length())
@@ -1756,13 +1814,7 @@ int Document::GetCharsOfClass(CharClassify::cc characterClass, unsigned char *bu
     return charClass.GetCharsOfClass(characterClass, buffer);
 }
 
-void Document::SetStylingBits(int bits) {
-	stylingBits = bits;
-	stylingBitsMask = (1 << stylingBits) - 1;
-}
-
-void SCI_METHOD Document::StartStyling(int position, char mask) {
-	stylingMask = mask;
+void SCI_METHOD Document::StartStyling(int position, char) {
 	endStyled = position;
 }
 
@@ -1771,9 +1823,8 @@ bool SCI_METHOD Document::SetStyleFor(int length, char style) {
 		return false;
 	} else {
 		enteredStyling++;
-		style &= stylingMask;
 		int prevEndStyled = endStyled;
-		if (cb.SetStyleFor(endStyled, length, style, stylingMask)) {
+		if (cb.SetStyleFor(endStyled, length, style)) {
 			DocModification mh(SC_MOD_CHANGESTYLE | SC_PERFORMED_USER,
 			                   prevEndStyled, length);
 			NotifyModified(mh);
@@ -1794,7 +1845,7 @@ bool SCI_METHOD Document::SetStyles(int length, const char *styles) {
 		int endMod = 0;
 		for (int iPos = 0; iPos < length; iPos++, endStyled++) {
 			PLATFORM_ASSERT(endStyled < Length());
-			if (cb.SetStyleAt(endStyled, styles[iPos], stylingMask)) {
+			if (cb.SetStyleAt(endStyled, styles[iPos])) {
 				if (!didChange) {
 					startMod = endStyled;
 				}
@@ -2124,7 +2175,7 @@ int Document::BraceMatch(int position, int /*maxReStyle*/) {
 	char chSeek = BraceOpposite(chBrace);
 	if (chSeek == '\0')
 		return - 1;
-	char styBrace = static_cast<char>(StyleAt(position) & stylingBitsMask);
+	char styBrace = static_cast<char>(StyleAt(position));
 	int direction = -1;
 	if (chBrace == '(' || chBrace == '[' || chBrace == '{' || chBrace == '<')
 		direction = 1;
@@ -2132,7 +2183,7 @@ int Document::BraceMatch(int position, int /*maxReStyle*/) {
 	position = NextPosition(position, direction);
 	while ((position >= 0) && (position < Length())) {
 		char chAtPos = CharAt(position);
-		char styAtPos = static_cast<char>(StyleAt(position) & stylingBitsMask);
+		char styAtPos = static_cast<char>(StyleAt(position));
 		if ((position > GetEndStyled()) || (styAtPos == styBrace)) {
 			if (chAtPos == chBrace)
 				depth++;
@@ -2193,8 +2244,8 @@ public:
 long BuiltinRegex::FindText(Document *doc, int minPos, int maxPos, const char *s,
                         bool caseSensitive, bool, bool, int flags,
                         int *length) {
-	bool posix = (flags & SCFIND_POSIX) != 0;
-	int increment = (minPos <= maxPos) ? 1 : -1;
+	const bool posix = (flags & SCFIND_POSIX) != 0;
+	const int increment = (minPos <= maxPos) ? 1 : -1;
 
 	int startPos = minPos;
 	int endPos = maxPos;
@@ -2212,7 +2263,7 @@ long BuiltinRegex::FindText(Document *doc, int minPos, int maxPos, const char *s
 	//     Search: \$(\([A-Za-z0-9_-]+\)\.\([A-Za-z0-9_.]+\))
 	//     Replace: $(\1-\2)
 	int lineRangeStart = doc->LineFromPosition(startPos);
-	int lineRangeEnd = doc->LineFromPosition(endPos);
+	const int lineRangeEnd = doc->LineFromPosition(endPos);
 	if ((increment == 1) &&
 		(startPos >= doc->LineEnd(lineRangeStart)) &&
 		(lineRangeStart < lineRangeEnd)) {
@@ -2228,9 +2279,9 @@ long BuiltinRegex::FindText(Document *doc, int minPos, int maxPos, const char *s
 	}
 	int pos = -1;
 	int lenRet = 0;
-	char searchEnd = s[*length - 1];
-	char searchEndPrev = (*length > 1) ? s[*length - 2] : '\0';
-	int lineRangeBreak = lineRangeEnd + increment;
+	const char searchEnd = s[*length - 1];
+	const char searchEndPrev = (*length > 1) ? s[*length - 2] : '\0';
+	const int lineRangeBreak = lineRangeEnd + increment;
 	for (int line = lineRangeStart; line != lineRangeBreak; line += increment) {
 		int startOfLine = doc->LineStart(line);
 		int endOfLine = doc->LineEnd(line);

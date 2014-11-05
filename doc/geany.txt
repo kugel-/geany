@@ -1231,6 +1231,10 @@ The syntax for the *Use regular expressions* option is shown in
 .. note::
     *Use escape sequences* is implied for regular expressions.
 
+The *Use multi-line matching* option enables multi-line regular
+expressions instead of single-line ones.  See `Regular expressions`_ for
+more details on the differences between the two modes.
+
 The *Use escape sequences* option will transform any escaped characters
 into their UTF-8 equivalent. For example, \\t will be transformed into
 a tab character. Other recognized symbols are: \\\\, \\n, \\r, \\uXXXX
@@ -1451,10 +1455,17 @@ options`_). The syntax is Perl compatible. Basic syntax is described
 in the table below. For full details, see
 http://www.geany.org/manual/gtk/glib/glib-regex-syntax.html.
 
+By default regular expressions are matched on a line-by-line basis.
+If you are interested in multi-line regular expressions, matched against
+the whole buffer at once, see the section `Multi-line regular expressions`_
+below.
+
 .. note::
     1. The *Use escape sequences* dialog option always applies for regular
        expressions.
     2. Searching backwards with regular expressions is not supported.
+    3. The *Use multi-line matching* dialog option to select single or
+       multi-line matching.
 
 **In a regular expression, the following characters are interpreted:**
 
@@ -1530,6 +1541,30 @@ $       This matches the end of a line.
     This table is adapted from Scintilla and SciTE documentation,
     distributed under the `License for Scintilla and SciTE`_.
 
+
+Multi-line regular expressions
+``````````````````````````````
+
+.. note::
+    The *Use multi-line matching* dialog option enables multi-line
+    regular expressions.
+
+Multi-line regular expressions work just like single-line ones but a
+match can span several lines.
+
+While the syntax is the same, a few practical differences applies:
+
+======= ============================================================
+.       Matches any character but newlines.  This behavior can be changed
+        to also match newlines using the (?s) option, see
+        http://www.geany.org/manual/gtk/glib/glib-regex-syntax.html#idp5671632
+
+[^...]  A negative range (see above) *will* match newlines if they are
+        not explicitly listed in that negative range.  For example, range
+        [^a-z] will match newlines, while range [^a-z\\r\\n] won't.
+        While this is the expected behavior, it can lead to tricky
+        problems if one doesn't think about it when writing an expression.
+======= ============================================================
 
 
 View menu
@@ -2616,6 +2651,11 @@ extract_filetype_regex            Regex to extract filetype name from file     S
                                   via capture group one.
 **Search related**
 find_selection_type               See `Find selection`_.                       0           immediately
+**Replace related**
+replace_and_find_by_default       Set ``Replace & Find`` button as default so  true        immediately
+                                  it will be activated when the Enter key is
+                                  pressed while one of the text fields has
+                                  focus.
 **Build Menu related**
 number_ft_menu_items              The maximum number of menu items in the      2           on restart
                                   filetype section of the Build menu.
@@ -2734,7 +2774,8 @@ Project management is optional in Geany. Currently it can be used for:
 
 A list of session files can be stored and opened with the project
 when the *Use project-based session files* preference is enabled,
-in the *Project* group of the `Preferences`_ dialog.
+in the `Projects`_ group of the `General Miscellaneous preferences`_ tab
+of the `Preferences`_ dialog.
 
 As long as a project is open, the Build menu will use
 the items defined in project's settings, instead of the defaults.
@@ -5124,12 +5165,16 @@ Contributing to this document
 This document (``geany.txt``) is written in `reStructuredText`__
 (or "reST"). The source file for it is located in Geany's ``doc``
 subdirectory.  If you intend on making changes, you should grab the
-source right from Git to make sure you've got the newest version. After
-editing the file, to build the HTML document to see how your changes
-look, run "``make doc``" in the subdirectory ``doc`` of Geany's source
-directory. This regenerates the ``geany.html`` file. To generate a PDF
-file, use the command "``make pdf``" which should generate a file called
-geany-|(version)|.pdf.
+source right from Git to make sure you've got the newest version.
+First, you need to configure the build system to generate the HTML
+documentation passing the *--enable-html-docs* option to the *configure*
+script. Then after editing the file, run ``make`` (from the root build
+directory or from the *doc* subdirectory) to build the HTML documentation
+and see how your changes look. This regenerates the ``geany.html`` file
+inside the *doc* subdirectory. To generate a PDF file, configure with
+*--enable-pdf-docs* and run ``make`` as for the HTML version. The generated
+PDF file is named geany-|(version)|.pdf and is located inside the *doc*
+subdirectory.
 
 __ http://docutils.sourceforge.net/rst.html
 
@@ -5139,7 +5184,7 @@ After you are happy with your changes, create a patch e.g. by using::
 
 or even better, by creating a Git-formatted patch which will keep authoring
 and description data, by first committing your changes (doing so in a fresh
-new branch is recommended for `matser` not to diverge from upstream) and then
+new branch is recommended for `master` not to diverge from upstream) and then
 using git format-patch::
 
     % git checkout -b my-documentation-changes # create a fresh branch

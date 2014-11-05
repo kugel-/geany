@@ -43,6 +43,7 @@ import sys
 import os
 import tempfile
 from waflib import Logs, Options, Scripting, Utils
+from waflib.Build import BuildContext
 from waflib.Configure import ConfigurationContext
 from waflib.Errors import WafError
 from waflib.TaskGen import feature, before_method
@@ -118,11 +119,8 @@ ctags_sources = set([
 
 tagmanager_sources = set([
     'tagmanager/src/tm_file_entry.c',
-    'tagmanager/src/tm_project.c',
     'tagmanager/src/tm_source_file.c',
-    'tagmanager/src/tm_symbol.c',
     'tagmanager/src/tm_tag.c',
-    'tagmanager/src/tm_tagmanager.c',
     'tagmanager/src/tm_work_object.c',
     'tagmanager/src/tm_workspace.c'])
 
@@ -232,6 +230,18 @@ def configure(conf):
     conf.env['minimum_gtk_version'] = minimum_gtk_version
     conf.env['use_gtk3'] = conf.options.use_gtk3
 
+    revision = _get_git_rev(conf)
+
+    # rst2html for the HTML manual
+    if not conf.options.no_html_doc and revision is not None:
+        try:
+            conf.env['RST2HTML'] = _find_rst2html(conf)
+        except WafError:
+            error_msg = '''Documentation enabled but rst2html not found.
+You can explicitly disable building of the HTML manual with --disable-html-docs,
+but you then may not have a local copy of the HTML manual.'''
+            raise WafError(error_msg)
+
     # Windows specials
     if is_win32:
         if conf.env['PREFIX'].lower() == tempfile.gettempdir().lower():
@@ -252,6 +262,9 @@ def configure(conf):
             '-static-libgcc',
             '-static-libstdc++'])
         conf.env.append_value('LIB_WIN32', ['wsock32', 'uuid', 'ole32', 'iberty'])
+        # explicitly define Windows version for older Mingw environments
+        conf.define('WINVER', '0x0501', quote=False)  # for SHGetFolderPathAndSubDirW
+        conf.define('_WIN32_IE', '0x0500', quote=False)  # for SHGFP_TYPE
     else:
         conf.env['cshlib_PATTERN'] = '%s.so'
         # DATADIR and LOCALEDIR are defined by the intltool tool
@@ -264,8 +277,6 @@ def configure(conf):
         _define_from_opt(conf, 'DOCDIR', conf.options.docdir, docdir)
         _define_from_opt(conf, 'LIBDIR', conf.options.libdir, libdir)
         _define_from_opt(conf, 'MANDIR', conf.options.mandir, mandir)
-
-    revision = _get_git_rev(conf)
 
     conf.define('ENABLE_NLS', 1)
     conf.define('GEANY_LOCALEDIR', '' if is_win32 else conf.env['LOCALEDIR'], quote=True)
@@ -333,6 +344,9 @@ def options(opt):
     opt.add_option('--enable-gtk3', action='store_true', default=False,
         help='compile with GTK3 support (experimental) [[default: No]',
         dest='use_gtk3')
+    opt.add_option('--disable-html-docs', action='store_true', default=False,
+        help='do not generate HTML documentation using rst2html [[default: No]',
+        dest='no_html_doc')
     # Paths
     opt.add_option('--mandir', type='string', default='',
         help='man documentation', dest='mandir')
@@ -340,9 +354,6 @@ def options(opt):
         help='documentation root', dest='docdir')
     opt.add_option('--libdir', type='string', default='',
         help='object code libraries', dest='libdir')
-    # Actions
-    opt.add_option('--hackingdoc', action='store_true', default=False,
-        help='generate HTML documentation from HACKING file', dest='hackingdoc')
 
 
 def build(bld):
@@ -456,7 +467,25 @@ def build(bld):
             install_path    = '${LOCALEDIR}',
             appname         = 'geany')
 
+    # HTML documentation (build if it is not part of the tree already, as it is required for install)
+    html_doc_filename = os.path.join(bld.out_dir, 'doc', 'geany.html')
+    if bld.env['RST2HTML']:
+        rst2html = bld.env['RST2HTML']
+        bld(
+            source  = ['doc/geany.txt'],
+            deps    = ['doc/geany.css'],
+            target  = 'doc/geany.html',
+            name    = 'geany.html',
+            cwd     = os.path.join(bld.path.abspath(), 'doc'),
+            rule    = '%s  -stg --stylesheet=geany.css geany.txt %s' % (rst2html, html_doc_filename))
+
     # geany.pc
+    if is_win32:
+        # replace backward slashes by forward slashes as they could be interepreted as escape
+        # characters
+        geany_pc_prefix = bld.env['PREFIX'].replace('\\', '/')
+    else:
+        geany_pc_prefix = bld.env['PREFIX']
     bld(
         source          = 'geany.pc.in',
         dct             = {'VERSION': VERSION,
@@ -464,13 +493,13 @@ def build(bld):
                                 (bld.env['gtk_package_name'],
                                  bld.env['minimum_gtk_version'],
                                  MINIMUM_GLIB_VERSION),
-                           'prefix': bld.env['PREFIX'],
+                           'prefix': geany_pc_prefix,
                            'exec_prefix': '${prefix}',
-                           'libdir': os.path.join('${exec_prefix}', 'lib'),
-                           'includedir': os.path.join('${prefix}', 'include'),
-                           'datarootdir': os.path.join('${prefix}', 'share'),
+                           'libdir': '${exec_prefix}/lib',
+                           'includedir': '${prefix}/include',
+                           'datarootdir': '${prefix}/share',
                            'datadir': '${datarootdir}',
-                           'localedir': os.path.join('${datarootdir}', 'locale')})
+                           'localedir': '${datarootdir}/locale'})
 
     if not is_win32:
         # geany.desktop
@@ -522,26 +551,31 @@ def build(bld):
         scintilla/include/SciLexer.h scintilla/include/Scintilla.h
         scintilla/include/Scintilla.iface scintilla/include/ScintillaWidget.h ''')
     bld.install_files('${PREFIX}/include/geany/tagmanager', '''
-        tagmanager/src/tm_file_entry.h tagmanager/src/tm_project.h
+        tagmanager/src/tm_file_entry.h
         tagmanager/src/tm_source_file.h tagmanager/src/tm_parser.h
-        tagmanager/src/tm_symbol.h tagmanager/src/tm_tag.h
+        tagmanager/src/tm_tag.h
         tagmanager/src/tm_tagmanager.h tagmanager/src/tm_work_object.h
         tagmanager/src/tm_workspace.h ''')
     # Docs
     base_dir = '${PREFIX}' if is_win32 else '${DOCDIR}'
     ext = '.txt' if is_win32 else ''
-    html_dir = '' if is_win32 else 'html/'
-    html_name = 'Manual.html' if is_win32 else 'index.html'
     for filename in 'AUTHORS ChangeLog COPYING README NEWS THANKS TODO'.split():
         basename = _uc_first(filename, bld)
         destination_filename = '%s%s' % (basename, ext)
         destination = os.path.join(base_dir, destination_filename)
         bld.install_as(destination, filename)
 
-    start_dir = bld.path.find_dir('doc/images')
-    bld.install_files('${DOCDIR}/%simages' % html_dir, start_dir.ant_glob('*.png'), cwd=start_dir)
+    # install HTML documentation only if it exists, i.e. it was built before
+    # local_html_doc_filename supports installing HTML doc from in-tree geany.html if it exists
+    local_html_doc_filename = os.path.join(bld.path.abspath(), 'doc', 'geany.html')
+    if os.path.exists(html_doc_filename) or os.path.exists(local_html_doc_filename):
+        html_dir = '' if is_win32 else 'html/'
+        html_name = 'Manual.html' if is_win32 else 'index.html'
+        start_dir = bld.path.find_dir('doc/images')
+        bld.install_files('${DOCDIR}/%simages' % html_dir, start_dir.ant_glob('*.png'), cwd=start_dir)
+        bld.install_as('${DOCDIR}/%s%s' % (html_dir, html_name), 'doc/geany.html')
+
     bld.install_as('${DOCDIR}/%s' % _uc_first('manual.txt', bld), 'doc/geany.txt')
-    bld.install_as('${DOCDIR}/%s%s' % (html_dir, html_name), 'doc/geany.html')
     bld.install_as('${DOCDIR}/ScintillaLicense.txt', 'scintilla/License.txt')
     if is_win32:
         bld.install_as('${DOCDIR}/ReadMe.I18n.txt', 'README.I18N')
@@ -652,44 +686,45 @@ def updatepo(ctx):
 
 def apidoc(ctx):
     """generate API reference documentation"""
-    basedir = ctx.path.abspath()
+    ctx = BuildContext()  # create our own context to have ctx.top_dir
+    basedir = ctx.top_dir
     doxygen = _find_program(ctx, 'doxygen')
-    doxyfile = '%s/%s/doc/Doxyfile' % (basedir, out)
-    os.chdir('doc')
+    doxyfile = '%s/doc/Doxyfile' % ctx.out_dir
     Logs.pprint('CYAN', 'Generating API documentation')
     ret = ctx.exec_command('%s %s' % (doxygen, doxyfile))
     if ret != 0:
         raise WafError('Generating API documentation failed')
-    # update hacking.html
-    cmd = _find_rst2html(ctx)
-    ctx.exec_command('%s  -stg --stylesheet=geany.css %s %s' % (cmd, '../HACKING', 'hacking.html'))
-    os.chdir('..')
 
 
-def htmldoc(ctx):
-    """generate HTML documentation"""
-    # first try rst2html.py as it is the upstream default, fall back to rst2html
+def hackingdoc(ctx):
+    """generate HACKING documentation"""
+    ctx = BuildContext()  # create our own context to have ctx.top_dir
+    Logs.pprint('CYAN', 'Generating HACKING documentation')
     cmd = _find_rst2html(ctx)
-    os.chdir('doc')
-    Logs.pprint('CYAN', 'Generating HTML documentation')
-    ctx.exec_command('%s  -stg --stylesheet=geany.css %s %s' % (cmd, 'geany.txt', 'geany.html'))
-    os.chdir('..')
+    hacking_file = os.path.join(ctx.top_dir, 'HACKING')
+    hacking_html_file = os.path.join(ctx.top_dir, 'doc', 'hacking.html')
+    stylesheet = os.path.join(ctx.top_dir, 'doc', 'geany.css')
+    ret = ctx.exec_command('%s  -stg --stylesheet=%s %s %s' % (
+        cmd, stylesheet, hacking_file, hacking_html_file))
+    if ret != 0:
+        raise WafError('Generating HACKING documentation failed')
 
 
 def _find_program(ctx, cmd, **kw):
     def noop(*args):
         pass
 
-    ctx = ConfigurationContext()
-    ctx.to_log = noop
-    ctx.msg = noop
+    if ctx is None or not isinstance(ctx, ConfigurationContext):
+        ctx = ConfigurationContext()
+        ctx.to_log = noop
+        ctx.msg = noop
     return ctx.find_program(cmd, **kw)
 
 
 def _find_rst2html(ctx):
-    cmds = ['rst2html.py', 'rst2html']
+    cmds = ['rst2html', 'rst2html2']
     for command in cmds:
-        cmd = _find_program(ctx, command, mandatory=False)
+        cmd = _find_program(ctx, command, mandatory=False, exts=',.py')
         if cmd:
             break
     if not cmd:

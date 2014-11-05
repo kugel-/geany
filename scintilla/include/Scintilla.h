@@ -18,9 +18,9 @@ extern "C" {
 #if defined(_WIN32)
 /* Return false on failure: */
 int Scintilla_RegisterClasses(void *hInstance);
-int Scintilla_ReleaseResources();
+int Scintilla_ReleaseResources(void);
 #endif
-int Scintilla_LinkLexers();
+int Scintilla_LinkLexers(void);
 
 #ifdef __cplusplus
 }
@@ -92,8 +92,15 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_SETBUFFEREDDRAW 2035
 #define SCI_SETTABWIDTH 2036
 #define SCI_GETTABWIDTH 2121
+#define SCI_CLEARTABSTOPS 2675
+#define SCI_ADDTABSTOP 2676
+#define SCI_GETNEXTTABSTOP 2677
 #define SC_CP_UTF8 65001
 #define SCI_SETCODEPAGE 2037
+#define SC_IME_WINDOWED 0
+#define SC_IME_INLINE 1
+#define SCI_GETIMEINTERACTION 2678
+#define SCI_SETIMEINTERACTION 2679
 #define MARKER_MAX 31
 #define SC_MARK_CIRCLE 0
 #define SC_MARK_ROUNDRECT 1
@@ -530,6 +537,11 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_APPENDTEXT 2282
 #define SCI_GETTWOPHASEDRAW 2283
 #define SCI_SETTWOPHASEDRAW 2284
+#define SC_PHASES_ONE 0
+#define SC_PHASES_TWO 1
+#define SC_PHASES_MULTIPLE 2
+#define SCI_GETPHASESDRAW 2673
+#define SCI_SETPHASESDRAW 2674
 #define SC_EFF_QUALITY_MASK 0xF
 #define SC_EFF_QUALITY_DEFAULT 0
 #define SC_EFF_QUALITY_NON_ANTIALIASED 1
@@ -730,6 +742,10 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SC_CASEINSENSITIVEBEHAVIOUR_IGNORECASE 1
 #define SCI_AUTOCSETCASEINSENSITIVEBEHAVIOUR 2634
 #define SCI_AUTOCGETCASEINSENSITIVEBEHAVIOUR 2635
+#define SC_MULTIAUTOC_ONCE 0
+#define SC_MULTIAUTOC_EACH 1
+#define SCI_AUTOCSETMULTI 2636
+#define SCI_AUTOCGETMULTI 2637
 #define SC_ORDER_PRESORTED 0
 #define SC_ORDER_PERFORMSORT 1
 #define SC_ORDER_CUSTOM 2
@@ -889,6 +905,7 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SCI_SCROLLTOEND 2629
 #define SC_TECHNOLOGY_DEFAULT 0
 #define SC_TECHNOLOGY_DIRECTWRITE 1
+#define SC_TECHNOLOGY_DIRECTWRITERETAIN 2
 #define SCI_SETTECHNOLOGY 2630
 #define SCI_GETTECHNOLOGY 2631
 #define SCI_CREATELOADER 2632
@@ -961,7 +978,8 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
 #define SC_MOD_CONTAINER 0x40000
 #define SC_MOD_LEXERSTATE 0x80000
 #define SC_MOD_INSERTCHECK 0x100000
-#define SC_MODEVENTMASKALL 0x1FFFFF
+#define SC_MOD_CHANGETABSTOPS 0x200000
+#define SC_MODEVENTMASKALL 0x3FFFFF
 #define SC_UPDATE_CONTENT 0x1
 #define SC_UPDATE_SELECTION 0x2
 #define SC_UPDATE_V_SCROLL 0x4
@@ -1030,7 +1048,7 @@ typedef sptr_t (*SciFnDirect)(sptr_t ptr, unsigned int iMessage, uptr_t wParam, 
  * CHARRANGE, TEXTRANGE, FINDTEXTEX, FORMATRANGE, and NMHDR structs.
  * So older code that treats Scintilla as a RichEdit will work. */
 
-#ifdef SCI_NAMESPACE
+#if defined(__cplusplus) && defined(SCI_NAMESPACE)
 namespace Scintilla {
 #endif
 
@@ -1122,7 +1140,7 @@ struct SCNotification {
 	int updated;	/* SCN_UPDATEUI */
 };
 
-#ifdef SCI_NAMESPACE
+#if defined(__cplusplus) && defined(SCI_NAMESPACE)
 }
 #endif
 

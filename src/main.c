@@ -61,6 +61,7 @@
 #include "ui_utils.h"
 #include "utils.h"
 #include "vte.h"
+#include "win32.h"
 
 #include "gtkcompat.h"
 
@@ -607,7 +608,7 @@ static void parse_command_line_options(gint *argc, gchar ***argv)
 	}
 	else
 	{
-		app->configdir = g_build_filename(g_get_user_config_dir(), "geany", NULL);
+		app->configdir = utils_get_user_config_dir();
 	}
 
 	if (generate_tags)
@@ -788,13 +789,13 @@ static gint setup_config_dir(void)
 	return mkdir_result;
 }
 
-/* Signal handling removed since on_exit_clicked() uses functions that are
+/* Signal handling removed since main_quit() uses functions that are
  * illegal in signal handlers
 static void signal_cb(gint sig)
 {
 	if (sig == SIGTERM)
 	{
-		on_exit_clicked(NULL, NULL);
+		main_quit();
 	}
 }
  */
@@ -1157,12 +1158,6 @@ gint main(gint argc, gchar **argv)
 	symbols_init();
 	editor_snippets_init();
 
-	/* registering some basic events */
-	g_signal_connect(main_widgets.window, "delete-event", G_CALLBACK(on_exit_clicked), NULL);
-	g_signal_connect(main_widgets.window, "window-state-event", G_CALLBACK(on_window_state_event), NULL);
-
-	g_signal_connect(msgwindow.scribble, "motion-notify-event", G_CALLBACK(on_motion_event), NULL);
-
 #ifdef HAVE_VTE
 	vte_init();
 #endif
@@ -1253,9 +1248,18 @@ static void queue_free(GQueue *queue)
 }
 
 
-void main_quit(void)
+static void do_main_quit(void)
 {
 	geany_debug("Quitting...");
+
+	configuration_save();
+
+	if (app->project != NULL)
+		project_close(FALSE);   /* save project session files */
+
+	document_close_all();
+
+	main_status.quitting = TRUE;
 
 #ifdef HAVE_SOCKET
 	socket_finalize();
@@ -1348,6 +1352,47 @@ void main_quit(void)
 	gtk_main_quit();
 }
 
+
+static gboolean check_no_unsaved(void)
+{
+	guint i;
+
+	for (i = 0; i < documents_array->len; i++)
+	{
+		if (documents[i]->is_valid && documents[i]->changed)
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;    /* no unsaved edits */
+}
+
+
+/* Returns false when quitting is aborted due to user cancellation */
+gboolean main_quit(void)
+{
+	main_status.quitting = TRUE;
+
+	if (! check_no_unsaved())
+	{
+		if (document_account_for_unsaved())
+		{
+			do_main_quit();
+			return TRUE;
+		}
+	}
+	else
+	if (! prefs.confirm_exit ||
+		dialogs_show_question_full(NULL, GTK_STOCK_QUIT, GTK_STOCK_CANCEL, NULL,
+			_("Do you really want to quit?")))
+	{
+		do_main_quit();
+		return TRUE;
+	}
+
+	main_status.quitting = FALSE;
+	return FALSE;
+}
 
 /**
  *  Reloads most of Geany's configuration files without restarting. Currently the following

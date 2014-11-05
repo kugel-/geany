@@ -118,6 +118,10 @@ typedef struct GeanyDocument
 	 * not be set elsewhere.
 	 * @see file_name. */
 	gchar 			*real_path;
+	/** A pseudo-unique ID for this document.
+	 * @c 0 is reserved as an unused value.
+	 * @see document_find_by_id(). */
+	guint			 id;
 
 	struct GeanyDocumentPrivate *priv;	/* should be last, append fields before this item */
 }
@@ -192,7 +196,9 @@ gboolean document_save_file_as(GeanyDocument *doc, const gchar *utf8_fname);
 GeanyDocument* document_open_file(const gchar *locale_filename, gboolean readonly,
 		GeanyFiletype *ft, const gchar *forced_enc);
 
-gboolean document_reload_file(GeanyDocument *doc, const gchar *forced_enc);
+gboolean document_reload_force(GeanyDocument *doc, const gchar *forced_enc);
+
+gboolean document_reload_prompt(GeanyDocument *doc, const gchar *forced_enc);
 
 void document_set_text_changed(GeanyDocument *doc, gboolean changed);
 
@@ -205,6 +211,8 @@ void document_rename_file(GeanyDocument *doc, const gchar *new_filename);
 GeanyDocument *document_index(gint idx);
 
 GeanyDocument *document_find_by_sci(ScintillaObject *sci);
+
+GeanyDocument *document_find_by_id(guint id);
 
 gint document_get_notebook_page(GeanyDocument *doc);
 
@@ -236,21 +244,21 @@ void document_open_file_list(const gchar *data, gsize length);
 void document_open_files(const GSList *filenames, gboolean readonly, GeanyFiletype *ft,
 		const gchar *forced_enc);
 
-gboolean document_search_bar_find(GeanyDocument *doc, const gchar *text, gint flags, gboolean inc,
+gboolean document_search_bar_find(GeanyDocument *doc, const gchar *text, gboolean inc,
 		gboolean backwards);
 
 gint document_find_text(GeanyDocument *doc, const gchar *text, const gchar *original_text,
-		gint flags, gboolean search_backwards, GeanyMatchInfo **match_,
+		GeanyFindFlags flags, gboolean search_backwards, GeanyMatchInfo **match_,
 		gboolean scroll, GtkWidget *parent);
 
 gint document_replace_text(GeanyDocument *doc, const gchar *find_text, const gchar *original_find_text,
-		const gchar *replace_text, gint flags, gboolean search_backwards);
+		const gchar *replace_text, GeanyFindFlags flags, gboolean search_backwards);
 
 gint document_replace_all(GeanyDocument *doc, const gchar *find_text, const gchar *replace_text,
-		const gchar *original_find_text, const gchar *original_replace_text, gint flags);
+		const gchar *original_find_text, const gchar *original_replace_text, GeanyFindFlags flags);
 
 void document_replace_sel(GeanyDocument *doc, const gchar *find_text, const gchar *replace_text,
-						  const gchar *original_find_text, const gchar *original_replace_text, gint flags);
+						  const gchar *original_find_text, const gchar *original_replace_text, GeanyFindFlags flags);
 
 void document_update_tags(GeanyDocument *doc);
 

@@ -39,6 +39,7 @@
 #include "documentprivate.h"
 #include "filetypes.h"
 #include "keybindingsprivate.h"
+#include "main.h"
 #include "msgwindow.h"
 #include "navqueue.h"
 #include "notebook.h"
@@ -1364,7 +1365,7 @@ static gboolean cb_func_file_action(guint key_id)
 			on_print1_activate(NULL, NULL);
 			break;
 		case GEANY_KEYS_FILE_QUIT:
-			on_quit1_activate(NULL, NULL);
+			main_quit();
 			break;
 	}
 	return TRUE;
@@ -1465,9 +1466,9 @@ static gboolean cb_func_search_action(guint key_id)
 				text = get_current_word_or_sel(doc, TRUE);
 
 			if (sci_has_selection(sci))
-				search_mark_all(doc, text, SCFIND_MATCHCASE);
+				search_mark_all(doc, text, GEANY_FIND_MATCHCASE);
 			else
-				search_mark_all(doc, text, SCFIND_MATCHCASE | SCFIND_WHOLEWORD);
+				search_mark_all(doc, text, GEANY_FIND_MATCHCASE | GEANY_FIND_WHOLEWORD);
 
 			g_free(text);
 			break;
@@ -1778,20 +1779,19 @@ static void cb_func_switch_tablastused(G_GNUC_UNUSED guint key_id)
 /* move document left/right/first/last */
 static void cb_func_move_tab(guint key_id)
 {
-	GtkWidget *sci;
+	GtkWidget *child;
 	GtkNotebook *nb = GTK_NOTEBOOK(main_widgets.notebook);
 	gint cur_page = gtk_notebook_get_current_page(nb);
-	GeanyDocument *doc = document_get_current();
 
-	if (doc == NULL)
+	if (cur_page < 0)
 		return;
 
-	sci = GTK_WIDGET(doc->editor->sci);
+	child = gtk_notebook_get_nth_page(nb, cur_page);
 
 	switch (key_id)
 	{
 		case GEANY_KEYS_NOTEBOOK_MOVETABLEFT:
-			gtk_notebook_reorder_child(nb, sci, cur_page - 1);	/* notebook wraps around by default */
+			gtk_notebook_reorder_child(nb, child, cur_page - 1);	/* notebook wraps around by default */
 			break;
 		case GEANY_KEYS_NOTEBOOK_MOVETABRIGHT:
 		{
@@ -1799,14 +1799,14 @@ static void cb_func_move_tab(guint key_id)
 
 			if (npage == gtk_notebook_get_n_pages(nb))
 				npage = 0;	/* wraparound */
-			gtk_notebook_reorder_child(nb, sci, npage);
+			gtk_notebook_reorder_child(nb, child, npage);
 			break;
 		}
 		case GEANY_KEYS_NOTEBOOK_MOVETABFIRST:
-			gtk_notebook_reorder_child(nb, sci, (file_prefs.tab_order_ltr) ? 0 : -1);
+			gtk_notebook_reorder_child(nb, child, (file_prefs.tab_order_ltr) ? 0 : -1);
 			break;
 		case GEANY_KEYS_NOTEBOOK_MOVETABLAST:
-			gtk_notebook_reorder_child(nb, sci, (file_prefs.tab_order_ltr) ? -1 : 0);
+			gtk_notebook_reorder_child(nb, child, (file_prefs.tab_order_ltr) ? -1 : 0);
 			break;
 	}
 	return;
@@ -2269,6 +2269,7 @@ static void reflow_paragraph(GeanyEditor *editor)
 	reflow_lines(editor, column);
 	if (!sel)
 		sci_set_anchor(sci, -1);
+	sci_goto_pos(sci, sci_get_line_end_position(sci, sci_get_current_line(sci)), TRUE);
 
 	sci_end_undo_action(sci);
 }

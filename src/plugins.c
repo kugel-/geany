@@ -52,6 +52,7 @@
 #include "toolbar.h"
 #include "ui_utils.h"
 #include "utils.h"
+#include "win32.h"
 
 #include "gtkcompat.h"
 
@@ -97,7 +98,7 @@ static DocumentFuncs doc_funcs = {
 	&document_open_file,
 	&document_open_files,
 	&document_remove_page,
-	&document_reload_file,
+	&document_reload_force,
 	&document_set_encoding,
 	&document_set_text_changed,
 	&document_set_filetype,
@@ -110,7 +111,8 @@ static DocumentFuncs doc_funcs = {
 	&document_get_notebook_page,
 	&document_compare_by_display_name,
 	&document_compare_by_tab_order,
-	&document_compare_by_tab_order_reverse
+	&document_compare_by_tab_order_reverse,
+	&document_find_by_id
 };
 
 static EditorFuncs editor_funcs = {

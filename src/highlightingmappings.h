@@ -1326,7 +1326,10 @@ static const HLStyle highlighting_styles_RUST[] =
 	{ SCE_RUST_IDENTIFIER,			"identifier",				FALSE },
 	{ SCE_RUST_LIFETIME,			"lifetime",					FALSE },
 	{ SCE_RUST_MACRO,				"macro",					FALSE },
-	{ SCE_RUST_LEXERROR,			"lexerror",					FALSE }
+	{ SCE_RUST_LEXERROR,			"lexerror",					FALSE },
+	{ SCE_RUST_BYTESTRING,			"bytestring",				FALSE },
+	{ SCE_RUST_BYTESTRINGR,			"bytestringr",				FALSE },
+	{ SCE_RUST_BYTECHARACTER,		"bytecharacter",			FALSE }
 };
 static const HLKeyword highlighting_keywords_RUST[] =
 {
@@ -1385,7 +1388,8 @@ static const HLStyle highlighting_styles_SQL[] =
 	{ SCE_SQL_SQLPLUS,					"sqlplus",					FALSE },
 	{ SCE_SQL_SQLPLUS_PROMPT,			"sqlplus_prompt",			FALSE },
 	{ SCE_SQL_SQLPLUS_COMMENT,			"sqlplus_comment",			FALSE },
-	{ SCE_SQL_QUOTEDIDENTIFIER,			"quotedidentifier",			FALSE }
+	{ SCE_SQL_QUOTEDIDENTIFIER,			"quotedidentifier",			FALSE },
+	{ SCE_SQL_QOPERATOR,				"qoperator",				FALSE }
 	/* these are for user-defined keywords we don't set yet */
 	/*{ SCE_SQL_USER1,					"user1",					FALSE },
 	{ SCE_SQL_USER2,					"user2",					FALSE },
@@ -1480,6 +1484,7 @@ static const HLStyle highlighting_styles_VHDL[] =
 	{ SCE_VHDL_DEFAULT,			"default",				FALSE },
 	{ SCE_VHDL_COMMENT,			"comment",				FALSE },
 	{ SCE_VHDL_COMMENTLINEBANG,	"comment_line_bang",	FALSE },
+	{ SCE_VHDL_BLOCK_COMMENT,	"block_comment",		FALSE },
 	{ SCE_VHDL_NUMBER,			"number",				FALSE },
 	{ SCE_VHDL_STRING,			"string",				FALSE },
 	{ SCE_VHDL_OPERATOR,		"operator",				FALSE },

@@ -13,9 +13,9 @@
  wide tag information.
 
  The workspace is intended to contain a list of global tags
- and a set of work objects (projects or individual files). You need not use the
+ and a set of work objects (individual files). You need not use the
  workspace, though, to use tag manager, unless you need things like global tags
- and a place to store all current open projects and individual files. TMWorkspace
+ and a place to store all current open files. TMWorkspace
  is derived from TMWorkObject.
 */
 
@@ -35,7 +35,6 @@
 
 #include "tm_tag.h"
 #include "tm_workspace.h"
-#include "tm_project.h"
 
 
 static TMWorkspace *theWorkspace = NULL;
@@ -567,10 +566,7 @@ void tm_workspace_dump(void)
 			guint i;
 			for (i=0; i < theWorkspace->work_objects->len; ++i)
 			{
-				if (IS_TM_PROJECT(TM_WORK_OBJECT(theWorkspace->work_objects->pdata[i])))
-					tm_project_dump(TM_PROJECT(theWorkspace->work_objects->pdata[i]));
-				else
-					tm_work_object_dump(TM_WORK_OBJECT(theWorkspace->work_objects->pdata[i]));
+				tm_work_object_dump(TM_WORK_OBJECT(theWorkspace->work_objects->pdata[i]));
 			}
 		}
 	}
@@ -745,27 +741,23 @@ tm_workspace_find_scoped (const char *name, const char *scope, gint type,
 const TMTag *
 tm_get_current_tag (GPtrArray * file_tags, const gulong line, const guint tag_types)
 {
-	GPtrArray *const local = tm_tags_extract (file_tags, tag_types);
 	TMTag *matching_tag = NULL;
-	if (local && local->len)
+	if (file_tags && file_tags->len)
 	{
 		guint i;
 		gulong matching_line = 0;
-		glong delta;
 
-		for (i = 0; (i < local->len); ++i)
+		for (i = 0; (i < file_tags->len); ++i)
 		{
-			TMTag *tag = TM_TAG (local->pdata[i]);
-			delta = line - tag->atts.entry.line;
-			if (delta >= 0 && (gulong)delta < line - matching_line)
+			TMTag *tag = TM_TAG (file_tags->pdata[i]);
+			if (tag && tag->type & tag_types &&
+				tag->atts.entry.line <= line && tag->atts.entry.line > matching_line)
 			{
 				matching_tag = tag;
 				matching_line = tag->atts.entry.line;
 			}
 		}
 	}
-	if (local)
-		g_ptr_array_free (local, TRUE);
 	return matching_tag;
 }
 

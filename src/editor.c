@@ -404,6 +404,9 @@ static gint editor_get_long_line_column(void)
 }
 
 
+#define get_project_pref(id)\
+	(app->project ? app->project->priv->id : editor_prefs.id)
+
 static const GeanyEditorPrefs *
 get_default_prefs(void)
 {
@@ -415,6 +418,9 @@ get_default_prefs(void)
 	eprefs.indentation = (GeanyIndentPrefs*)editor_get_indent_prefs(NULL);
 	eprefs.long_line_type = editor_get_long_line_type();
 	eprefs.long_line_column = editor_get_long_line_column();
+	eprefs.line_wrapping = get_project_pref(line_wrapping);
+	eprefs.line_break_column = get_project_pref(line_break_column);
+	eprefs.auto_continue_multiline = get_project_pref(auto_continue_multiline);
 	return &eprefs;
 }
 
@@ -553,11 +559,11 @@ static void check_line_breaking(GeanyEditor *editor, gint pos)
 	lstart = sci_get_position_from_line(sci, line);
 
 	/* use column instead of position which might be different with multibyte characters */
-	if (col < editor_prefs.line_break_column)
+	if (col < get_project_pref(line_break_column))
 		return;
 
 	/* look for the last space before line_break_column */
-	pos = MIN(pos, lstart + editor_prefs.line_break_column);
+	pos = MIN(pos, lstart + get_project_pref(line_break_column));
 
 	while (pos > lstart)
 	{
@@ -934,7 +940,7 @@ static void auto_update_margin_width(GeanyEditor *editor)
 	if (editor->document->priv->line_count != next_linecount)
 	{
 		doc->priv->line_count = next_linecount;
-		sci_set_line_numbers(editor->sci, TRUE, 0);
+		sci_set_line_numbers(editor->sci, TRUE);
 	}
 }
 
@@ -1127,7 +1133,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *object, GeanyEditor *edi
 
 		case SCN_ZOOM:
 			/* recalculate line margin width */
-			sci_set_line_numbers(sci, editor_prefs.show_linenumber_margin, 0);
+			sci_set_line_numbers(sci, editor_prefs.show_linenumber_margin);
 			break;
 	}
 	/* we always return FALSE here to let plugins handle the event too */
@@ -1234,7 +1240,7 @@ static void on_new_line_added(GeanyEditor *editor)
 		insert_indent_after_line(editor, line - 1);
 	}
 
-	if (editor_prefs.auto_continue_multiline)
+	if (get_project_pref(auto_continue_multiline))
 	{	/* " * " auto completion in multiline C/C++/D/Java comments */
 		auto_multiline(editor, line);
 	}
@@ -4755,7 +4761,7 @@ static gboolean register_named_icon(ScintillaObject *sci, guint id, const gchar 
  * @note The @c "sci-notify" signal is connected separately. */
 static ScintillaObject *create_new_sci(GeanyEditor *editor)
 {
-	ScintillaObject	*sci;
+	ScintillaObject *sci;
 
 	sci = SCINTILLA(scintilla_new());
 
@@ -4774,7 +4780,7 @@ static ScintillaObject *create_new_sci(GeanyEditor *editor)
 	setup_sci_keys(sci);
 
 	sci_set_symbol_margin(sci, editor_prefs.show_markers_margin);
-	sci_set_lines_wrapped(sci, editor_prefs.line_wrapping);
+	sci_set_lines_wrapped(sci, editor->line_wrapping);
 	sci_set_caret_policy_x(sci, CARET_JUMPS | CARET_EVEN, 0);
 	/*sci_set_caret_policy_y(sci, CARET_JUMPS | CARET_EVEN, 0);*/
 	SSM(sci, SCI_AUTOCSETSEPARATOR, '\n', 0);
@@ -4817,6 +4823,8 @@ ScintillaObject *editor_create_widget(GeanyEditor *editor)
 {
 	const GeanyIndentPrefs *iprefs = get_default_indent_prefs();
 	ScintillaObject *old, *sci;
+	GeanyIndentType old_indent_type = editor->indent_type;
+	gint old_indent_width = editor->indent_width;
 
 	/* temporarily change editor to use the new sci widget */
 	old = editor->sci;
@@ -4829,7 +4837,11 @@ ScintillaObject *editor_create_widget(GeanyEditor *editor)
 
 	/* if editor already had a widget, restore it */
 	if (old)
+	{
+		editor->indent_type = old_indent_type;
+		editor->indent_width = old_indent_width;
 		editor->sci = old;
+	}
 	return sci;
 }
 
@@ -4843,7 +4855,7 @@ GeanyEditor *editor_create(GeanyDocument *doc)
 	doc->editor = editor;	/* needed in case some editor functions/callbacks expect it */
 
 	editor->auto_indent = (iprefs->auto_indent_mode != GEANY_AUTOINDENT_NONE);
-	editor->line_wrapping = editor_prefs.line_wrapping;
+	editor->line_wrapping = get_project_pref(line_wrapping);
 	editor->scroll_percent = -1.0F;
 	editor->line_breaking = FALSE;
 
@@ -4982,7 +4994,7 @@ void editor_set_indentation_guides(GeanyEditor *editor)
 }
 
 
-/* Apply just the prefs that can change in the Preferences dialog */
+/* Apply non-document prefs that can change in the Preferences dialog */
 void editor_apply_update_prefs(GeanyEditor *editor)
 {
 	ScintillaObject *sci;
@@ -5014,7 +5026,7 @@ void editor_apply_update_prefs(GeanyEditor *editor)
 	sci_set_visible_white_spaces(sci, editor_prefs.show_white_space);
 	sci_set_visible_eols(sci, editor_prefs.show_line_endings);
 	sci_set_symbol_margin(sci, editor_prefs.show_markers_margin);
-	sci_set_line_numbers(sci, editor_prefs.show_linenumber_margin, 0);
+	sci_set_line_numbers(sci, editor_prefs.show_linenumber_margin);
 
 	sci_set_folding_margin_visible(sci, editor_prefs.folding);
 

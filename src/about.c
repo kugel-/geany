@@ -47,7 +47,7 @@
 #define BUILDDATE "<span size=\"smaller\">%s</span>"
 #define COPYRIGHT _("Copyright (c)  2005-2014\nColomban Wendling\nNick Treleaven\nMatthew Brush\nEnrico Tröger\nFrank Lanitz\nAll rights reserved.")
 
-const gchar *translators[][2] = {
+static const gchar *translators[][2] = {
 	{ "ar", "Fayssal Chamekh &lt;chamfay@gmail.com&gt;"},
 	{ "ast", "Marcos Costales &lt;marcoscostales@gmail.com&gt;"},
 	{ "be_BY", "Yura Siamashka &lt;yurand2@gmail.com&gt;" },
@@ -92,7 +92,7 @@ const gchar *translators[][2] = {
 };
 static const guint translators_len = G_N_ELEMENTS(translators);
 
-const gchar *prev_translators[][2] = {
+static const gchar *prev_translators[][2] = {
 	{ "es", "Damián Viano &lt;debian@damianv.com.ar&gt;\nNacho Cabanes &lt;ncabanes@gmail.com&gt;" },
 	{ "pl", "Jacek Wolszczak &lt;shutdownrunner@o2.pl&gt;\nJarosław Foksa &lt;jfoksa@gmail.com&gt;" },
 	{ "nl", "Kurt De Bree &lt;kdebree@telenet.be&gt;" }
@@ -458,31 +458,17 @@ void about_dialog_show(void)
 
 static void header_eventbox_style_set(GtkWidget *widget)
 {
-	static gint recursive = 0;
-	GtkStyle *style;
-
-	if (recursive > 0)
-		return;
-
-	++recursive;
-	style = gtk_widget_get_style(widget);
-	gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &style->bg[GTK_STATE_SELECTED]);
-	--recursive;
+	GtkStyle *style = gtk_widget_get_style(widget);
+	if (! gdk_color_equal(&style->bg[GTK_STATE_NORMAL], &style->bg[GTK_STATE_SELECTED]))
+		gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &style->bg[GTK_STATE_SELECTED]);
 }
 
 
 static void header_label_style_set(GtkWidget *widget)
 {
-	static gint recursive = 0;
-	GtkStyle *style;
-
-	if (recursive > 0)
-		return;
-
-	++recursive;
-	style = gtk_widget_get_style(widget);
-	gtk_widget_modify_fg(widget, GTK_STATE_NORMAL, &style->fg[GTK_STATE_SELECTED]);
-	--recursive;
+	GtkStyle *style = gtk_widget_get_style(widget);
+	if (! gdk_color_equal(&style->fg[GTK_STATE_NORMAL], &style->fg[GTK_STATE_SELECTED]))
+		gtk_widget_modify_fg(widget, GTK_STATE_NORMAL, &style->fg[GTK_STATE_SELECTED]);
 }
 
 

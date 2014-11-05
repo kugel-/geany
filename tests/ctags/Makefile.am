@@ -14,6 +14,7 @@ test_sources = \
 	68hc11.asm						\
 	angle_bracket.cpp				\
 	anonymous_functions.php			\
+	arraylist.js					\
 	array_ref_and_out.cs			\
 	array_spec.f90					\
 	array-spec.f90					\
@@ -111,6 +112,7 @@ test_sources = \
 	char-selector.f90				\
 	classes.php						\
 	common.f						\
+	complex-return.js				\
 	continuation.f90				\
 	countall.sql					\
 	cpp_destructor.cpp				\
@@ -198,6 +200,7 @@ test_sources = \
 	objectivec_protocol.mm			\
 	Package.pm						\
 	php5_5_class_kw.php				\
+	parenthesis-rvalue.js			\
 	preprocessor.f90				\
 	procedure_pointer_module.f90	\
 	procpoint.f90					\

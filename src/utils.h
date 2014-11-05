@@ -27,9 +27,11 @@
 #ifndef GEANY_UTILS_H
 #define GEANY_UTILS_H 1
 
+#include <string.h>
+#include <time.h>
+
 #include <glib.h>
 #include <gdk/gdk.h> /* for GdkColor */
-#include <time.h>
 
 G_BEGIN_DECLS
 
@@ -286,6 +288,8 @@ gchar **utils_copy_environment(const gchar **exclude_vars, const gchar *first_va
 GDate *utils_parse_date(const gchar *input);
 
 gchar *utils_parse_and_format_build_date(const gchar *input);
+
+gchar *utils_get_user_config_dir(void);
 
 G_END_DECLS
 

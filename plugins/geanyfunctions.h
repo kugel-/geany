@@ -52,8 +52,8 @@
 	geany_functions->p_document->document_open_files
 #define document_remove_page \
 	geany_functions->p_document->document_remove_page
-#define document_reload_file \
-	geany_functions->p_document->document_reload_file
+#define document_reload_force \
+	geany_functions->p_document->document_reload_force
 #define document_set_encoding \
 	geany_functions->p_document->document_set_encoding
 #define document_set_text_changed \
@@ -80,6 +80,8 @@
 	geany_functions->p_document->document_compare_by_tab_order
 #define document_compare_by_tab_order_reverse \
 	geany_functions->p_document->document_compare_by_tab_order_reverse
+#define document_find_by_id \
+	geany_functions->p_document->document_find_by_id
 #define editor_get_indent_prefs \
 	geany_functions->p_editor->editor_get_indent_prefs
 #define editor_create_widget \

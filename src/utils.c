@@ -37,6 +37,7 @@
 #include "support.h"
 #include "templates.h"
 #include "ui_utils.h"
+#include "win32.h"
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -1628,9 +1629,9 @@ const gchar *utils_get_default_dir_utf8(void)
  *  @param flags Flags from GSpawnFlags.
  *  @param child_setup A function to run in the child just before exec().
  *  @param user_data The user data for child_setup.
- *  @param std_out The return location for child output.
- *  @param std_err The return location for child error messages.
- *  @param exit_status The child exit status, as returned by waitpid().
+ *  @param std_out The return location for child output, or @a NULL.
+ *  @param std_err The return location for child error messages, or @a NULL.
+ *  @param exit_status The child exit status, as returned by waitpid(), or @a NULL.
  *  @param error The return location for error or @a NULL.
  *
  *  @return @c TRUE on success, @c FALSE if an error was set.
@@ -2076,4 +2077,14 @@ gchar *utils_parse_and_format_build_date(const gchar *input)
 	}
 
 	return g_strdup(input);
+}
+
+
+gchar *utils_get_user_config_dir(void)
+{
+#ifdef G_OS_WIN32
+	return win32_get_user_config_dir();
+#else
+	return g_build_filename(g_get_user_config_dir(), "geany", NULL);
+#endif
 }

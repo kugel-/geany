@@ -83,6 +83,77 @@ static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, TCHAR *szCmdline
 static VOID ReadFromPipe(HANDLE hRead, HANDLE hWrite, HANDLE hFile, GError **error);
 
 
+/* The timer handle used to refresh windows below modal native dialogs. If
+ * ever more than one dialog can be shown at a time, this needs to be changed
+ * to be for specific dialogs. */
+static UINT_PTR dialog_timer = 0;
+
+
+G_INLINE_FUNC void win32_dialog_reset_timer(HWND hwnd)
+{
+	if (G_UNLIKELY(dialog_timer != 0))
+	{
+		KillTimer(hwnd, dialog_timer);
+		dialog_timer = 0;
+	}
+}
+
+
+VOID CALLBACK
+win32_dialog_update_main_window(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
+{
+	gint i;
+
+	/* Pump the main window loop a bit, but not enough to lock-up.
+	 * The typical `while(gtk_events_pending()) gtk_main_iteration();`
+	 * loop causes the entire operating system to lock-up. */
+	for (i = 0; i < 4 && gtk_events_pending(); i++)
+		gtk_main_iteration();
+
+	/* Cancel any pending timers since we just did an update */
+	win32_dialog_reset_timer(hwnd);
+}
+
+
+G_INLINE_FUNC UINT_PTR win32_dialog_queue_main_window_redraw(HWND dlg, UINT msg,
+	WPARAM wParam, LPARAM lParam, gboolean postpone)
+{
+	switch (msg)
+	{
+		/* Messages that likely mean the window below a dialog needs to be re-drawn. */
+		case WM_WINDOWPOSCHANGED:
+		case WM_MOVE:
+		case WM_SIZE:
+		case WM_THEMECHANGED:
+			if (postpone)
+			{
+				win32_dialog_reset_timer(dlg);
+				dialog_timer = SetTimer(dlg, 0, 33 /* around 30fps */, win32_dialog_update_main_window);
+			}
+			else
+				win32_dialog_update_main_window(dlg, msg, wParam, lParam);
+			break;
+	}
+	return 0; /* always let the default proc handle it */
+}
+
+
+/* This function is called for OPENFILENAME lpfnHook function and it establishes
+ * a timer that is reset each time which will update the main window loop eventually. */
+UINT_PTR CALLBACK win32_dialog_explorer_hook_proc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	return win32_dialog_queue_main_window_redraw(dlg, msg, wParam, lParam, TRUE);
+}
+
+
+/* This function is called for old-school win32 dialogs that accept a proper
+ * lpfnHook function for all messages, it doesn't use a timer. */
+UINT_PTR CALLBACK win32_dialog_hook_proc(HWND dlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	return win32_dialog_queue_main_window_redraw(dlg, msg, wParam, lParam, FALSE);
+}
+
+
 static wchar_t *get_file_filters(void)
 {
 	gchar *string;
@@ -206,6 +277,7 @@ static wchar_t *get_dir_for_path(const gchar *utf8_filename)
  * folder when the dialog is initialised. Yeah, I like Windows. */
 INT CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
 {
+	win32_dialog_hook_proc(hwnd, uMsg, lp, pData);
 	switch (uMsg)
 	{
 		case BFFM_INITIALIZED:
@@ -309,7 +381,8 @@ gchar *win32_show_project_open_dialog(GtkWidget *parent, const gchar *title,
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY;
+	of.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY | OFN_ENABLEHOOK;
+	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	if (! allow_new_file)
 		of.Flags |= OFN_FILEMUSTEXIST;
 
@@ -371,7 +444,8 @@ gboolean win32_show_document_open_dialog(GtkWindow *parent, const gchar *title, 
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_ALLOWMULTISELECT | OFN_FILEMUSTEXIST | OFN_EXPLORER;
+	of.Flags = OFN_ALLOWMULTISELECT | OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.lpfnHook = win32_dialog_explorer_hook_proc;
 
 	retval = GetOpenFileNameW(&of);
 
@@ -464,7 +538,8 @@ gchar *win32_show_document_save_as_dialog(GtkWindow *parent, const gchar *title,
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_FILEMUSTEXIST | OFN_EXPLORER;
+	of.Flags = OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	retval = GetSaveFileNameW(&of);
 
 	if (! retval)
@@ -516,7 +591,8 @@ gchar *win32_show_file_dialog(GtkWindow *parent, const gchar *title, const gchar
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_FILEMUSTEXIST | OFN_EXPLORER;
+	of.Flags = OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	retval = GetOpenFileNameW(&of);
 
 	if (! retval)
@@ -551,7 +627,8 @@ void win32_show_font_dialog(void)
 	cf.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(main_widgets.window));
 	cf.lpLogFont = &lf;
 	/* support CF_APPLY? */
-	cf.Flags = CF_NOSCRIPTSEL | CF_FORCEFONTEXIST | CF_INITTOLOGFONTSTRUCT | CF_SCREENFONTS;
+	cf.Flags = CF_NOSCRIPTSEL | CF_FORCEFONTEXIST | CF_INITTOLOGFONTSTRUCT | CF_SCREENFONTS | CF_ENABLEHOOK;
+	cf.lpfnHook = win32_dialog_hook_proc;
 
 	retval = ChooseFont(&cf);
 
@@ -578,7 +655,8 @@ void win32_show_color_dialog(const gchar *colour)
 	cc.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(main_widgets.window));
 	cc.lpCustColors = (LPDWORD) acr_cust_clr;
 	cc.rgbResult = (colour != NULL) ? utils_parse_color_to_bgr(colour) : 0;
-	cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+	cc.Flags = CC_FULLOPEN | CC_RGBINIT | CC_ENABLEHOOK;
+	cc.lpfnHook = win32_dialog_hook_proc;
 
 	if (ChooseColor(&cc))
 	{
@@ -636,7 +714,8 @@ void win32_show_pref_file_dialog(GtkEntry *item)
 	of.lpstrInitialDir = NULL;
 	of.lpstrTitle = NULL;
 	of.lpstrDefExt = L"exe";
-	of.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_EXPLORER;
+	of.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	retval = GetOpenFileNameW(&of);
 
 	if (!retval)
@@ -1395,8 +1474,16 @@ gchar *win32_get_shortcut_target(const gchar *file_name)
 {
 	gchar *path = NULL;
 	wchar_t *wfilename = g_utf8_to_utf16(file_name, -1, NULL, NULL, NULL);
-
-	resolve_link(GDK_WINDOW_HWND(gtk_widget_get_window(main_widgets.window)), wfilename, &path);
+	HWND hWnd = NULL;
+	
+	if (main_widgets.window != NULL)
+	{
+		GdkWindow *window = gtk_widget_get_window(main_widgets.window);
+		if (window != NULL)
+			hWnd = GDK_WINDOW_HWND(window);
+	}
+	
+	resolve_link(hWnd, wfilename, &path);
 	g_free(wfilename);
 
 	if (path == NULL)
@@ -1417,5 +1504,31 @@ gchar *win32_get_installation_dir(void)
 	return g_win32_get_package_installation_directory_of_module(NULL);
 }
 
+
+gchar *win32_get_user_config_dir(void)
+{
+	HRESULT hr;
+	wchar_t path[MAX_PATH];
+
+	hr = SHGetFolderPathAndSubDirW(NULL, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, L"geany", path);
+	if (SUCCEEDED(hr))
+	{
+		// GLib always uses UTF-8 for filename encoding on Windows
+		int u8_size = WideCharToMultiByte(CP_UTF8, 0, path, -1, NULL, 0, NULL, NULL);
+		if (u8_size > 0)
+		{
+			gchar *u8_path = g_malloc0(u8_size + 1);
+			if (u8_path != NULL &&
+				WideCharToMultiByte(CP_UTF8, 0, path, -1, u8_path, u8_size, NULL, NULL))
+			{
+				return u8_path;
+			}
+		}
+	}
+
+	// glib fallback
+	g_warning("Failed to retrieve Windows config dir, falling back to default");
+	return g_build_filename(g_get_user_config_dir(), "geany", NULL);
+}
 
 #endif

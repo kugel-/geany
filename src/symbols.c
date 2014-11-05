@@ -50,6 +50,7 @@
 #include "sciwrappers.h"
 #include "sidebar.h"
 #include "support.h"
+#include "tm_parser.h"
 #include "tm_tag.h"
 #include "ui_utils.h"
 #include "utils.h"
@@ -272,7 +273,8 @@ GString *symbols_find_tags_as_string(GPtrArray *tags_array, guint tag_types, gin
 			/* the check for tag_lang == lang is necessary to avoid wrong type colouring of
 			 * e.g. PHP classes in C++ files
 			 * lang = -2 disables the check */
-			if (tag->name && (tag_lang == lang || lang == -2))
+			if (tag->name && (tag_lang == lang || lang == -2 ||
+				(lang == TM_PARSER_CPP && tag_lang == TM_PARSER_C)))
 			{
 				if (j != 0)
 					g_string_append_c(s, ' ');
@@ -2332,7 +2334,7 @@ static void on_find_usage(GtkWidget *widget, G_GNUC_UNUSED gpointer unused)
 		if (widget == symbol_menu.find_in_files)
 			search_show_find_in_files_dialog_full(tag->name, NULL);
 		else
-			search_find_usage(tag->name, tag->name, SCFIND_WHOLEWORD | SCFIND_MATCHCASE,
+			search_find_usage(tag->name, tag->name, GEANY_FIND_WHOLEWORD | GEANY_FIND_MATCHCASE,
 				widget == symbol_menu.find_usage);
 
 		tm_tag_unref(tag);
