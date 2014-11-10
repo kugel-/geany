@@ -1,0 +1,984 @@
+/*
+ *  Copyright 2012 Colomban Wendling  <ban(at)herbesfolles(dot)org>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ */
+
+
+[CCode(cheader_filename="geanyplugin.h",
+       cname="Geany",
+       gir_namespace="Geany",
+       gir_version="1.0")]
+namespace Geany
+{
+	[Compact]
+	public class App {
+		public bool								debug_mode;
+		public string							configdir;
+		public string							datadir;
+		public string							docdir;
+		public unowned TagManager.Workspace		tm_workspace;
+		public unowned Project?					project;
+	}
+	/* reviewed */
+	[CCode (cheader_fileanme="foo.h")]
+	[Compact]
+	public class Data {
+		public App							app;
+		public MainWidgets					main_widgets;
+		public GLib.GenericArray<Document>	documents_array;
+		public GLib.GenericArray<Filetype>	filetypes_array;
+		public Prefs						*prefs;
+		public InterfacePrefs				*interface_prefs;
+		public ToolbarPrefs					*toolbar_prefs;
+		public EditorPrefs					*editor_prefs;
+		public FilePrefs					*file_prefs;
+		public SearchPrefs					*search_prefs;
+		public ToolPrefs					*tool_prefs;
+		public TemplatePrefs				*template_prefs;
+		public BuildInfo					*build_info;
+		public GLib.SList<Filetype>			filetypes_by_title;
+	}
+	public Data data;
+	/* reviewed */
+	[CCode (cprefix = "dialogs_")]
+	namespace Dialogs {
+		public string?	show_input (string title, Gtk.Window parent,
+									string? label_text = null, string? default_text = null);
+		public bool		show_input_numeric (string title, string label_text,
+											ref double value, double min, double max, double step);
+		[PrintfFormat]
+		public void		show_msgbox (Gtk.MessageType type, string text, ...);
+		[PrintfFormat]
+		public bool		show_question (string text, ...);
+		public bool		show_save_as ();
+	}
+	[Compact]
+	[CCode(cheader_filename="document.h",
+	       cname="struct GeanyDocument",
+	       cprefix="document_",
+	       free_function="",
+	       has_type_id=false)]
+	public class Document
+	{
+		public bool						is_valid;
+		public int						index;
+		public bool						has_tags;
+		public string?					file_name;
+		public string					encoding;
+		public bool						has_bom;
+		public Editor					editor;
+		public Filetype					file_type;
+		public TagManager.WorkObject	tm_file;
+		public bool						readonly;
+		public bool						changed;
+		public string?					real_path;
+
+		public void set_text_changed(bool changed);
+		public void set_encoding(string encoding);
+		[CCode (cname = "DOC_FILENAME")]
+		public string doc_filename();
+		public void set_filetype(Filetype ft);
+		[CCode (cname = "DOC_VALID")]
+		public bool doc_valid();
+		public int get_notebook_page();
+		public unowned Gdk.Color? get_status_color();
+		public string get_basename_for_display(int length = -1);
+		public static void open_files (GLib.SList<string> filenames,
+									   bool readonly = false,
+									   Filetype? ft = null,
+									   string? forced_enc = null);
+		public bool reload_file (string? forced_enc = null);
+		public void rename_file (string new_filename);
+		public bool save_file (bool force = false);
+		public bool save_file_as (string? utf8_fname = null);
+
+		public static unowned Document? new_file (string? utf8_filename = null,
+												  Filetype? ft = null,
+												  string? text = null);
+		public bool close ();
+		public static bool remove_page (uint page_num);
+		public static unowned Document? find_by_filename (string utf8_filename);
+		public static unowned Document? find_by_real_path (string real_name);
+		public static unowned Document? get_current ();
+		public static unowned Document? get_from_page (uint page_num);
+		/* renamed method because of index field */
+		[CCode (cname = "document_index")]
+		public static unowned Document? get_by_index (int index);
+		public static unowned Document? open_file (string locale_filename,
+												   bool readonly = false,
+												   Filetype? ft = null, 
+												   string? forced_enc = null);
+	}
+	/* reviewed */
+	[CCode (cname = "documents", array_length_cexpr = "GEANY(documents_array)->len")]
+	public static unowned Document[]	documents;
+	[Compact]
+	[CCode(cheader_filename="editor.h",
+	       cname="struct GeanyEditor",
+	       cprefix="editor_",
+	       free_function="",
+	       has_type_id=false)]
+	public class Editor {
+		public Document				document;
+		public Scintilla.Object		sci;
+		public bool					line_wrapping;
+		public bool					auto_indent;
+		public float				scroll_percent;
+		public IndentType			indent_type;
+		public bool					line_breaking;
+		public int					indent_width;
+
+		public Scintilla.Object create_widget(Editor editor) {}
+
+		public void set_indent_type (IndentType ind_type);
+
+		public static unowned string get_eol_char(Editor? editor = null);
+		public static int get_eol_char_mode(Editor? editor = null);
+		public static unowned string get_eol_char_name(Editor? editor = null);
+		public static unowned IndentPrefs get_indent_prefs(Editor? editor = null);
+		public unowned string? find_snippet (string snippet_name);
+		public string? get_word_at_pos (int pos, string? wordchars = null);
+		public bool goto_pos (int pos, bool mark = false);
+		public void indicator_clear (Indicator indic);
+		public void indicator_set_on_line (Indicator indic, int line);
+		public void indicator_set_on_range (Indicator indic, int start, int end);
+		public void insert_snippet (int pos, string snippet);
+		public void insert_text_block (string text,  int insert_pos,
+									   int cursor_index = -1, int newline_indent_size = -1,
+									   bool replace_newlines = true);
+		public void set_indent_width(int width);
+		public void set_line_wrapping(bool wrap);
+	}
+	/* reviewed */
+	[CCode (cname = "GeanyEncodingIndex", cprefix = "GEANY_ENCODING_", has_type_id = false)]
+	public enum EncodingID {
+		ISO_8859_1,
+		ISO_8859_2,
+		ISO_8859_3,
+		ISO_8859_4,
+		ISO_8859_5,
+		ISO_8859_6,
+		ISO_8859_7,
+		ISO_8859_8,
+		ISO_8859_8_I,
+		ISO_8859_9,
+		ISO_8859_10,
+		ISO_8859_13,
+		ISO_8859_14,
+		ISO_8859_15,
+		ISO_8859_16,
+
+		UTF_7,
+		UTF_8,
+		UTF_16LE,
+		UTF_16BE,
+		UCS_2LE,
+		UCS_2BE,
+		UTF_32LE,
+		UTF_32BE,
+
+		ARMSCII_8,
+		BIG5,
+		BIG5_HKSCS,
+		CP_866,
+
+		EUC_JP,
+		EUC_KR,
+		EUC_TW,
+
+		GB18030,
+		GB2312,
+		GBK,
+		GEOSTD8,
+		HZ,
+
+		IBM_850,
+		IBM_852,
+		IBM_855,
+		IBM_857,
+		IBM_862,
+		IBM_864,
+
+		ISO_2022_JP,
+		ISO_2022_KR,
+		ISO_IR_111,
+		JOHAB,
+		KOI8_R,
+		KOI8_U,
+
+		SHIFT_JIS,
+		TCVN,
+		TIS_620,
+		UHC,
+		VISCII,
+
+		WINDOWS_1250,
+		WINDOWS_1251,
+		WINDOWS_1252,
+		WINDOWS_1253,
+		WINDOWS_1254,
+		WINDOWS_1255,
+		WINDOWS_1256,
+		WINDOWS_1257,
+		WINDOWS_1258,
+
+		NONE,
+		CP_932
+	}
+	public enum EncodingGroup
+	{
+		NONE,
+		WESTEUROPEAN,
+		EASTEUROPEAN,
+		EASTASIAN,
+		ASIAN,
+		MIDDLEEASTERN,
+		UNICODE
+	}
+	/* reviewed */
+	[Compact]
+	[CCode (cprefix = "encodings_")]
+	public class Encoding {
+		public EncodingID				idx;
+		public int						order;
+		public EncodingGroup			group;
+		public unowned string			charset;
+		public unowned string			name;
+		
+		public static string?			convert_to_utf8 (string buffer, size_t size,
+														 out string used_encoding = null);
+		public static string?			convert_to_utf8_from_charset (string buffer, size_t size,
+																	  string charset, bool fast);
+		public static unowned string?	get_charset_from_index (EncodingID idx);
+	}
+	/* reviewed */
+	[Compact]
+	[CCode(cheader_filename="filetypes.h",
+	       cname="struct GeanyFiletype",
+	       cprefix="filetypes_",
+	       free_function="",
+	       has_type_id=false)]
+	public class Filetype {
+		public FiletypeID				id;
+		public TagManager.LangType		lang;
+		public string					name;
+		public string					title;
+		public string?					extension;
+		[CCode (array_length = false, array_null_terminated = true)]
+		public string[]					pattern;
+		public string					context_action_cmd;
+		public string?					comment_open;
+		public string?					comment_close;
+		public bool						comment_use_indent;
+		public FiletypeGroupID			group;
+		public string?					error_regex_string;
+		public Filetype					lexer_filetype;
+		public string?					mime_type;
+		public GLib.Icon?				icon;
+		public string					comment_single;
+		public int						indent_type;
+		public int						indent_width;
+
+		public unowned string			get_display_name();
+
+		public static unowned Filetype	detect_from_file (string utf8_filename);
+		public static unowned Filetype?	index (int idx);
+		public static unowned Filetype?	lookup_by_name (string name);
+	}
+	[CCode(cname="filetypes_array")]
+	GLib.PtrArray filetypes_array;
+	/* reviewed */
+	[CCode (cname = "filetypes_by_title")]
+	public GLib.SList<Filetype> filetypes_by_title;
+	[CCode(cheader_filename="geanyobject.h", cname="GeanyObject")]
+	public class Object : GLib.Object
+	{
+		// Signals
+		public signal void document_new(Document doc);
+		public signal void document_open(Document doc);
+		public signal void document_reload(Document doc);
+		public signal void document_before_save(Document doc);
+		public signal void document_save(Document doc);
+		public signal void document_filetype_set(Document doc, Filetype? old_ft);
+		public signal void document_activate(Document doc);
+		public signal void document_close(Document doc);
+
+		public signal void project_open(GLib.KeyFile config);
+		public signal void project_save(GLib.KeyFile config);
+		public signal void project_close();
+		public signal void project_dialog_open(Gtk.Notebook nb);
+		public signal void project_dialog_confirmed(Gtk.Notebook nb);
+		public signal void project_dialog_close(Gtk.Notebook nb);
+
+		public signal bool editor_notify(Editor editor, Scintilla.Notification nt);
+
+		[CCode (cname = "geany_startup_complete")]
+		public signal void startup_complete();
+		public signal void build_start();
+		public signal void update_editor_menu(string word, int pos, Document doc);
+
+		public signal void save_settings(GLib.KeyFile keyfile);
+		public signal void load_settings(GLib.KeyFile keyfile);
+	}
+	/* For some reason geany exports this as GObject, so vala users have to cast to Geany.Object */
+	public GLib.Object object;
+	/* reviewed */
+	[Compact]
+	public class Functions {
+		/* No need to fill-in, the functions are wrapped.
+		 * However, the plugins needs to define geany_functions with this type,
+		 * so we need to have it here. */
+	}
+	/* reviewed */
+	[CCode (lower_case_cprefix = "highlighting_")]
+	namespace Highlighting {
+		public LexerStyle			*get_style (int ft_id, int style_id);
+		public bool					is_code_style (int lexer, int style);
+		public bool					is_comment_style (int lexer, int style);
+		public bool					is_string_style (int lexer, int style);
+		public void					set_styles (Scintilla.Object sci, Filetype ft);
+	}
+
+	[CCode (lower_case_cprefix = "keybindings_")]
+	namespace Keybindings {
+		[CCode (target_pos = 0.6)]
+		public unowned KeyGroup 	set_group_with_handler(KeyGroup? group,
+													   string section_name, string label,
+													   size_t count, KeyGroupHandler? handler);
+		public void					send_command (KeyGroupID group_id, KeyBindingID key_id);
+	}
+	[Compact]
+	[CCode (has_type_id = false, lower_case_cprefix = "keybindings_")]
+	public class KeyGroup {  /* opaque in geany already */
+		public unowned KeyBinding	get_item (size_t key_id);
+		public unowned KeyBinding 	set_item (size_t key_id, KeyCallback? cb,
+											uint key, Gdk.ModifierType mod, string kf_name,
+											string label, Gtk.Widget? menu_item = null);
+		[CCode (target_pos = 0.4)]
+		public unowned KeyBinding	add_item_with_handler (size_t key_id, KeyHandler? handler,
+											uint key, Gdk.ModifierType mod, string kf_name,
+											string label, Gtk.Widget? menu_item = null);
+		public void					free_group();
+	}
+	[CCode (target_pos = 0.3)]
+	public delegate bool 			KeyGroupHandler (KeyGroup group, uint key_id);
+	[CCode (has_target = false)]
+	public delegate bool 			KeyGroupCallback (uint key_id);
+
+	[Compact]
+	[CCode (has_type_id = false)]
+	public class KeyBinding { } /* public in geany but want to make it opaque */
+	[CCode (has_target = false)]
+	public delegate void 			KeyCallback (uint key_id);
+	[CCode (target_pos = 0.3)]
+	public delegate bool 			KeyHandler (KeyBinding key, uint key_id);
+
+	/* reviewed */
+	[CCode (cprefix = "GEANY_KEYS_", has_type_id = false)]
+	public enum KeyBindingID {
+		EDITOR_TRANSPOSELINE,
+		DOCUMENT_REMOVE_ERROR_INDICATORS,
+		FOCUS_SEARCHBAR,
+		SEARCH_FIND,
+		FILE_SAVEALL,
+		GOTO_NEXTMARKER,
+		NOTEBOOK_SWITCHTABLEFT,
+		VIEW_ZOOMOUT,
+		GOTO_LINE,
+		DOCUMENT_TOGGLEFOLD,
+		BUILD_COMPILE,
+		EDITOR_SCROLLTOLINE,
+		DOCUMENT_UNFOLDALL,
+		GOTO_MATCHINGBRACE,
+		SEARCH_FINDDOCUMENTUSAGE,
+		CLIPBOARD_PASTE,
+		BUILD_MAKE,
+		INSERT_ALTWHITESPACE,
+		EDITOR_SCROLLLINEDOWN,
+		VIEW_TOGGLEALL,
+		VIEW_FULLSCREEN,
+		GOTO_LINEEND,
+		EDITOR_CALLTIP,
+		FILE_PRINT,
+		EDITOR_DUPLICATELINE,
+		FOCUS_SCRIBBLE,
+		TOOLS_OPENCOLORCHOOSER,
+		SEARCH_PREVIOUSMESSAGE,
+		FILE_CLOSE,
+		DOCUMENT_REPLACETABS,
+		FILE_RELOAD,
+		SEARCH_FINDNEXTSEL,
+		FOCUS_MESSAGES,
+		BUILD_RUN,
+		HELP_HELP,
+		SETTINGS_PLUGINPREFERENCES,
+		VIEW_ZOOMRESET,
+		SELECT_WORD,
+		FORMAT_INCREASEINDENT,
+		SETTINGS_PREFERENCES,
+		FORMAT_SENDTOCMD3,
+		DOCUMENT_FOLDALL,
+		FORMAT_SENDTOVTE,
+		PROJECT_PROPERTIES,
+		DOCUMENT_LINEWRAP,
+		EDITOR_MACROLIST,
+		EDITOR_SUPPRESSSNIPPETCOMPLETION,
+		FOCUS_SIDEBAR_SYMBOL_LIST,
+		GOTO_LINESTART,
+		SEARCH_FINDUSAGE,
+		FILE_NEW,
+		EDITOR_SNIPPETNEXTCURSOR,
+		NOTEBOOK_SWITCHTABRIGHT,
+		FILE_SAVE,
+		FORMAT_INCREASEINDENTBYSPACE,
+		SEARCH_FINDNEXT,
+		GOTO_TOGGLEMARKER,
+		GOTO_TAGDEFINITION,
+		SEARCH_NEXTMESSAGE,
+		EDITOR_DELETELINETOEND,
+		FORMAT_AUTOINDENT,
+		FILE_OPENSELECTED,
+		GOTO_BACK,
+		INSERT_DATE,
+		BUILD_PREVIOUSERROR,
+		GOTO_LINEENDVISUAL,
+		DOCUMENT_REPLACESPACES,
+		FOCUS_EDITOR,
+		SELECT_WORDPARTRIGHT,
+		VIEW_MESSAGEWINDOW,
+		FOCUS_SIDEBAR_DOCUMENT_LIST,
+		FORMAT_REFLOWPARAGRAPH,
+		EDITOR_MOVELINEUP,
+		NOTEBOOK_MOVETABLEFT,
+		SELECT_LINE,
+		EDITOR_UNDO,
+		EDITOR_MOVELINEDOWN,
+		CLIPBOARD_COPYLINE,
+		BUILD_MAKEOWNTARGET,
+		FORMAT_SENDTOCMD2,
+		SEARCH_MARKALL,
+		BUILD_LINK,
+		FILE_CLOSEALL,
+		GOTO_FORWARD,
+		CLIPBOARD_CUT,
+		NOTEBOOK_SWITCHTABLASTUSED,
+		NOTEBOOK_MOVETABRIGHT,
+		BUILD_OPTIONS,
+		GOTO_TAGDECLARATION,
+		FILE_OPEN,
+		EDITOR_COMPLETESNIPPET,
+		FORMAT_UNCOMMENTLINE,
+		FOCUS_VTE,
+		FORMAT_SENDTOCMD1,
+		SELECT_WORDPARTLEFT,
+		VIEW_ZOOMIN,
+		DOCUMENT_LINEBREAK,
+		EDITOR_REDO,
+		EDITOR_CONTEXTACTION,
+		SEARCH_FINDPREVSEL,
+		FORMAT_DECREASEINDENTBYSPACE,
+		FORMAT_COMMENTLINETOGGLE,
+		SELECT_ALL,
+		DOCUMENT_RELOADTAGLIST,
+		BUILD_NEXTERROR,
+		NOTEBOOK_MOVETABLAST,
+		SELECT_PARAGRAPH,
+		EDITOR_DELETELINE,
+		CLIPBOARD_COPY,
+		VIEW_SIDEBAR,
+		FILE_SAVEAS,
+		FORMAT_COMMENTLINE,
+		GOTO_PREVWORDPART,
+		SEARCH_FINDPREVIOUS,
+		SEARCH_REPLACE,
+		EDITOR_WORDPARTCOMPLETION,
+		EDITOR_AUTOCOMPLETE,
+		FOCUS_SIDEBAR,
+		FOCUS_MESSAGE_WINDOW,
+		NOTEBOOK_MOVETABFIRST,
+		GOTO_PREVIOUSMARKER,
+		EDITOR_SCROLLLINEUP,
+		FOCUS_COMPILER,
+		FORMAT_TOGGLECASE,
+		CLIPBOARD_CUTLINE,
+		DOCUMENT_REMOVE_MARKERS,
+		BUILD_MAKEOBJECT,
+		FORMAT_DECREASEINDENT,
+		FILE_OPENLASTTAB,
+		SEARCH_FINDINFILES,
+		GOTO_NEXTWORDPART,
+		INSERT_LINEAFTER,
+		INSERT_LINEBEFORE,
+		DOCUMENT_REMOVE_MARKERS_INDICATORS,
+		PROJECT_OPEN,
+		PROJECT_NEW,
+		PROJECT_CLOSE,
+		FORMAT_JOINLINES,
+		GOTO_LINESTARTVISUAL,
+		DOCUMENT_CLONE,
+		FILE_QUIT,
+	}
+	/* reviewed */
+	[CCode (cprefix = "GEANY_KEY_GROUP_", has_type_id = false)]
+	public enum KeyGroupID {
+		FILE,
+		PROJECT,
+		EDITOR,
+		CLIPBOARD,
+		SELECT,
+		FORMAT,
+		INSERT,
+		SETTINGS,
+		SEARCH,
+		GOTO,
+		VIEW,
+		FOCUS,
+		NOTEBOOK,
+		DOCUMENT,
+		BUILD,
+		TOOLS,
+		HELP
+	}
+	/* reviewed */
+	[CCode (lower_case_cprefix = "main_")]
+	namespace Main {
+		public void		reload_configuration ();
+		public void		locale_init (string locale_dir, string package);
+		public bool		is_realized ();
+	}
+	[Compact]
+	public class MainWidgets {
+		public Gtk.Widget		window;
+		public Gtk.Widget		toolbar;
+		public Gtk.Widget		sidebar_notebook;
+		public Gtk.Widget		notebook;
+		public Gtk.Widget		editor_menu;
+		public Gtk.Widget		tools_menu;
+		public Gtk.Widget		progressbar;
+		public Gtk.Widget		message_window_notebook;
+		public Gtk.Widget		project_menu;
+	}
+	[CCode (lower_case_cprefix = "msgwin_", cprefix = "msgwin_")]
+	namespace MessageWindow {
+		[CCode (cname = "MessageWindowTabNum", has_type_id = false)]
+		public enum TabNum {
+			STATUS,
+			COMPILER,
+			MESSAGE,
+			SCRATCH,
+			VTE
+		}
+		[CCode (has_type_id = false)]
+		public enum MsgColors {
+			RED,
+			DARK_RED,
+			BLACK,
+			BLUE
+		}
+
+		public void		clear_tab (MessageWindow.TabNum tabnum);
+		[PrintfFormat]
+		public void		compiler_add (MessageWindow.MsgColors msg_color, string format, ...);
+		[PrintfFormat]
+		public void		msg_add (MessageWindow.MsgColors msg_color, int line, Document? doc, string format, ...);
+		public void		set_messages_dir (string messages_dir);
+		[PrintfFormat]
+		public void		status_add (string format, ...);
+		public void		switch_tab (MessageWindow.TabNum tabnum, bool show);
+	}
+	/* reviewed */
+	[CCode (lower_case_cprefix = "navqueue_")]
+	namespace NavQueue {
+		public bool		goto_line (Document? old_doc, Document new_doc, int line);
+	}
+	[Compact]
+	[CCode (lower_case_cprefix = "plugin_")]
+	public class Plugin {
+		[Compact]
+		[CCode (cname = "PluginInfo")]
+		public class Info {
+			public unowned string name;
+			public unowned string? description;
+			public unowned string? version;
+			public unowned string? author;
+
+			[CCode (cname = "geany_vapi_SET_INFO")]
+			public void @set (string name, string? description, string? version, string? author)
+			{
+				this.name			= name;
+				this.description	= description;
+				this.version		= version;
+				this.author			= author;
+			}
+		}
+		[Compact]
+		[CCode (cname = "PluginCallback")]
+		public class Callback {
+			public unowned string	signal_name;
+			public GLib.Callback	@callback;
+			public bool				after;
+			public void				*user_data;
+		}
+
+		[CCode (cname = "geany_vapi_VERSION_CHECK")]
+		public static int version_check (int abi_version, int api_required) {
+			/* drop-in copy of GEANY_VERSION_CHECK() macro */
+			if (abi_version != ABI_VERSION)
+				return -1;
+			return (api_required);
+		}
+		
+		[CCode (cname = "GEANY_API_VERSION")]
+		public static int API_VERSION;
+		[CCode (cname = "GEANY_ABI_VERSION")]
+		public static int ABI_VERSION;
+
+		public Info info;
+
+		public void		add_toolbar_item (Gtk.ToolItem item);
+		public void		module_make_resident ();
+		public void		signal_connect (GLib.Object? object, string signal_name, bool after,
+										GLib.Callback cb, void *user_data = null);
+		public unowned KeyGroup	set_key_group (string section_name, size_t count, KeyGroupCallback? cb);
+		/* TODO: plugin_set_key_group_with_handler() */
+		public void		show_configure ();
+	}
+	/* reviewed */
+	[Compact]
+	public class Project {
+		public string	base_path;
+		public string	description;
+		public string	file_name;
+		[CCode (array_length = false, array_null_terminated = true)]
+		public string[]	file_patterns;
+		public string	name;
+		public int		type;
+	}
+	/* reviewed */
+	[CCode (cprefix = "search_")]
+	namespace Search {
+		public void		show_find_in_files_dialog (string? dir = null);
+	}
+	/* reviewed */
+	[Compact]
+	[CCode (cname = "StashGroup", cprefix = "stash_group_", free_function = "stash_group_free")]
+	public class StashGroup {
+		public StashGroup (string name);
+		public void		add_boolean (ref bool setting, string key_name, bool default_value);
+		public void		add_combo_box (ref int setting, string key_name, int default_value, void *widget_id);
+		public void		add_combo_box_entry (ref string setting, string key_name, string default_value,
+											 void *widget_id);
+		public void		add_entry (ref string setting, string key_name, string default_value,
+								   void *widget_id);
+		public void		add_integer (ref int setting, string key_name, int default_value);
+		public void		add_radio_buttons (ref int setting, string key_name, int default_value,
+										   void *widget_id, int enum_id, ...);
+		public void		add_spin_button_integer (ref int setting, string key_name, int default_value,
+												 void *widget_id);
+		public void		add_string (ref string setting, string key_name, string? default_value);
+		public void		add_string_vector (ref string[] setting, string key_name, string[]? default_value);
+		public void		add_toggle_button (ref bool setting, string key_name, bool default_value,
+										   void *widget_id);
+		public void		add_widget_property (void *setting, string key_name, void *default_value,
+											 void *widget_id, string property_name, GLib.Type type);
+		public void		display (Gtk.Widget? owner);
+		public bool		load_from_file (string filename);
+		public void		load_from_key_file (GLib.KeyFile keyfile);
+		public int		save_to_file (string filename, GLib.KeyFileFlags flags = GLib.KeyFileFlags.NONE);
+		public void		save_to_key_file (GLib.KeyFile keyfile);
+		public void		update (Gtk.Widget? owner);
+	}
+	/* reviewed */
+	[CCode (cprefix = "symbols_")]
+	namespace Symbols {
+		public unowned string	get_context_separator (FiletypeID ft_id);
+	}
+	/* reviewed */
+	[CCode (cprefix = "templates_")]
+	namespace Templates {
+		public string	get_template_fileheader (int filetype_idx, string fname);
+	}
+	/* reviewed */
+	[CCode (cprefix = "TM", lower_case_cprefix = "tm_")]
+	namespace TagManager {
+		/* TODO: add TMFileEntry? not sure it's useful */
+		[Compact]
+		[CCode (free_function = "tm_work_object_free")]
+		public class WorkObject {
+			public uint				type;
+			public string			file_name;
+			public string			short_name;
+			public WorkObject?		parent;
+			public time_t			analyze_time;
+			public GLib.PtrArray	tags_array;
+		}
+		[Compact]
+		public class Workspace : WorkObject {
+			public GLib.PtrArray	global_tags;
+			public GLib.PtrArray	work_objects;
+
+			public static bool		add_object (WorkObject work_object);
+			public static bool		remove_object (WorkObject w, bool do_free, bool update);
+		}
+		[Compact]
+		public class SourceFile : WorkObject {
+			public LangType		lang;
+			public bool			inactive;
+
+			public SourceFile (string? file_name, bool update, string? name = null);
+			public bool			update (bool force = true, bool recurse = true, bool update_parent = true);
+		}
+		[Compact]
+		public class Project : WorkObject {
+			public string			dir;
+			[CCode (array_length = false, array_null_terminated = true)]
+			public string[]			sources;
+			[CCode (array_length = false, array_null_terminated = true)]
+			public string[]			ignore;
+			public GLib.PtrArray	file_list;
+		}
+		[SimpleType]
+		[IntegerType]
+		[CCode (cname = "langType")]
+		public struct LangType : int {
+		}
+		[Flags]
+		[CCode (has_type_id = false)]
+		public enum TagType {
+			[CCode (cname = "tm_tag_undef_t")]
+			UNDEF,
+			[CCode (cname = "tm_tag_class_t")]
+			CLASS,
+			[CCode (cname = "tm_tag_enum_t")]
+			ENUM,
+			[CCode (cname = "tm_tag_enumerator_t")]
+			ENUMERATOR,
+			[CCode (cname = "tm_tag_field_t")]
+			FIELD,
+			[CCode (cname = "tm_tag_function_t")]
+			FUNCTION,
+			[CCode (cname = "tm_tag_interface_t")]
+			INTERFACE,
+			[CCode (cname = "tm_tag_member_t")]
+			MEMBER,
+			[CCode (cname = "tm_tag_method_t")]
+			METHOD,
+			[CCode (cname = "tm_tag_namespace_t")]
+			NAMESPACE,
+			[CCode (cname = "tm_tag_package_t")]
+			PACKAGE,
+			[CCode (cname = "tm_tag_prototype_t")]
+			PROTOTYPE,
+			[CCode (cname = "tm_tag_struct_t")]
+			STRUCT,
+			[CCode (cname = "tm_tag_typedef_t")]
+			TYPEDEF,
+			[CCode (cname = "tm_tag_union_t")]
+			UNION,
+			[CCode (cname = "tm_tag_variable_t")]
+			VARIABLE,
+			[CCode (cname = "tm_tag_externvar_t")]
+			EXTERNVAR,
+			[CCode (cname = "tm_tag_macro_t")]
+			MACRO,
+			[CCode (cname = "tm_tag_macro_with_arg_t")]
+			MACRO_WITH_ARG,
+			[CCode (cname = "tm_tag_file_t")]
+			FILE,
+			[CCode (cname = "tm_tag_other_t")]
+			OTHER,
+			[CCode (cname = "tm_tag_max_t")]
+			MAX
+		}
+		[Flags]
+		[CCode (has_type_id = false)]
+		public enum TagAttrType {
+			[CCode (cname = "tm_tag_attr_none_t")]
+			NONE,
+			[CCode (cname = "tm_tag_attr_name_t")]
+			NAME,
+			[CCode (cname = "tm_tag_attr_type_t")]
+			TYPE,
+			[CCode (cname = "tm_tag_attr_file_t")]
+			FILE,
+			[CCode (cname = "tm_tag_attr_line_t")]
+			LINE,
+			[CCode (cname = "tm_tag_attr_pos_t")]
+			POS,
+			[CCode (cname = "tm_tag_attr_scope_t")]
+			SCOPE,
+			[CCode (cname = "tm_tag_attr_inheritance_t")]
+			INHERITANCE,
+			[CCode (cname = "tm_tag_attr_arglist_t")]
+			ARGLIST,
+			[CCode (cname = "tm_tag_attr_local_t")]
+			LOCAL,
+			[CCode (cname = "tm_tag_attr_time_t")]
+			TIME,
+			[CCode (cname = "tm_tag_attr_vartype_t")]
+			VARTYPE,
+			[CCode (cname = "tm_tag_attr_access_t")]
+			ACCESS,
+			[CCode (cname = "tm_tag_attr_impl_t")]
+			IMPL,
+			[CCode (cname = "tm_tag_attr_lang_t")]
+			LANG,
+			[CCode (cname = "tm_tag_attr_inactive_t")]
+			INACTIVE,
+			[CCode (cname = "tm_tag_attr_pointer_t")]
+			POINTER,
+			[CCode (cname = "tm_tag_attr_max_t")]
+			MAX
+		}
+		[CCode (cprefix = "TAG_ACCESS_")]
+		namespace TagAccess {
+			char PUBLIC;
+			char PROTECTED;
+			char PRIVATE;
+			char FRIEND;
+			char DEFAULT;
+			char UNKNOWN;
+		}
+		[CCode (cprefix = "TAG_IMPL_")]
+		namespace TagImplementation {
+			char VIRTUAL;
+			char UNKNOWN;
+		}
+		/* this is a dummy proxy structure because Vala doesn't support inline anonymous structs */
+		[CCode (cname = "__GeanyValaPluginTMTagAttributesEntry")]
+		public struct TagAttributesEntry {
+			public SourceFile	file;
+			public ulong		line;
+			public bool			local;
+			[CCode (cname = "pointerOrder")]
+			public uint			pointer_order;
+			public string?		arglist;
+			public string?		scope;
+			public string?		inheritance;
+			public string?		var_type;
+			public char			access;
+			public char			impl;
+		}
+		/* this is a dummy proxy structure because Vala doesn't support inline anonymous structs */
+		[CCode (cname = "__GeanyValaPluginTMTagAttributesFile")]
+		public struct TagAttributesFile {
+			public time_t		timestamp;
+			public LangType		lang;
+			public bool			inactive;
+		}
+		/* this is a dummy proxy structure because Vala doesn't support inline anonymous structs */
+		[CCode (cname = "__GeanyValaPluginTMTagAttributes")]
+		public struct TagAttributes {
+			public TagAttributesEntry	entry;
+			public TagAttributesFile	file;
+		}
+		[Compact]
+		[CCode (cname = "TMTag", cprefix = "tm_tag_")]
+		public class Tag {
+			public string			name;
+			public TagType			type;
+			[CCode (cname = "atts")]
+			public TagAttributes	attributes;
+		}
+		/* this is a dummy proxy structure because Vala doesn't support inline anonymous structs */
+		[CCode (cname = "__GeanyValaPluginTMSymbolInfo")]
+		public struct SymbolInfo {
+			public GLib.PtrArray	children;
+			public Tag				equiv;
+		}
+		[Compact]
+		[CCode (cname = "TMSymbol", cprefix = "tm_symbol_tree_" /*, free_function = "tm_symbol_tree_free"*/)]
+		public class Symbol {
+			public Tag			tag;
+			public Symbol?		parent;
+			public SymbolInfo	info;
+		}
+		public string		get_real_path (string file_name);
+	}
+	/* reviewed */
+	[CCode (cprefix = "ui_", lower_case_cprefix = "ui_")]
+	namespace Ui {
+		[CCode (type = "GtkWidget *")]
+		public Gtk.Button			button_new_with_image (string stock_id, string text);
+		[CCode (type = "GtkWidget *")]
+		public Gtk.ImageMenuItem	image_menu_item_new(string stock_id, string label);
+		[CCode (type = "GtkWidget *")]
+		public Gtk.HBox				path_box_new(string? title, Gtk.FileChooserAction action, Gtk.Entry entry);
+		[CCode (type = "GtkWidget *")]
+		public Gtk.VBox				dialog_vbox_new(Gtk.Dialog dialog);
+		[CCode (type = "GtkWidget *")]
+		public Gtk.Frame			frame_new_with_alignment(string label_text, out Gtk.Widget alignment);
+		public void					hookup_widget (Gtk.Widget owner, Gtk.Widget widget, string name);
+		public void					add_document_sensitive (Gtk.Widget widget);
+		public void					combo_box_add_to_history (Gtk.ComboBoxEntry combo_entry, string? text,
+															  int history_len = 0);
+		public void					entry_add_clear_icon (Gtk.Entry entry);
+		public int					get_gtk_settings_integer (string property_name, int default_value);
+		public bool					is_keyval_enter_or_return (uint keyval);
+		public unowned Gtk.Widget?	lookup_widget (Gtk.Widget widget, string widget_name);
+		public void					menu_add_document_items (Gtk.Menu menu, Document? active, GLib.Callback cb);
+		public void					progress_bar_start (string? text);
+		public void					progress_bar_stop ();
+		[PrintfFormat]
+		public void					set_statusbar (bool log, string format, ...);
+		public void					table_add_row (Gtk.Table table, int row, ...);
+		public void					widget_modify_font_from_string (Gtk.Widget widget, string str);
+		public void					widget_set_tooltip_text (Gtk.Widget widget, string text);
+	}
+	/* reviewed */
+	[CCode (cprefix = "utils_", lower_case_cprefix = "utils_")]
+	namespace Utils {
+		[CCode (array_length = false, array_null_terminated = true)]
+		public string[]				copy_environment ([CCode (array_length = false, array_null_terminated = true)]
+													  string[]? exclude_vars, string first_varname, ...);
+		public string?				find_open_xml_tag (string sel, int size);
+		public string				get_date_time (string format, time_t? time_to_use = null);
+		public GLib.SList<string>?	get_file_list (string path, out uint length = null) throws GLib.Error;
+		public GLib.SList<string>?	get_file_list_full (string path, bool full_path = false, bool sort = false)
+			throws GLib.Error;
+		public string				get_locale_from_utf8 (string utf8_text);
+		public bool					get_setting_boolean (GLib.KeyFile config, string section,
+														 string key, bool default_value);
+		public int					get_setting_integer (GLib.KeyFile config, string section,
+														 string key, int default_value);
+		public string				get_setting_string (GLib.KeyFile config, string section,
+														string key, string default_value);
+		public string				get_utf8_from_locale (string locale_text);
+		public int					mkdir (string path, bool create_parent_dirs = true);
+		public void					open_browser (string uri);
+		public string				remove_ext_from_filename (string filename);
+		public bool					spawn_async (string? dir,
+												 [CCode (array_length = false, array_null_terminated = true)] string[] argv,
+												 [CCode (array_length = false, array_null_terminated = true)] string[]? env = null,
+												 GLib.SpawnFlags flags = 0, GLib.SpawnChildSetupFunc? child_setup = null,
+												 out GLib.Pid child_pid = null) throws GLib.Error;
+		public bool					spawn_sync (string? dir,
+												[CCode (array_length = false, array_null_terminated = true)] string[] argv,
+												[CCode (array_length = false, array_null_terminated = true)] string[]? env = null,
+												GLib.SpawnFlags flags = 0, GLib.SpawnChildSetupFunc? child_setup = null,
+												out string std_out = null, out string std_err = null,
+												out int exit_status = null) throws GLib.Error;
+		public int					str_casecmp (string? s1, string? s2);
+		public bool 				str_equal(string? a, string? b);
+		public string				str_middle_truncate (string str, uint truncate_length);
+		/* TODO: test if this works (edits the string in-place) */
+		public unowned string		str_remove_chars (string str, string chars);
+		public uint					string_replace_all (GLib.StringBuilder haystack, string needle, string replace);
+		public uint					string_replace_first (GLib.StringBuilder haystack, string needle, string replace);
+		public int					write_file (string filename, string text);
+	}
+}

@@ -38,6 +38,8 @@ struct GeanyKeyGroup
 	GPtrArray *key_items;	/* pointers to GeanyKeyBinding structs */
 	gsize plugin_key_count;			/* number of keybindings the group holds */
 	GeanyKeyBinding *plugin_keys;	/* array of GeanyKeyBinding structs */
+	GeanyKeyGroupHandler handler;	/* use this or individual keybinding callbacks (new style) */
+	gpointer handler_data;
 };
 
 G_END_DECLS

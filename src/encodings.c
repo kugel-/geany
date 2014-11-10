@@ -274,6 +274,7 @@ const GeanyEncoding *encodings_get_from_index(gint idx)
  *
  *  @since 0.13
  **/
+GEANY_EXPORT
 const gchar* encodings_get_charset_from_index(gint idx)
 {
 	g_return_val_if_fail(idx >= 0 && idx < GEANY_ENCODINGS_MAX, NULL);
@@ -650,6 +651,7 @@ void encodings_encoding_store_cell_data_func(GtkCellLayout *cell_layout,
  *  @return If the conversion was successful, a newly allocated nul-terminated string,
  *    which must be freed with @c g_free(). Otherwise @c NULL.
  **/
+GEANY_EXPORT
 gchar *encodings_convert_to_utf8_from_charset(const gchar *buffer, gssize size,
 											  const gchar *charset, gboolean fast)
 {
@@ -831,6 +833,7 @@ static gchar *encodings_convert_to_utf8_internal(const gchar *buffer,
  *  @return If the conversion was successful, a newly allocated nul-terminated string,
  *    which must be freed with @c g_free(). Otherwise @c NULL.
  **/
+GEANY_EXPORT
 gchar *encodings_convert_to_utf8(const gchar *buffer, gssize size, gchar **used_encoding)
 {
 	gchar *regex_charset;

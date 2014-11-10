@@ -71,6 +71,9 @@ GeanyCallbackId;
 #define IS_GEANY_OBJECT_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass),\
 		GEANY_OBJECT_TYPE))
 
+/* This name is compatible with gir/vala tools */
+#define GEANY_TYPE_OBJECT GEANY_OBJECT_TYPE
+
 typedef struct _GeanyObject				GeanyObject;
 typedef struct _GeanyObjectClass			GeanyObjectClass;
 

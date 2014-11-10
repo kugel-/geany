@@ -52,6 +52,7 @@ GeanyTemplatePrefs;
 
 gchar *templates_get_template_fileheader(gint filetype_idx, const gchar *fname);
 
+#ifndef G_IR_SCANNER
 
 #ifdef GEANY_PRIVATE
 
@@ -93,6 +94,8 @@ void templates_replace_valist(GString *text,
 void templates_free_templates(void);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

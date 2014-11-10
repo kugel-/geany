@@ -11,33 +11,47 @@
 
 #if defined(GTK)
 
+#ifndef SCI_EXPORT
+#define SCI_EXPORT
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define SCINTILLA(obj)          G_TYPE_CHECK_INSTANCE_CAST (obj, scintilla_get_type (), ScintillaObject)
-#define SCINTILLA_CLASS(klass)  G_TYPE_CHECK_CLASS_CAST (klass, scintilla_get_type (), ScintillaClass)
-#define IS_SCINTILLA(obj)       G_TYPE_CHECK_INSTANCE_TYPE (obj, scintilla_get_type ())
+/*
+ * Type macros.
+ */
+#define SCINTILLA_TYPE_OBJECT             (scintilla_object_get_type())
+#define SCINTILLA_OBJECT(obj)             (G_TYPE_CHECK_INSTANCE_CAST((obj), SCINTILLA_TYPE_OBJECT, ScintillaObject))
+#define SCINTILLA_IS_OBJECT(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), SCINTILLA_TYPE_OBJECT))
+#define SCINTILLA_OBJECT_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST((klass), SCINTILLA_TYPE_OBJECT, ScintillaObjectClass))
+#define SCINTILLA_IS_OBJECT_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE((klass), SCINTILLA_TYPE_OBJECT))
+#define SCINTILLA_OBJECT_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS((obj), SCINTILLA_TYPE_OBJECT, ScintillaObjectClass))
 
-typedef struct _ScintillaObject ScintillaObject;
-typedef struct _ScintillaClass  ScintillaClass;
+typedef struct _ScintillaObject          ScintillaObject;
+typedef struct _ScintillaObjectClass     ScintillaObjectClass;
 
 struct _ScintillaObject {
 	GtkContainer cont;
 	void *pscin;
 };
 
-struct _ScintillaClass {
+struct _ScintillaObjectClass {
 	GtkContainerClass parent_class;
 
-	void (* command) (ScintillaObject *ttt);
-	void (* notify) (ScintillaObject *ttt);
+	void (* command)	(gint sci_id, void *notif);
+	void (* notify)		(gint sci_id, void *notif);
 };
 
-GType		scintilla_get_type	(void);
-GtkWidget*	scintilla_new		(void);
-void		scintilla_set_id	(ScintillaObject *sci, uptr_t id);
-sptr_t		scintilla_send_message	(ScintillaObject *sci,unsigned int iMessage, uptr_t wParam, sptr_t lParam);
+
+
+GType		scintilla_object_get_type (void);
+GtkWidget*	scintilla_object_new (void);
+void		scintilla_object_set_id			(ScintillaObject *sci, uptr_t id);
+long		scintilla_object_send_message	(ScintillaObject *sci,unsigned int iMessage,
+											 unsigned long wParam, long lParam);
+
 void		scintilla_release_resources(void);
 
 #define SCINTILLA_NOTIFY "sci-notify"
@@ -46,6 +60,9 @@ void		scintilla_release_resources(void);
 }
 #endif
 
-#endif
+/* include compat header for now, remove this after deprecation period */
+#include "ScintillaWidgetCompat.h"
+
+#endif /* GTK */
 
 #endif

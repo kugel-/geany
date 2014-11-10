@@ -10,7 +10,8 @@ EXTRA_DIST = \
 	keybindingsprivate.h \
 	pluginprivate.h \
 	projectprivate.h \
-	makefile.win32
+	makefile.win32 \
+	geany_dll.a
 
 bin_PROGRAMS = geany
 
@@ -38,13 +39,13 @@ SRCS = \
 	msgwindow.c msgwindow.h \
 	navqueue.c navqueue.h \
 	notebook.c notebook.h \
-	plugins.c plugins.h \
+	plugins.c pluginfuncs.c plugins.h \
 	pluginutils.c pluginutils.h \
 	prefix.c prefix.h \
 	prefs.c prefs.h \
 	printing.c printing.h \
 	project.c project.h \
-	sciwrappers.c sciwrappers.h \
+	sciwrappers.c sciwrappers.h scimethods.h \
 	search.c search.h \
 	socket.c socket.h \
 	stash.c stash.h \
@@ -60,10 +61,10 @@ SRCS = \
 
 geany_includedir = $(includedir)/geany
 
-# only install headers that define types or macros, not just functions
 geany_include_HEADERS = \
 	app.h \
 	build.h \
+	dialogs.h \
 	document.h \
 	editor.h \
 	encodings.h \
@@ -72,13 +73,18 @@ geany_include_HEADERS = \
 	gtkcompat.h \
 	highlighting.h \
 	keybindings.h \
+	main.h \
 	msgwindow.h \
+	navqueue.h \
+	pluginutils.h \
 	plugindata.h \
 	prefs.h \
 	project.h \
+	sciwrappers.h \
 	search.h \
 	stash.h \
 	support.h \
+	symbols.h \
 	templates.h \
 	toolbar.h \
 	ui_utils.h \
@@ -87,9 +93,10 @@ geany_include_HEADERS = \
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
+	-I$(top_srcdir)/api \
 	-I$(top_srcdir)/scintilla/include \
 	-I$(top_srcdir)/tagmanager/src \
-	@GTK_CFLAGS@ @GTHREAD_CFLAGS@
+	@GTK_CFLAGS@ @GTHREAD_CFLAGS@ @PEAS_CFLAGS@
 
 # tell automake we have a C++ file so it uses the C++ linker we need for Scintilla
 nodist_EXTRA_geany_SOURCES = dummy.cxx
@@ -101,11 +108,15 @@ if MINGW
 geany_SOURCES = $(SRCS) win32.c win32.h
 
 geany_LDADD = \
+	$(top_builddir)/api/libgeanyplugin2.a \
+	$(top_builddir)/libpeas/libpeas-1.0.la \
 	$(top_builddir)/scintilla/libscintilla.a \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
+	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
+	@GIR_LIBS@ \
 	@GTHREAD_LIBS@ \
 	$(INTLLIBS) \
 	-lole32 -luuid -liberty -lwsock32 \
@@ -120,7 +131,7 @@ AM_CFLAGS = -DGEANY_DATADIR=\"data\" \
 			-DGTK \
 			-DG_LOG_DOMAIN=\""Geany"\"
 
-geany_LDFLAGS =	-mwindows -mms-bitfields
+geany_LDFLAGS =	-mwindows -mms-bitfields -Wl,--out-implib,geany_dll.a
 
 WINDRES = $(host_alias)-windres
 
@@ -136,13 +147,20 @@ else
 geany_SOURCES = $(SRCS) vte.c vte.h
 
 geany_LDADD = \
+	$(top_builddir)/api/libgeany-1.0.la \
+	$(top_builddir)/libpeas/libpeas-1.0.la \
 	$(top_builddir)/scintilla/libscintilla.a \
 	$(top_builddir)/tagmanager/ctags/libctags.a \
 	$(top_builddir)/tagmanager/mio/libmio.a \
 	$(top_builddir)/tagmanager/src/libtagmanager.a \
+	@GLIB_LIBS@ \
 	@GTK_LIBS@ \
+	@GIR_LIBS@ \
 	@GTHREAD_LIBS@ \
 	$(INTLLIBS)
+
+geany_LDFLAGS = \
+	-Wl,--no-export-dynamic
 
 AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \
 			-DGEANY_DOCDIR=\""$(docdir)"\" \
@@ -151,9 +169,13 @@ AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \
 			-DGEANY_PREFIX=\""$(prefix)"\" \
 			-DGEANY_PRIVATE \
 			-DGTK \
-			-DG_LOG_DOMAIN=\""Geany"\"
+			-DG_LOG_DOMAIN=\""Geany"\" \
+			-fvisibility=hidden
 
 clean-local:
 
 endif
 
+# systems without python should continue to build OK
+scimethods.c scimethods.h: sciwrappers.h
+	$(AM_V_GEN)python ../scripts/gen-sci-methods.py sciwrappers -H scimethods.h -o scimethods.c ||  true

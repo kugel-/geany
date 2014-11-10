@@ -62,6 +62,8 @@ typedef struct GeanySearchPrefs
 }
 GeanySearchPrefs;
 
+#ifndef G_IR_SCANNER
+
 typedef struct GeanyMatchInfo
 {
 	GeanyFindFlags flags;
@@ -138,6 +140,8 @@ guint search_replace_range(struct _ScintillaObject *sci, struct Sci_TextToFind *
 		GeanyFindFlags flags, const gchar *replace_text);
 
 #endif /* GEANY_PRIVATE */
+
+#endif /* G_IR_SCANNER */
 
 G_END_DECLS
 

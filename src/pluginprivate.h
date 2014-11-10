@@ -23,11 +23,13 @@
 #ifndef GEANY_PLUGIN_PRIVATE_H
 #define GEANY_PLUGIN_PRIVATE_H 1
 
+#include "geanyplugin2.h"
 #include "plugindata.h"
 #include "ui_utils.h"	/* GeanyAutoSeparator */
 #include "keybindings.h"	/* GeanyKeyGroup */
 
 #include "gtkcompat.h"
+#include <libpeas/peas.h>
 
 
 G_BEGIN_DECLS
@@ -42,16 +44,11 @@ SignalConnection;
 
 typedef struct GeanyPluginPrivate
 {
-	GModule 		*module;
-	gchar			*filename;				/* plugin filename (/path/libname.so) */
+	GeanyPlugin2	*object;
+	PeasPluginInfo	*peas_info;
 	PluginInfo		info;				/* plugin name, description, etc */
 	GeanyPlugin		public;				/* fields the plugin can read */
-
-	void		(*init) (GeanyData *data);			/* Called when the plugin is enabled */
-	GtkWidget*	(*configure) (GtkDialog *dialog);	/* plugins configure dialog, optional */
-	void		(*configure_single) (GtkWidget *parent); /* plugin configure dialog, optional */
-	void		(*help) (void);						/* Called when the plugin should show some help, optional */
-	void		(*cleanup) (void);					/* Called when the plugin is disabled or when Geany exits */
+	GModule 		*module;			/* GModule loaded for the plugin */
 
 	/* extra stuff */
 	PluginFields	fields;
@@ -64,8 +61,35 @@ GeanyPluginPrivate;
 
 typedef GeanyPluginPrivate Plugin;	/* shorter alias */
 
+#define PRIV_FIELD "__priv"
+/* store this in a private (TODO: _set_qdata() ?) */
+static Plugin *geany_plugin2_set_priv(GeanyPlugin2 *self, Plugin *priv)
+{
+	g_object_set_data(G_OBJECT(self), PRIV_FIELD, priv);
+}
+
+static Plugin *geany_plugin2_get_priv(GeanyPlugin2 *self)
+{
+	return g_object_get_data(G_OBJECT(self), PRIV_FIELD);
+}
 
 void plugin_watch_object(Plugin *plugin, gpointer object);
+
+extern GHashTable *active_plugins;
+
+/* quite an ugly macro, it is this way because you can declare different types in a for-loops
+ * initialization expression */
+#define foreach_active_plugin(obj, info)                                                       \
+	for (GeanyPlugin2 *obj = NULL, **_d0 = NULL; ! _d0; _d0 = &obj)                            \
+		for (const GList *node = peas_engine_get_plugin_list(peas_engine_get_default()), **_d1 = NULL; ! _d1; _d1 = &node)  \
+			for (PeasPluginInfo *info = NULL;                                                  \
+				node && (info = node->data);                                                   \
+				node = g_list_next(node))                                                      \
+		if (NULL == ((obj) = g_hash_table_lookup(active_plugins, info)))                       \
+			continue;                                                                          \
+		else
+
+
 
 G_END_DECLS
 

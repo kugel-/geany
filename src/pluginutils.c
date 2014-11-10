@@ -32,7 +32,10 @@
 #include "pluginutils.h"
 
 #include "app.h"
+#include "geany.h"
 #include "geanyobject.h"
+#include "geanyplugin2.h"
+#include "keybindingsprivate.h"
 #include "plugindata.h"
 #include "pluginprivate.h"
 #include "plugins.h"
@@ -41,6 +44,9 @@
 #include "ui_utils.h"
 #include "utils.h"
 
+#include <libpeas/peas.h>
+
+
 
 /** Inserts a toolbar item before the Quit button, or after the previous plugin toolbar item.
  * A separator is added on the first call to this function, and will be shown when @a item is
@@ -48,6 +54,7 @@
  * @note You should still destroy @a item yourself, usually in @ref plugin_cleanup().
  * @param plugin Must be @ref geany_plugin.
  * @param item The item to add. */
+GEANY_EXPORT
 void plugin_add_toolbar_item(GeanyPlugin *plugin, GtkToolItem *item)
 {
 	GtkToolbar *toolbar = GTK_TOOLBAR(main_widgets.toolbar);
@@ -91,6 +98,7 @@ void plugin_add_toolbar_item(GeanyPlugin *plugin, GtkToolItem *item)
  *
  *  @since 0.16
  */
+GEANY_EXPORT
 void plugin_module_make_resident(GeanyPlugin *plugin)
 {
 	g_return_if_fail(plugin);
@@ -126,6 +134,7 @@ void plugin_module_make_resident(GeanyPlugin *plugin)
  * @note Since version 1.25 (API >= 218), the object lifetime is watched and so the above
  *       restriction does not apply.  However, for objects destroyed by the plugin,
  *       @c g_signal_connect() is safe and has lower overhead. */
+GEANY_EXPORT
 void plugin_signal_connect(GeanyPlugin *plugin,
 		GObject *object, const gchar *signal_name, gboolean after,
 		GCallback callback, gpointer user_data)
@@ -238,6 +247,7 @@ static guint plugin_source_add(GeanyPlugin *plugin, GSource *source, GSourceFunc
  * @see g_timeout_add()
  * @since 0.21, plugin API 205.
  */
+GEANY_EXPORT
 guint plugin_timeout_add(GeanyPlugin *plugin, guint interval, GSourceFunc function, gpointer data)
 {
 	return plugin_source_add(plugin, g_timeout_source_new(interval), function, data);
@@ -257,6 +267,7 @@ guint plugin_timeout_add(GeanyPlugin *plugin, guint interval, GSourceFunc functi
  * @see g_timeout_add_seconds()
  * @since 0.21, plugin API 205.
  */
+GEANY_EXPORT
 guint plugin_timeout_add_seconds(GeanyPlugin *plugin, guint interval, GSourceFunc function,
 		gpointer data)
 {
@@ -276,6 +287,7 @@ guint plugin_timeout_add_seconds(GeanyPlugin *plugin, guint interval, GSourceFun
  * @see g_idle_add()
  * @since 0.21, plugin API 205.
  */
+GEANY_EXPORT
 guint plugin_idle_add(GeanyPlugin *plugin, GSourceFunc function, gpointer data)
 {
 	return plugin_source_add(plugin, g_idle_source_new(), function, data);
@@ -290,35 +302,64 @@ guint plugin_idle_add(GeanyPlugin *plugin, GSourceFunc function, gpointer data)
  * @param callback Group callback, or @c NULL if you only want individual keybinding callbacks.
  * @return The plugin's keybinding group.
  * @since 0.19. */
+GEANY_EXPORT
 GeanyKeyGroup *plugin_set_key_group(GeanyPlugin *plugin,
 		const gchar *section_name, gsize count, GeanyKeyGroupCallback callback)
 {
 	Plugin *priv = plugin->priv;
 
 	priv->key_group = keybindings_set_group(priv->key_group, section_name,
-		priv->info.name, count, callback);
+		peas_plugin_info_get_name(priv->peas_info), count, callback);
 	return priv->key_group;
 }
 
 
-static void on_pref_btn_clicked(gpointer btn, Plugin *p)
+/** Sets up or resizes a keybinding group for the plugin.
+ * You should then call keybindings_set_item() or keybindings_add_item_with_handler() for each
+ * keybinding in the group.
+ * @param plugin Must be @ref geany_plugin.
+ * @param section_name Name used in the configuration file, such as @c "html_chars".               r
+ * @param count Number of keybindings for the group.
+ * @param callback Group callback, or @c NULL if you only want individual keybinding callbacks.
+ * @return The plugin's keybinding group.
+ *
+ * @since 1.25.
+ * @see See keybindings_set_item
+ * @see See keybindings_add_item_with_handler */
+GEANY_EXPORT
+GeanyKeyGroup *plugin_set_key_group_with_handler(GeanyPlugin *plugin,
+		const gchar *section_name, gsize count, GeanyKeyGroupHandler handler, gpointer handler_data)
 {
-	p->configure_single(main_widgets.window);
+	GeanyKeyGroup *group;
+
+	group = plugin_set_key_group(plugin, section_name, count, NULL);
+	group->handler = handler;
+	group->handler_data = handler_data;
+
+	return group;
 }
 
 
-static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
+static void on_pref_btn_clicked(gpointer btn, GeanyPlugin2 *p)
+{
+	geany_plugin2_configure_single(p, main_widgets.window);
+}
+
+
+static GtkWidget *create_pref_page(GeanyPlugin2 *plugin, PeasPluginInfo *info, GtkWidget *dialog)
 {
 	GtkWidget *page = NULL;	/* some plugins don't have prefs */
+	gint methods;
 
-	if (p->configure)
+	g_object_get(G_OBJECT(plugin), "methods", &methods, NULL);
+	if (methods & GEANY_METHODS_CONFIGURE)
 	{
-		page = p->configure(GTK_DIALOG(dialog));
+		page = geany_plugin2_configure(plugin, GTK_DIALOG(dialog));
 
 		if (! GTK_IS_WIDGET(page))
 		{
 			geany_debug("Invalid widget returned from plugin_configure() in plugin \"%s\"!",
-				p->info.name);
+				peas_plugin_info_get_name(info));
 			return NULL;
 		}
 		else
@@ -331,7 +372,7 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 			gtk_box_pack_start(GTK_BOX(page), align, TRUE, TRUE, 0);
 		}
 	}
-	else if (p->configure_single)
+	else if (methods & GEANY_METHODS_CONFIGURE_SINGLE)
 	{
 		GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
 		GtkWidget *btn;
@@ -339,7 +380,7 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 		gtk_alignment_set_padding(GTK_ALIGNMENT(align), 6, 6, 6, 6);
 
 		btn = gtk_button_new_from_stock(GTK_STOCK_PREFERENCES);
-		g_signal_connect(btn, "clicked", G_CALLBACK(on_pref_btn_clicked), p);
+		g_signal_connect_object(btn, "clicked", G_CALLBACK(on_pref_btn_clicked), plugin, 0);
 		gtk_container_add(GTK_CONTAINER(align), btn);
 		page = align;
 	}
@@ -349,10 +390,9 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 
 /* multiple plugin configure dialog
  * current_plugin can be NULL */
-static void configure_plugins(Plugin *current_plugin)
+static void configure_plugins(GeanyPlugin2 *current, PeasPluginInfo *current_info)
 {
 	GtkWidget *dialog, *vbox, *nb;
-	GList *node;
 	gint cur_page = -1;
 
 	dialog = gtk_dialog_new_with_buttons(_("Configure Plugins"),
@@ -367,17 +407,16 @@ static void configure_plugins(Plugin *current_plugin)
 	gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
 	gtk_box_pack_start(GTK_BOX(vbox), nb, TRUE, TRUE, 0);
 
-	foreach_list(node, active_plugin_list)
+	foreach_active_plugin(plugin, info)
 	{
-		Plugin *p = node->data;
-		GtkWidget *page = create_pref_page(p, dialog);
+		GtkWidget *page = create_pref_page(plugin, info, dialog);
 
 		if (page)
 		{
-			GtkWidget *label = gtk_label_new(p->info.name);
+			GtkWidget *label = gtk_label_new(peas_plugin_info_get_name(info));
 			gint n = gtk_notebook_append_page(GTK_NOTEBOOK(nb), page, label);
 
-			if (p == current_plugin)
+			if (plugin == current)
 				cur_page = n;
 		}
 	}
@@ -402,23 +441,31 @@ static void configure_plugins(Plugin *current_plugin)
  * @param plugin Must be @ref geany_plugin.
  * @since 0.19. */
 /* if NULL, show all plugins */
+GEANY_EXPORT
 void plugin_show_configure(GeanyPlugin *plugin)
 {
-	Plugin *p;
+	Plugin         *priv;
+	GeanyPlugin2   *current;
+	PeasPluginInfo *info;
+	gint            methods;
 
 	if (!plugin)
 	{
-		configure_plugins(NULL);
+		configure_plugins(NULL, NULL);
 		return;
 	}
-	p = plugin->priv;
+	priv    = plugin->priv;
+	current = priv->object;
+	info    = priv->peas_info;
 
-	if (p->configure)
-		configure_plugins(p);
+	g_object_get(G_OBJECT(current), "methods", &methods, NULL);
+
+	if (methods & GEANY_METHODS_CONFIGURE)
+		configure_plugins(current, info);
 	else
 	{
-		g_return_if_fail(p->configure_single);
-		p->configure_single(main_widgets.window);
+		g_return_if_fail(methods & GEANY_METHODS_CONFIGURE_SINGLE);
+		geany_plugin2_configure_single(current, main_widgets.window);
 	}
 }
 
@@ -489,6 +536,7 @@ static void connect_plugin_signals(GtkBuilder *builder, GObject *object,
  *
  * @since 1.24, plugin API 217.
  */
+GEANY_EXPORT
 void plugin_builder_connect_signals(GeanyPlugin *plugin,
 	GtkBuilder *builder, gpointer user_data)
 {
