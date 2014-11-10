@@ -684,9 +684,26 @@ static void styleset_common(ScintillaObject *sci, guint ft_id)
 	SSM(sci, SCI_MARKERSETBACK, 1, invert(common_style_set.styling[GCS_MARKER_MARK].background));
 	SSM(sci, SCI_MARKERSETALPHA, 1, common_style_set.styling[GCS_MARKER_TRANSLUCENCY].background);
 
-	/* 2 -> folding marker, other folding settings */
+	/* 2 -> changebar */
+	guint mask = (1 << SC_MARKNUM_CHANGEUNSAVED) | (1 << SC_MARKNUM_CHANGESAVED);
+
 	SSM(sci, SCI_SETMARGINTYPEN, 2, SC_MARGIN_SYMBOL);
-	SSM(sci, SCI_SETMARGINMASKN, 2, SC_MASK_FOLDERS);
+	SSM(sci, SCI_SETMARGINMASKN, 2, mask);
+	SSM(sci, SCI_SETMARGINWIDTHN, 2, 4 );
+
+	SSM(sci, SCI_MARKERDEFINE, SC_MARKNUM_CHANGEUNSAVED, SC_MARK_LEFTRECT);
+	SSM(sci, SCI_MARKERSETBACK, SC_MARKNUM_CHANGEUNSAVED, 0xFF | (0xE6 << 8) | (0x04 << 16));
+	SSM(sci, SCI_MARKERSETFORE, SC_MARKNUM_CHANGEUNSAVED, 0xFF | (0xFF << 8) | (0xFF << 16));
+
+	SSM(sci, SCI_MARKERDEFINE, SC_MARKNUM_CHANGESAVED, SC_MARK_LEFTRECT);
+	SSM(sci, SCI_MARKERSETBACK, SC_MARKNUM_CHANGESAVED, 0x04 | (0xFF << 8) | (0x50 << 16));
+	SSM(sci, SCI_MARKERSETFORE, SC_MARKNUM_CHANGESAVED, 0xFF | (0xFF << 8) | (0xFF << 16));
+
+	SSM(sci, SCI_SETCHANGECOLLECTION, 1, 0);
+
+	/* 3 -> folding marker, other folding settings */
+	SSM(sci, SCI_SETMARGINTYPEN, 3, SC_MARGIN_SYMBOL);
+	SSM(sci, SCI_SETMARGINMASKN, 3, SC_MASK_FOLDERS ^ mask);
 
 	/* drawing a horizontal line when text if folded */
 	switch (common_style_set.fold_draw_line)

@@ -500,7 +500,7 @@ static void on_margin_click(GeanyEditor *editor, SCNotification *nt)
 		sci_toggle_marker_at_line(editor->sci, line, 1);	/* toggle the marker */
 	}
 	/* left click on the folding margin to toggle folding state of current line */
-	else if (nt->margin == 2 && editor_prefs.folding)
+	else if (nt->margin == 3 && editor_prefs.folding)
 	{
 		gint line = sci_get_line_from_position(editor->sci, nt->position);
 		editor_toggle_fold(editor, line, nt->modifiers);

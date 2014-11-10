@@ -293,11 +293,19 @@ public:
 	int Redo();
 	bool CanUndo() const { return cb.CanUndo(); }
 	bool CanRedo() const { return cb.CanRedo(); }
-	void DeleteUndoHistory() { cb.DeleteUndoHistory(); }
+/* CHANGEBAR begin */
+    void DeleteUndoHistory(bool collectChangeHistory=false) { cb.DeleteUndoHistory(collectChangeHistory); } 
+/* CHANGEBAR end */
 	bool SetUndoCollection(bool collectUndo) {
 		return cb.SetUndoCollection(collectUndo);
 	}
 	bool IsCollectingUndo() const { return cb.IsCollectingUndo(); }
+/* CHANGEBAR begin */
+    void DeleteChangeCollection() { cb.DeleteChangeCollection(); } 
+	bool SetChangeCollection(bool collectChange) {
+		return cb.SetChangeCollection(collectChange);
+	}
+/* CHANGEBAR end */
 	void BeginUndoAction() { cb.BeginUndoAction(); }
 	void EndUndoAction() { cb.EndUndoAction(); }
 	void AddUndoAction(int token, bool mayCoalesce) { cb.AddUndoAction(token, mayCoalesce); }
@@ -357,6 +365,9 @@ public:
 	int GetLastChild(int lineParent, int level=-1, int lastLine=-1);
 	int GetFoldParent(int line) const;
 	void GetHighlightDelimiters(HighlightDelimiter &hDelimiter, int line, int lastLine);
+/* CHANGEBAR begin */
+    int GetChanged(int line) { return cb.GetChanged(line); } 
+/* CHANGEBAR end */
 
 	void Indent(bool forwards);
 	int ExtendWordSelect(int pos, int delta, bool onlyWordCharacters=false);
