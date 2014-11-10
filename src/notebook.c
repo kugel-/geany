@@ -34,94 +34,301 @@
 #include "geanyobject.h"
 #include "keybindings.h"
 #include "main.h"
+#include "sidebar.h"
 #include "support.h"
 #include "ui_utils.h"
 #include "utils.h"
 
 #include "gtkcompat.h"
+#include "sciwrappers.h"
+#include "build.h"
+#include "math.h"
+
+#ifdef HAVE_VTE
+# include "vte.h"
+#endif
 
 #include <gdk/gdkkeysyms.h>
 
+#define TYPE_GEANY_PAGE (geany_page_get_type ())
+#define GEANY_PAGE(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_GEANY_PAGE, GeanyPage))
+#define GEANY_PAGE_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_GEANY_PAGE, GeanyPageClass))
+#define IS_GEANY_PAGE(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_GEANY_PAGE))
+#define IS_GEANY_PAGE_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), TYPE_GEANY_PAGE))
+#define GEANY_PAGE_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_GEANY_PAGE, GeanyPageClass))
 
-#define GEANY_DND_NOTEBOOK_TAB_TYPE	"geany_dnd_notebook_tab"
+typedef struct _GeanyPage GeanyPage;
+typedef struct _GeanyPageClass GeanyPageClass;
 
-static const GtkTargetEntry drag_targets[] =
+struct _GeanyPage
 {
-	{GEANY_DND_NOTEBOOK_TAB_TYPE, GTK_TARGET_SAME_APP | GTK_TARGET_SAME_WIDGET, 0}
+	GtkBox                parent_instance;
+	ScintillaObject      *sci;
+	GtkLabel             *tab_label;
+};
+
+struct _GeanyPageClass
+{
+	GtkBoxClass           parent_class;
+};
+
+
+G_DEFINE_TYPE(GeanyPage, geany_page, GTK_TYPE_BOX)
+
+static GeanyPage* geany_page_new (ScintillaObject* sci, const gchar *label_text)
+{
+	GeanyPage *self;
+	self = (GeanyPage*) g_object_new (TYPE_GEANY_PAGE, "orientation", GTK_ORIENTATION_VERTICAL, NULL);
+	self->sci = sci;
+	self->tab_label = GTK_LABEL(gtk_label_new(label_text));
+	g_object_ref_sink(G_OBJECT(self->tab_label));
+	gtk_box_pack_start (GTK_BOX(self), GTK_WIDGET(sci), TRUE, TRUE, 0);
+	return self;
+}
+
+
+static ScintillaObject* geany_page_get_sci (GeanyPage* self)
+{
+	return self->sci;
+}
+
+
+static const gchar *geany_page_get_label_text(GeanyPage *self)
+{
+	return gtk_label_get_text(self->tab_label);
+}
+
+
+static GtkLabel *geany_page_get_label(GeanyPage *self)
+{
+	return self->tab_label;
+}
+
+
+static void geany_page_init (GeanyPage * self)
+{
+}
+
+
+static void geany_page_finalize (GObject* obj)
+{
+	GeanyPage * self = GEANY_PAGE(obj);;
+	g_object_unref(G_OBJECT(self->tab_label));
+	G_OBJECT_CLASS (geany_page_parent_class)->finalize (obj);
+}
+
+static void geany_page_class_init (GeanyPageClass * klass)
+{
+	geany_page_parent_class = g_type_class_peek_parent (klass);
+	G_OBJECT_CLASS (klass)->finalize = geany_page_finalize;
+}
+
+enum {
+	DROP_DATA_NOTEBOOK,
+	DROP_DATA_FILENAME,
 };
 
 static GtkTargetEntry files_drop_targets[] = {
-	{ "STRING",			0, 0 },
-	{ "UTF8_STRING",	0, 0 },
-	{ "text/plain",		0, 0 },
-	{ "text/uri-list",	0, 0 }
+	{ "GTK_NOTEBOOK_TAB",  	GTK_TARGET_SAME_APP, DROP_DATA_NOTEBOOK},
+	{ "STRING",				0, DROP_DATA_FILENAME },
+	{ "UTF8_STRING",		0, DROP_DATA_FILENAME },
+	{ "text/plain",			0, DROP_DATA_FILENAME },
+	{ "text/uri-list",		0, DROP_DATA_FILENAME }
 };
 
 static const gsize MAX_MRU_DOCS = 20;
-static GQueue *mru_docs = NULL;
+static GQueue *mru_tabs = NULL;
 static guint mru_pos = 0;
 
 static gboolean switch_in_progress = FALSE;
 static GtkWidget *switch_dialog = NULL;
 static GtkWidget *switch_dialog_label = NULL;
 
-
-static void
-notebook_page_reordered_cb(GtkNotebook *notebook, GtkWidget *child, guint page_num,
-		gpointer user_data);
+static GeanyDocument *last_focused = NULL;
 
 static void
 on_window_drag_data_received(GtkWidget *widget, GdkDragContext *drag_context,
 		gint x, gint y, GtkSelectionData *data, guint target_type,
 		guint event_time, gpointer user_data);
 
+static gboolean
+on_window_drag_drop(GtkWidget *widget, GdkDragContext *drag_context,
+		gint x, gint y, guint event_time, gpointer user_data);
+
 static void
 notebook_tab_close_clicked_cb(GtkButton *button, gpointer user_data);
 
-static void setup_tab_dnd(void);
+static void
+swap_notebooks_cb(GtkButton *button, gpointer user_data);
 
 
-static void update_mru_docs_head(GeanyDocument *doc)
+GtkNotebook *notebook_get_with_page_by_sci(ScintillaObject *sci, GtkWidget **page)
 {
-	if (doc)
+	GtkWidget *parent, *_page;
+	g_return_val_if_fail(sci != NULL, NULL);
+
+	_page = GTK_WIDGET(sci);
+	/* the notebook is most likely the direct parent of the parent(GeanyPage) (because that's
+	 * what notebook_new_tab() does, but plugins or future work may break this assumption so let's
+	 * walk up the object tree. This is quite cheap pointer-to-parent lookup.
+	 * */
+	while(TRUE)
 	{
-		g_queue_remove(mru_docs, doc);
-		g_queue_push_head(mru_docs, doc);
-
-		if (g_queue_get_length(mru_docs) > MAX_MRU_DOCS)
-			g_queue_pop_tail(mru_docs);
+		parent = gtk_widget_get_parent(_page);
+		if (GTK_IS_NOTEBOOK(parent) || G_UNLIKELY(parent == NULL))
+			break;
+		_page = parent;
 	}
+
+	if (page)
+		*page = _page;
+	return GTK_NOTEBOOK(parent);
 }
 
 
-/* before the tab changes, add the current document to the MRU list */
-static void on_notebook_switch_page(GtkNotebook *notebook,
-	gpointer page, guint page_num, gpointer user_data)
+static GeanyPage *page_by_sci(ScintillaObject *sci)
 {
-	GeanyDocument *new;
+	GtkWidget *page = gtk_widget_get_parent(GTK_WIDGET(sci));
+	while (!IS_GEANY_PAGE(page))
+		page = gtk_widget_get_parent(page);
+	return (GeanyPage *) page;
+}
 
-	new = document_get_from_page(page_num);
 
-	/* insert the very first document (when adding the second document
-	 * and switching to it) */
-	if (g_queue_get_length(mru_docs) == 0 && gtk_notebook_get_n_pages(notebook) == 2)
-		update_mru_docs_head(document_get_current());
+GeanyDocument *notebook_get_current_document(void)
+{
+	if (!DOC_VALID(last_focused))
+		return NULL;
+	return last_focused;
+}
 
+GtkNotebook *notebook_get_current_notebook(void)
+{
+	if (!DOC_VALID(last_focused))
+		return notebook_get_primary();
+	return notebook_get_with_page_by_sci(last_focused->editor->sci, NULL);
+}
+
+guint notebook_get_page_num_by_sci(ScintillaObject *sci)
+{
+	GtkWidget *page;
+
+	GtkNotebook *notebook = notebook_get_with_page_by_sci(sci, &page);
+
+	return gtk_notebook_page_num(notebook, GTK_WIDGET(sci));
+}
+
+guint notebook_get_n_documents(void)
+{
+	guint num = 0;
+	GtkNotebook *notebook;
+
+	foreach_notebook(notebook)
+		num += gtk_notebook_get_n_pages(notebook);
+
+	return num;
+}
+
+
+static void update_mru_tabs_head(GeanyPage *page)
+{
+	g_return_if_fail(IS_GEANY_PAGE(page));
+
+	g_queue_remove(mru_tabs, page);
+	g_queue_push_head(mru_tabs, page);
+
+	if (g_queue_get_length(mru_tabs) > MAX_MRU_DOCS)
+		g_queue_pop_tail(mru_tabs);
+}
+
+static gboolean delayed_check_disk_status(gpointer data)
+{
+	document_check_disk_status(data, FALSE);
+	return FALSE;
+}
+
+/* Changes window-title after switching tabs and lots of other things.
+ * This connects to focus-on-event to catch cases where tabs are "switched" by
+ * focusing a different document notebook. This is too called on page switching. */
+static gboolean
+on_page_focused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
+{
+	GeanyDocument *doc = (GeanyDocument *) user_data;
+	GtkLabel      *label;
+	GtkNotebook   *notebook;
+	GeanyPage     *page;
+	gchar         *markup;
+
+	g_return_val_if_fail(user_data != NULL, FALSE);
+
+	if (G_UNLIKELY(main_status.opening_session_files || main_status.closing_all))
+		return FALSE;
+
+	if (!sci) /* focus is removed from child. Not interesting to us */
+		return FALSE;
+
+	notebook = notebook_get_with_page_by_sci(sci, (GtkWidget **) &page);
+
+	label = geany_page_get_label(page);
+	markup = g_markup_printf_escaped("<u>%s</u>", gtk_label_get_text(label));
+	gtk_label_set_markup(label, markup);
+	g_free(markup);
+
+	/* update MRU to make ctrl-tab between notebooks work */
 	if (!switch_in_progress)
-		update_mru_docs_head(new);
+		update_mru_tabs_head(page_by_sci(sci));
+
+	last_focused = doc;
+	sidebar_select_openfiles_item(doc);
+	ui_save_buttons_toggle(doc->changed);
+	ui_set_window_title(doc);
+	ui_update_statusbar(doc, -1);
+	ui_update_popup_reundo_items(doc);
+	ui_document_show_hide(doc); /* update the document menu */
+	build_menu_update(doc);
+	sidebar_update_tag_list(doc, FALSE);
+	document_highlight_tags(doc);
+
+	/* We delay the check to avoid weird fast, unintended switching of notebook pages when
+	 * the 'file has changed' dialog is shown while the switch event is not yet completely
+	 * finished. So, we check after the switch has been performed to be safe. */
+	g_idle_add(delayed_check_disk_status, doc);
+
+#ifdef HAVE_VTE
+	vte_cwd((doc->real_path != NULL) ? doc->real_path : doc->file_name, FALSE);
+#endif
+
+	g_signal_emit_by_name(geany_object, "document-activate", doc);
+
+	return FALSE;
 }
 
-
-static void on_document_close(GObject *obj, GeanyDocument *doc)
+static gboolean
+on_page_unfocused(ScintillaObject *sci, GdkEvent *event, gpointer user_data)
 {
+	GeanyDocument *doc = (GeanyDocument *) user_data;
+	GtkLabel      *label;
+
 	if (! main_status.quitting)
 	{
-		g_queue_remove(mru_docs, doc);
-		/* this prevents the pop up window from showing when there's a single
-		 * document */
-		if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook)) == 2)
-			g_queue_clear(mru_docs);
+		/* undo underlined text created by on_page_focused */
+		GeanyPage *page = page_by_sci(sci);
+		label = geany_page_get_label(page);
+		gtk_label_set_text(label, gtk_label_get_text(label));
 	}
+
+	return FALSE;
+}
+
+gint notebook_order_compare(GtkNotebook *notebook1, GtkNotebook *notebook2)
+{
+	if (notebook1 == notebook2)
+		return 0;
+
+	if (notebook1 == notebook_get_primary())
+		return -1;
+	else
+		return  1;
 }
 
 
@@ -168,12 +375,15 @@ static gboolean is_modifier_key(guint keyval)
 }
 
 
+/* because on_notebook_switch_page() only updates the mru list when not currently
+ * switching the mru head must be updated after switching */
 static gboolean on_key_release_event(GtkWidget *widget, GdkEventKey *ev, gpointer user_data)
 {
 	/* user may have rebound keybinding to a different modifier than Ctrl, so check all */
 	if (switch_in_progress && is_modifier_key(ev->keyval))
 	{
 		GeanyDocument *doc;
+		GeanyPage     *page;
 
 		switch_in_progress = FALSE;
 
@@ -184,7 +394,8 @@ static gboolean on_key_release_event(GtkWidget *widget, GdkEventKey *ev, gpointe
 		}
 
 		doc = document_get_current();
-		update_mru_docs_head(doc);
+		page = page_by_sci(doc->editor->sci);
+		update_mru_tabs_head(page);
 		mru_pos = 0;
 		document_check_disk_status(doc, TRUE);
 	}
@@ -222,7 +433,7 @@ static void update_filename_label(void)
 	guint i;
 	gchar *msg = NULL;
 	guint queue_length;
-	GeanyDocument *doc;
+	GeanyPage *page;
 
 	if (!switch_dialog)
 	{
@@ -230,26 +441,26 @@ static void update_filename_label(void)
 		gtk_widget_show_all(switch_dialog);
 	}
 
-	queue_length = g_queue_get_length(mru_docs);
-	for (i = mru_pos; (i <= mru_pos + 3) && (doc = g_queue_peek_nth(mru_docs, i % queue_length)); i++)
+	queue_length = g_queue_get_length(mru_tabs);
+	for (i = mru_pos; (i <= mru_pos + 3) && (page = g_queue_peek_nth(mru_tabs, i % queue_length)); i++)
 	{
-		gchar *basename;
+		const gchar *basename;
 
-		basename = g_path_get_basename(DOC_FILENAME(doc));
+		basename = geany_page_get_label_text(page);
 		if (i == mru_pos)
 			msg = g_markup_printf_escaped ("<b>%s</b>", basename);
 		else if (i % queue_length == mru_pos)    /* && i != mru_pos */
 		{
 			/* We have wrapped around and got to the starting document again */
-			g_free(basename);
 			break;
 		}
 		else
 		{
-			SETPTR(basename, g_markup_printf_escaped ("\n%s", basename));
-			SETPTR(msg, g_strconcat(msg, basename, NULL));
+			gchar *markup;
+			markup = g_markup_printf_escaped ("\n%s", basename);
+			SETPTR(msg, g_strconcat(msg, markup, NULL));
+			g_free(markup);
 		}
-		g_free(basename);
 	}
 	gtk_label_set_markup(GTK_LABEL(switch_dialog_label), msg);
 	g_free(msg);
@@ -270,23 +481,35 @@ static gboolean on_switch_timeout(G_GNUC_UNUSED gpointer data)
 
 void notebook_switch_tablastused(void)
 {
-	GeanyDocument *last_doc;
-	gboolean switch_start = !switch_in_progress;
+	GeanyPage   *last_page;
+	GtkNotebook *notebook;
+
+	gint page_num;
+	gboolean switch_start;
+
+	/* don't bother for single documents (or even none) */
+	if (g_queue_get_length(mru_tabs) < 2)
+		return;
+
+	switch_start = !switch_in_progress;
 
 	mru_pos += 1;
-	last_doc = g_queue_peek_nth(mru_docs, mru_pos);
+	last_page = g_queue_peek_nth(mru_tabs, mru_pos);
 
-	if (! DOC_VALID(last_doc))
+	if (! last_page)
 	{
 		utils_beep();
 		mru_pos = 0;
-		last_doc = g_queue_peek_nth(mru_docs, mru_pos);
+		last_page = g_queue_peek_nth(mru_tabs, mru_pos);
 	}
-	if (! DOC_VALID(last_doc))
+	if (! last_page)
 		return;
 
 	switch_in_progress = TRUE;
-	document_show_tab(last_doc);
+	notebook = GTK_NOTEBOOK(gtk_widget_get_parent((GtkWidget *) last_page));
+	page_num = gtk_notebook_page_num(notebook, (GtkWidget *) last_page);
+	gtk_notebook_set_current_page(notebook, page_num);
+	gtk_widget_grab_focus((GtkWidget *) geany_page_get_sci(last_page));
 
 	/* if there's a modifier key, we can switch back in MRU order each time unless
 	 * the key is released */
@@ -303,12 +526,25 @@ gboolean notebook_switch_in_progress(void)
 }
 
 
+GeanyDocument *notebook_get_document_from_page(GtkNotebook *notebook, guint page_num)
+{
+	GeanyPage *page;
+	ScintillaObject *sci;
+
+	if (page_num >= gtk_notebook_get_n_pages(notebook))
+		return NULL;
+
+	page = GEANY_PAGE(gtk_notebook_get_nth_page(notebook, page_num));
+
+	return document_find_by_sci(geany_page_get_sci(page));
+}
+
 static gboolean focus_sci(GtkWidget *widget, GdkEventButton *event, gpointer user_data)
 {
-	GeanyDocument *doc = document_get_current();
+	ScintillaObject *sci = SCINTILLA(user_data);
 
-	if (doc != NULL && event->button == 1)
-		gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
+	if (event->button == 1)
+		gtk_widget_grab_focus(GTK_WIDGET(sci));
 
 	return FALSE;
 }
@@ -405,14 +641,42 @@ static gboolean is_position_on_tab_bar(GtkNotebook *notebook, GdkEventButton *ev
 	return FALSE;
 }
 
+GtkNotebook *notebook_get_from_sci(ScintillaObject *sci)
+{
+	return notebook_get_with_page_by_sci(sci, NULL);
+}
+
+
+static gint
+swap_notebooks(GeanyDocument *doc)
+{
+	GtkNotebook *parent, *new_parent;
+	GtkWidget *label;
+	GtkWidget *page;
+	gint page_num;
+
+	parent = notebook_get_from_sci(doc->editor->sci);
+
+	if (parent == g_ptr_array_index(main_widgets.notebooks, 0))
+		new_parent = GTK_NOTEBOOK(g_ptr_array_index(main_widgets.notebooks, 1));
+	else
+		new_parent = GTK_NOTEBOOK(g_ptr_array_index(main_widgets.notebooks, 0));
+
+	return notebook_move_doc(new_parent, doc);
+}
+
 
 static void tab_bar_menu_activate_cb(GtkMenuItem *menuitem, gpointer data)
 {
 	GeanyDocument *doc = data;
+	GtkNotebook *notebook_of_widget, *notebook_of_menu;
 
 	if (! DOC_VALID(doc))
 		return;
 
+	notebook_of_menu   = GTK_NOTEBOOK(g_object_get_data(G_OBJECT(gtk_widget_get_parent(GTK_WIDGET(menuitem))), "notebook"));
+
+	notebook_move_doc(notebook_of_menu, doc);
 	document_show_tab(doc);
 }
 
@@ -445,10 +709,11 @@ static void on_open_in_new_window_activate(GtkMenuItem *menuitem, gpointer user_
 }
 
 
-static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
+static void show_tab_bar_popup_menu(GdkEventButton *event, GtkNotebook *notebook, GeanyDocument *doc)
 {
 	GtkWidget *menu_item;
 	static GtkWidget *menu = NULL;
+	GtkWidget *page;
 
 	if (menu == NULL)
 		menu = gtk_menu_new();
@@ -458,6 +723,9 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
 
 	ui_menu_add_document_items(GTK_MENU(menu), document_get_current(),
 		G_CALLBACK(tab_bar_menu_activate_cb));
+
+	/* _full with NULL destroy so that the notebook won't be destroyed */
+	g_object_set_data_full(G_OBJECT(menu), "notebook", notebook, NULL);
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_item);
@@ -471,6 +739,12 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
 	/* disable if not on disk */
 	if (doc == NULL || !doc->real_path)
 		gtk_widget_set_sensitive(menu_item, FALSE);
+
+	menu_item = ui_image_menu_item_new(GTK_STOCK_JUMP_TO, _("Open in other _notebook"));
+	gtk_widget_show(menu_item);
+	gtk_container_add(GTK_CONTAINER(menu), menu_item);
+	g_signal_connect(menu_item, "activate", G_CALLBACK(swap_notebooks_cb), doc);
+	gtk_widget_set_sensitive(GTK_WIDGET(menu_item), (doc != NULL));
 
 	menu_item = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_item);
@@ -500,11 +774,14 @@ static void show_tab_bar_popup_menu(GdkEventButton *event, GeanyDocument *doc)
 static gboolean notebook_tab_bar_click_cb(GtkWidget *widget, GdkEventButton *event,
 										  gpointer user_data)
 {
+	GtkNotebook *notebook = GTK_NOTEBOOK(widget);
+	GtkWidget *child = gtk_notebook_get_nth_page(notebook, gtk_notebook_get_current_page(notebook));
+
+	gtk_widget_grab_focus(child);
+
 	if (event->type == GDK_2BUTTON_PRESS)
 	{
-		GtkNotebook *notebook = GTK_NOTEBOOK(widget);
 		GtkWidget *event_widget = gtk_get_event_widget((GdkEvent *) event);
-		GtkWidget *child = gtk_notebook_get_nth_page(notebook, gtk_notebook_get_current_page(notebook));
 
 		/* ignore events from the content of the page (impl. stolen from GTK2 tab scrolling)
 		 * TODO: we should also ignore notebook's action widgets, but that's more work and
@@ -522,78 +799,215 @@ static gboolean notebook_tab_bar_click_cb(GtkWidget *widget, GdkEventButton *eve
 	 * on a tab directly */
 	else if (event->button == 3)
 	{
-		show_tab_bar_popup_menu(event, NULL);
+		show_tab_bar_popup_menu(event, notebook, NULL);
 		return TRUE;
 	}
 	return FALSE;
 }
 
-
-void notebook_init(void)
+static gint get_paned_size(GtkPaned *paned)
 {
-	g_signal_connect_after(main_widgets.notebook, "button-press-event",
-		G_CALLBACK(notebook_tab_bar_click_cb), NULL);
+	switch (gtk_orientable_get_orientation(GTK_ORIENTABLE(paned)))
+	{
+		case GTK_ORIENTATION_HORIZONTAL:
+			return gtk_widget_get_allocated_width(GTK_WIDGET(paned));
+		case GTK_ORIENTATION_VERTICAL:
+			return gtk_widget_get_allocated_height(GTK_WIDGET(paned));
+		default:
+			g_assert_not_reached();
+	}
+}
 
-	g_signal_connect(main_widgets.notebook, "drag-data-received",
-		G_CALLBACK(on_window_drag_data_received), NULL);
+static void store_split_value(GtkPaned *paned)
+{
+	gint pos, max;
 
-	mru_docs = g_queue_new();
-	g_signal_connect(main_widgets.notebook, "switch-page",
-		G_CALLBACK(on_notebook_switch_page), NULL);
-	g_signal_connect(geany_object, "document-close",
-		G_CALLBACK(on_document_close), NULL);
+	pos = gtk_paned_get_position(paned);
+	max = get_paned_size(paned);
 
+	pos = nearbyint((10000.0 * pos)/max);
+
+	g_object_set_data(G_OBJECT(paned), "split", GINT_TO_POINTER(pos));
+}
+
+gboolean on_handle_moved(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+	store_split_value(GTK_PANED(widget));
+}
+
+static gboolean relayout_notebooks(gpointer data)
+{
+	GtkPaned *paned = GTK_PANED(data);
+	GtkNotebook *n1, *n2;
+	gint minimized1, minimized2;
+	gint max;
+
+	max = get_paned_size(paned);
+	/* this must be called after the GtkPaned is realized and got size allocated */
+	g_return_val_if_fail(gtk_widget_get_realized(GTK_WIDGET(paned)), FALSE);
+	g_return_val_if_fail(max > 1, FALSE);
+
+	n1 = GTK_NOTEBOOK(gtk_paned_get_child1(paned));
+	minimized1 = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(n1), "minimized"));
+
+	n2 = GTK_NOTEBOOK(gtk_paned_get_child2(paned));
+	minimized2 = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(n2), "minimized"));
+
+	g_signal_handlers_disconnect_by_func(paned, on_handle_moved, NULL);
+	if (!minimized1 && !minimized2)
+	{
+		/* both notebooks show something: restore the user chosen handle position */
+		gint ovr = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(paned), "override"));
+		gint split = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(paned), "split"));
+		/* the split value is stored as percent * 1000 */
+		gfloat splitf = split/10000.0;
+		if (G_UNLIKELY(ovr != -1))
+		{
+			gtk_paned_set_position(paned, ovr);
+			store_split_value(paned);
+			g_object_set_data(G_OBJECT(paned), "override", GINT_TO_POINTER(-1));
+		}
+		else if (split != -1)
+		{
+			gtk_paned_set_position(paned, (gint) (max*splitf));
+			g_object_set_data(G_OBJECT(paned), "autosize", GINT_TO_POINTER(0));
+		}
+		else
+			gtk_paned_set_position(paned, max/2);
+		g_signal_connect_after(G_OBJECT(paned), "notify::position", G_CALLBACK(on_handle_moved), NULL);
+	}
+	else
+	{
+		/* one or both notebooks are emtpy. override position with automatic value
+		 * but remember the postition to restore it later */
+		gint pos = gtk_paned_get_position(paned);
+		if (!g_object_get_data(G_OBJECT(paned), "autosize"))
+			store_split_value(paned);
+		if (minimized1 && minimized2)
+			gtk_paned_set_position(paned, max/2);
+		else if (minimized2)
+			gtk_paned_set_position(paned, max);
+		else
+			gtk_paned_set_position(paned, 0);
+		g_object_set_data(G_OBJECT(paned), "autosize", GINT_TO_POINTER(1));
+	}
+
+	return FALSE;
+}
+
+void notebook_restore_paned_position(gint position)
+{
+	GtkPaned *paned;
+
+	paned = GTK_PANED(ui_lookup_widget(main_widgets.window, "hpaned2"));
+	if (position != -1)
+		g_object_set_data(G_OBJECT(paned), "override", GINT_TO_POINTER(position));
+}
+
+
+/* call this after the number of tabs in main_widgets.notebook changes. */
+static void on_notebook_page_count_changed(GtkNotebook *notebook,
+										   GeanyPage *page,
+										   guint page_num,
+										   gpointer user_data)
+{
+	gint added = GPOINTER_TO_INT(user_data);
+
+	if (page && !main_status.quitting)
+	{
+		/* when adding a tab add it to the mru, even if it wasn't actually focused (for batch open) */
+		if (added)
+			update_mru_tabs_head(page);
+		/* when closing a tab remove it from the mru */
+		else
+			g_queue_remove(mru_tabs, page);
+	}
+
+	switch (gtk_notebook_get_n_pages(notebook))
+	{
+		case 0:
+			g_object_set_data(G_OBJECT(notebook), "minimized", GINT_TO_POINTER(1));
+			break;
+
+		case 1:
+			g_object_set_data(G_OBJECT(notebook), "minimized", GINT_TO_POINTER(0));
+			break;
+
+		default:
+			/* don't relayout unecessarily. need only to do this for 0->1 and 1->0 transistions */
+			return;
+	}
+	/* Do not relayout on the very initial call */
+	if (page)
+		g_idle_add(relayout_notebooks, gtk_widget_get_parent(GTK_WIDGET(notebook)));
+}
+
+
+GPtrArray *notebook_init(void)
+{
+	const int max_notebooks = 2;
+	gint i;
+	GtkNotebook *notebook;
+	GPtrArray *notebooks;
+	static gchar notebook_group[] = "geany_notebooks";
+	GtkWidget *paned;
+
+	notebooks = g_ptr_array_sized_new(max_notebooks);
+	g_ptr_array_add(notebooks, ui_lookup_widget(main_widgets.window, "notebook1"));
+	g_ptr_array_add(notebooks, ui_lookup_widget(main_widgets.window, "notebook7"));
+
+	paned = gtk_widget_get_parent(g_ptr_array_index(notebooks, 0));
+	g_object_set_data(G_OBJECT(paned), "split",      GINT_TO_POINTER(-1));
+	g_object_set_data(G_OBJECT(paned), "override",   GINT_TO_POINTER(-1));
+
+	for (i = 0; i < max_notebooks; i++)
+	{
+		notebook = g_ptr_array_index(notebooks, i);
+
+		g_signal_connect_after(notebook, "button-press-event",
+			G_CALLBACK(notebook_tab_bar_click_cb), NULL);
+
+		/* Enable DnD for dropping files and other notebook tabs into the notebook widget
+		 *
+		 * WORKAROUND: gtk's default behavior for GTK_DEST_DEFAULT_DROP leads to (pretty sure this
+		 * is a GTK bug):
+		 * Gtk-CRITICAL : gtk_selection_data_set: assertion `length <= 0' failed
+		 *
+		 * To workaround we install a custom "drag-drop" handler and mask GTK_DEST_DEFAULT_DROP
+		 * out. The "drag-drop" handler mimics GTK code by just calling gtk_drag_get_data() */
+		gtk_drag_dest_set(GTK_WIDGET(notebook), (GTK_DEST_DEFAULT_ALL & ~GTK_DEST_DEFAULT_DROP) ,
+			files_drop_targets,	G_N_ELEMENTS(files_drop_targets),
+			GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK | GDK_ACTION_ASK);
+		g_signal_connect(G_OBJECT(notebook), "drag-data-received",
+			G_CALLBACK(on_window_drag_data_received), NULL);
+		g_signal_connect(G_OBJECT(notebook), "drag-drop",
+			G_CALLBACK(on_window_drag_drop), NULL);
+#if GTK_CHECK_VERSION(2,24,0)
+		gtk_notebook_set_group_name(notebook, notebook_group);
+#else
+		gtk_notebook_set_group(notebook, (gpointer) notebook_group);
+#endif
+
+		g_signal_connect(notebook, "page-added",
+			G_CALLBACK(on_notebook_page_count_changed), GINT_TO_POINTER(1));
+		g_signal_connect(notebook, "page-removed",
+			G_CALLBACK(on_notebook_page_count_changed), GINT_TO_POINTER(0));
+
+		/* initialize for 0 pages */
+		on_notebook_page_count_changed(notebook, NULL, 1, GINT_TO_POINTER(0));
+	}
+
+	mru_tabs = g_queue_new();
 	/* in case the switch dialog misses an event while drawing the dialog */
 	g_signal_connect(main_widgets.window, "key-release-event", G_CALLBACK(on_key_release_event), NULL);
 
-	setup_tab_dnd();
+	return notebooks;
 }
 
 
 void notebook_free(void)
 {
-	g_queue_free(mru_docs);
-}
-
-
-static void setup_tab_dnd(void)
-{
-	GtkWidget *notebook = main_widgets.notebook;
-
-	g_signal_connect(notebook, "page-reordered", G_CALLBACK(notebook_page_reordered_cb), NULL);
-}
-
-
-static void
-notebook_page_reordered_cb(GtkNotebook *notebook, GtkWidget *child, guint page_num,
-	gpointer user_data)
-{
-	/* Not necessary to update open files treeview if it's sorted.
-	 * Note: if enabled, it's best to move the item instead of recreating all items. */
-	/*sidebar_openfiles_update_all();*/
-}
-
-
-/* call this after the number of tabs in main_widgets.notebook changes. */
-static void tab_count_changed(void)
-{
-	switch (gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook)))
-	{
-		case 0:
-		/* Enables DnD for dropping files into the empty notebook widget */
-		gtk_drag_dest_set(main_widgets.notebook, GTK_DEST_DEFAULT_ALL,
-			files_drop_targets,	G_N_ELEMENTS(files_drop_targets),
-			GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK | GDK_ACTION_ASK);
-		break;
-
-		case 1:
-		/* Disables DnD for dropping files into the notebook widget and enables the DnD for moving file
-		 * tabs. Files can still be dropped into the notebook widget because it will be handled by the
-		 * active Scintilla Widget (only dropping to the tab bar is not possible but it should be ok) */
-		gtk_drag_dest_set(main_widgets.notebook, GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-			drag_targets, G_N_ELEMENTS(drag_targets), GDK_ACTION_MOVE);
-		break;
-	}
+	g_queue_free(mru_tabs);
 }
 
 
@@ -601,7 +1015,9 @@ static gboolean notebook_tab_click(GtkWidget *widget, GdkEventButton *event, gpo
 {
 	guint state;
 	GeanyDocument *doc = (GeanyDocument *) data;
+	GtkNotebook *notebook;
 
+	notebook = notebook_get_with_page_by_sci(doc->editor->sci, NULL);
 	/* toggle additional widgets on double click */
 	if (event->type == GDK_2BUTTON_PRESS)
 	{
@@ -627,7 +1043,7 @@ static gboolean notebook_tab_click(GtkWidget *widget, GdkEventButton *event, gpo
 	/* right-click is first handled here if it happened on a notebook tab */
 	if (event->button == 3)
 	{
-		show_tab_bar_popup_menu(event, doc);
+		show_tab_bar_popup_menu(event, notebook, doc);
 		return TRUE;
 	}
 
@@ -644,24 +1060,26 @@ static void notebook_tab_close_button_style_set(GtkWidget *btn, GtkRcStyle *prev
 	gtk_widget_set_size_request(btn, w + 2, h + 2);
 }
 
-
 /* Returns page number of notebook page, or -1 on error */
-gint notebook_new_tab(GeanyDocument *this)
+gint notebook_new_tab(GeanyDocument *this, GtkNotebook *notebook)
 {
-	GtkWidget *hbox, *ebox, *vbox;
+	GtkWidget *hbox, *ebox;
 	gint tabnum;
-	GtkWidget *page;
+	GeanyPage *page;
 	gint cur_page;
 
 	g_return_val_if_fail(this != NULL, -1);
 
 	/* page is packed into a vbox so we can stack infobars above it */
-	vbox = gtk_vbox_new(FALSE, 0);
-	page = GTK_WIDGET(this->editor->sci);
-	gtk_box_pack_start(GTK_BOX(vbox), page, TRUE, TRUE, 0);
-	gtk_widget_show(vbox);
+	page = geany_page_new(this->editor->sci, "");
+	gtk_widget_show((GtkWidget *) page);
 
-	this->priv->tab_label = gtk_label_new(NULL);
+	this->priv->tab_label = (GtkWidget *) geany_page_get_label(page);
+
+	g_signal_connect(G_OBJECT(geany_page_get_sci(page)),
+			"focus-in-event",  G_CALLBACK(on_page_focused), this);
+	g_signal_connect(G_OBJECT(geany_page_get_sci(page)),
+			"focus-out-event", G_CALLBACK(on_page_unfocused), this);
 
 	/* get button press events for the tab label and the space between it and
 	 * the close button, if any */
@@ -669,8 +1087,7 @@ gint notebook_new_tab(GeanyDocument *this)
 	gtk_widget_set_has_window(ebox, FALSE);
 	g_signal_connect(ebox, "button-press-event", G_CALLBACK(notebook_tab_click), this);
 	/* focus the current document after clicking on a tab */
-	g_signal_connect_after(ebox, "button-release-event",
-		G_CALLBACK(focus_sci), NULL);
+	g_signal_connect_after(ebox, "button-release-event", G_CALLBACK(focus_sci), geany_page_get_sci(page));
 
 	hbox = gtk_hbox_new(FALSE, 2);
 	gtk_box_pack_start(GTK_BOX(hbox), this->priv->tab_label, FALSE, FALSE, 0);
@@ -704,24 +1121,53 @@ gint notebook_new_tab(GeanyDocument *this)
 	document_update_tab_label(this);
 
 	if (file_prefs.tab_order_beside)
-		cur_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(main_widgets.notebook));
+		cur_page = gtk_notebook_get_current_page(notebook);
 	else
 		cur_page = file_prefs.tab_order_ltr ? -2 /* hack: -2 + 1 = -1, last page */ : 0;
 	if (file_prefs.tab_order_ltr)
-		tabnum = gtk_notebook_insert_page_menu(GTK_NOTEBOOK(main_widgets.notebook), vbox,
+		tabnum = gtk_notebook_insert_page_menu(notebook, (GtkWidget *) page,
 			ebox, NULL, cur_page + 1);
 	else
-		tabnum = gtk_notebook_insert_page_menu(GTK_NOTEBOOK(main_widgets.notebook), vbox,
+		tabnum = gtk_notebook_insert_page_menu(notebook, (GtkWidget *) page,
 			ebox, NULL, cur_page);
 
-	tab_count_changed();
-
 	/* enable tab DnD */
-	gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(main_widgets.notebook), vbox, TRUE);
+	gtk_notebook_set_tab_reorderable(notebook, (GtkWidget *) page, TRUE);
+	gtk_notebook_set_tab_detachable(notebook, (GtkWidget *) page, TRUE);
 
 	return tabnum;
 }
 
+gint notebook_move_doc(GtkNotebook *notebook, GeanyDocument *doc)
+{
+	GtkWidget *page, *label;
+	GtkNotebook *current;
+	gint page_num;
+
+	/* check the if doc is already on the target notebook */
+	current = notebook_get_with_page_by_sci(doc->editor->sci, &page);
+	/* It shouldn't be possible that the doc isn't in any notebook */
+	g_return_val_if_fail(current != NULL, -1);
+
+	if (notebook == current)
+		return gtk_notebook_page_num(current, page);
+
+	label  = gtk_notebook_get_tab_label(current, page);
+
+	g_object_ref(page);
+	g_object_ref(label);
+	gtk_notebook_remove_page(current, gtk_notebook_page_num(current, page));
+	page_num = gtk_notebook_append_page_menu(notebook, page, label, NULL);
+	g_object_unref(page);
+	g_object_unref(label);
+
+	/* enable tab DnD */
+	gtk_notebook_set_tab_reorderable(notebook, page, TRUE);
+	gtk_notebook_set_tab_detachable(notebook, page, TRUE);
+
+
+	return page_num;
+}
 
 static void
 notebook_tab_close_clicked_cb(GtkButton *button, gpointer data)
@@ -731,11 +1177,17 @@ notebook_tab_close_clicked_cb(GtkButton *button, gpointer data)
 	document_close(doc);
 }
 
+static void
+swap_notebooks_cb(GtkButton *button, gpointer user_data)
+{
+	swap_notebooks((GeanyDocument *) user_data);
+}
+
 
 /* Always use this instead of gtk_notebook_remove_page(). */
-void notebook_remove_page(gint page_num)
+void notebook_remove_page(GtkNotebook *notebook, gint page_num)
 {
-	gint page = gtk_notebook_get_current_page(GTK_NOTEBOOK(main_widgets.notebook));
+	gint page = gtk_notebook_get_current_page(notebook);
 
 	if (page_num == page)
 	{
@@ -748,34 +1200,90 @@ void notebook_remove_page(gint page_num)
 		{
 			GeanyDocument *last_doc;
 
-			last_doc = g_queue_peek_nth(mru_docs, 0);
+			last_doc = g_queue_peek_nth(mru_tabs, 0);
 			if (DOC_VALID(last_doc))
 				page = document_get_notebook_page(last_doc);
 		}
 
-		gtk_notebook_set_current_page(GTK_NOTEBOOK(main_widgets.notebook), page);
+		gtk_notebook_set_current_page(notebook, page);
 	}
 
 	/* now remove the page (so we don't temporarily switch to the previous page) */
-	gtk_notebook_remove_page(GTK_NOTEBOOK(main_widgets.notebook), page_num);
-
-	tab_count_changed();
+	gtk_notebook_remove_page(notebook, page_num);
 }
 
+void notebook_remove_page_by_sci(ScintillaObject *sci)
+{
+	gint page_num, page;
+	GtkWidget *real_child;
+	GtkNotebook *notebook;
+
+	notebook = notebook_get_with_page_by_sci(sci, &real_child);
+	page_num = gtk_notebook_page_num(notebook, real_child);
+	page = gtk_notebook_get_current_page(notebook);
+
+	if (page_num == page)
+	{
+		if (file_prefs.tab_order_ltr)
+			page += 1;
+		else if (page > 0) /* never go negative, it would select the last page */
+			page -= 1;
+
+		if (file_prefs.tab_close_switch_to_mru)
+		{
+			GeanyDocument *last_doc;
+
+			last_doc = g_queue_peek_nth(mru_tabs, 0);
+			if (DOC_VALID(last_doc))
+				page = document_get_notebook_page(last_doc);
+		}
+
+		gtk_notebook_set_current_page(notebook, page);
+	}
+
+	/* now remove the page (so we don't temporarily switch to the previous page) */
+	gtk_notebook_remove_page(notebook, page_num);
+}
+
+static gboolean
+on_window_drag_drop(GtkWidget *widget, GdkDragContext *drag_context,
+		gint x, gint y, guint event_time, gpointer user_data)
+{
+	GdkAtom target = gtk_drag_dest_find_target(widget, drag_context, NULL);
+
+	if (target != GDK_NONE)
+		gtk_drag_get_data(widget, drag_context, target, event_time);
+
+	return TRUE;
+}
 
 static void
 on_window_drag_data_received(GtkWidget *widget, GdkDragContext *drag_context,
 		gint x, gint y, GtkSelectionData *data, guint target_type,
 		guint event_time, gpointer user_data)
 {
+	guint length;
 	gboolean success = FALSE;
-	gint length = gtk_selection_data_get_length(data);
-
-	if (length > 0 && gtk_selection_data_get_format(data) == 8)
-	{
-		document_open_file_list((const gchar *)gtk_selection_data_get_data(data), length);
-
+	/* If a notebook tab is gonna dropped just let
+	 * gtk do its magic */
+	if (target_type == DROP_DATA_NOTEBOOK)
 		success = TRUE;
+	/* otherwise it is a filename and we should handle it */
+	else if (target_type == DROP_DATA_FILENAME)
+	{
+		length = gtk_selection_data_get_length(data);
+		if (length > 0 && gtk_selection_data_get_format(data) == 8)
+		{
+			const gchar *seldata = (const gchar *)gtk_selection_data_get_data(data);
+			if (utils_is_uri(seldata))
+			{
+				document_open_file_list(seldata, length, GTK_NOTEBOOK(widget));
+				success = TRUE;
+			}
+		}
 	}
+	else
+		geany_debug("Unknown drag and drop data\n");
+
 	gtk_drag_finish(drag_context, success, FALSE, event_time);
 }

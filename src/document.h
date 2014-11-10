@@ -187,6 +187,8 @@ void document_open_files(const GSList *filenames, gboolean readonly, GeanyFilety
 
 gboolean document_remove_page(guint page_num);
 
+gboolean document_remove_by_sci(ScintillaObject *sci);
+
 gboolean document_reload_force(GeanyDocument *doc, const gchar *forced_enc);
 
 void document_set_encoding(GeanyDocument *doc, const gchar *new_encoding);
@@ -254,9 +256,9 @@ gboolean document_account_for_unsaved(void);
 gboolean document_close_all(void);
 
 GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename, gint pos,
-		gboolean readonly, GeanyFiletype *ft, const gchar *forced_enc);
+		gboolean readonly, GeanyFiletype *ft, const gchar *forced_enc, GtkNotebook *notebook);
 
-void document_open_file_list(const gchar *data, gsize length);
+void document_open_file_list(const gchar *data, gsize length, GtkNotebook *notebook);
 
 gboolean document_search_bar_find(GeanyDocument *doc, const gchar *text, gboolean inc,
 		gboolean backwards);
