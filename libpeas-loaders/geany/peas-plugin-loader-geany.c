@@ -186,11 +186,16 @@ G_DEFINE_TYPE (PeasPluginLoaderGeany, peas_plugin_loader_geany,
 
 static GModule *open_module_from_info(PeasPluginInfo *info)
 {
+  GModule *module;
   const gchar *dir = peas_plugin_info_get_module_dir(info);
   const gchar *mod = peas_plugin_info_get_module_name(info);
   const gchar *fname = g_build_filename(dir, mod, NULL);
 
-  return g_module_open(fname, G_MODULE_BIND_LOCAL);
+  module = g_module_open(fname, G_MODULE_BIND_LOCAL);
+  if (module == NULL)
+    g_warning("Failed to load module: %s\n", g_module_error());
+
+  return module;
 }
 
 static gboolean

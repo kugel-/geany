@@ -2972,6 +2972,8 @@ sptr_t scintilla_object_send_message(ScintillaObject *sci, unsigned int iMessage
 /* deprecated, for compatibility */
 #if PLAT_GTK_WIN32
 __declspec(dllexport)
+#else
+__attribute__((visibility("default")))
 #endif
 sptr_t scintilla_send_message(ScintillaObject *sci, unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 

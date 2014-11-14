@@ -4,9 +4,10 @@ AM_CPPFLAGS = \
 	-I$(srcdir)/../ctags \
 	-DGEANY_PRIVATE \
 	-DG_LOG_DOMAIN=\"Tagmanager\"
+
 AM_CFLAGS = \
 	$(GTK_CFLAGS) \
-	-fvisibility=hidden
+	-fvisibility=default
 
 EXTRA_DIST = \
 	makefile.win32

@@ -75,7 +75,6 @@ AM_CONDITIONAL([GTK3], [test "x$gtk_package" = "xgtk+-3.0"])
 # GTK
 gtk_modules="$gtk_package >= $gtk_min_version"
 PKG_CHECK_MODULES([GTK], [$gtk_modules])
-AC_SUBST([DEPENDENCIES], [$gtk_modules])
 AC_SUBST([GTK_CFLAGS])
 AC_SUBST([GTK_LIBS])
 GTK_VERSION=`$PKG_CONFIG --modversion $gtk_package`
@@ -84,7 +83,6 @@ GEANY_STATUS_ADD([Using GTK version], [${GTK_VERSION}])
 # geany itself requires only 2.20+, but libpeas wants 2.30
 glib_modules="glib-2.0 >= 2.30.0 gmodule-2.0 gio-2.0"
 PKG_CHECK_MODULES([GLIB], [$glib_modules])
-AC_SUBST([DEPENDENCIES], [$glib_modules])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
 GLIB_VERSION=`$PKG_CONFIG --modversion glib-2.0`
@@ -93,7 +91,6 @@ GEANY_STATUS_ADD([Using GLib version], [${GLIB_VERSION}])
 # libpeas wants 1.39.0
 gir_modules="gobject-introspection-1.0 >= 1.39.0"
 PKG_CHECK_MODULES([GIR], [$gir_modules])
-AC_SUBST([DEPENDENCIES], [$gir_modules])
 AC_SUBST([GIR_CFLAGS])
 AC_SUBST([GIR_LIBS])
 GOBJECT_INTROSPECTION_REQUIRE(1.39.0)
@@ -115,6 +112,8 @@ PKG_CHECK_MODULES(PEAS, [
 ])
 AC_SUBST([PEAS_CFLAGS])
 AC_SUBST([PEAS_LIBS])
+
+AC_SUBST([DEPENDENCIES], ["$gtk_modules $glib_modules $gir_modules"])
 
 # --disable-deprecated switch for GTK2 purification
 AC_ARG_ENABLE([deprecated],

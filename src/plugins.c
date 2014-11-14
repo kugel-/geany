@@ -522,6 +522,23 @@ void plugins_load_active(void)
 	if (active_plugins_pref == NULL)
 		return;
 
+	/* Fix up legacy config files which contain the full path to the shared object, 
+         * instead of just the peas-based plugin name */
+	if (active_plugins_pref[0] && g_path_is_absolute(active_plugins_pref[0]))
+	{
+		gchar **strp, *s, *b, *ext;
+		foreach_strv(strp, active_plugins_pref)
+		{
+			s = *strp;
+			if (s[0] == '\0')
+				continue;
+
+			/* replace /usr/lib/geany/plugin.so with plugin.so */
+			SETPTR((*strp), g_path_get_basename(s));
+		}
+	}
+	
+
 	peas_engine_set_loaded_plugins(peas, (const gchar **)active_plugins_pref);
 }
 
@@ -709,7 +726,7 @@ plugins_provide_info(PeasPluginInfo *info,
 	{
 		g_warning ("Plugin %s does not provide plugin_set_info(), ignoring.", filename);
 		goto error;
-    }
+	}
 	set_info(&_info);
 
 	if (_info.name == NULL)
