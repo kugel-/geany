@@ -26,6 +26,7 @@
 #ifdef HAVE_PLUGINS
 
 #include <glib.h>
+#include <glib.h>
 
 G_BEGIN_DECLS
 

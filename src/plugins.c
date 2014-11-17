@@ -1167,6 +1167,9 @@ void plugins_finalize(void)
 }
 
 
+/* Plugin configuration */
+
+
 /* Check whether there are any plugins loaded which provide a configure symbol */
 gboolean plugins_have_preferences(void)
 {
@@ -1185,6 +1188,118 @@ gboolean plugins_have_preferences(void)
 	return FALSE;
 }
 
+
+static void on_pref_btn_clicked(gpointer btn, Plugin *p)
+{
+	p->configure_single(main_widgets.window);
+}
+
+
+static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
+{
+	GtkWidget *page = NULL;	/* some plugins don't have prefs */
+
+	if (p->configure)
+	{
+		page = p->configure(GTK_DIALOG(dialog));
+
+		if (! GTK_IS_WIDGET(page))
+		{
+			geany_debug("Invalid widget returned from plugin_configure() in plugin \"%s\"!",
+				p->info.name);
+			return NULL;
+		}
+		else
+		{
+			GtkWidget *align = gtk_alignment_new(0.5, 0.5, 1, 1);
+
+			gtk_alignment_set_padding(GTK_ALIGNMENT(align), 6, 6, 6, 6);
+			gtk_container_add(GTK_CONTAINER(align), page);
+			page = gtk_vbox_new(FALSE, 0);
+			gtk_box_pack_start(GTK_BOX(page), align, TRUE, TRUE, 0);
+		}
+	}
+	else if (p->configure_single)
+	{
+		GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
+		GtkWidget *btn;
+
+		gtk_alignment_set_padding(GTK_ALIGNMENT(align), 6, 6, 6, 6);
+
+		btn = gtk_button_new_from_stock(GTK_STOCK_PREFERENCES);
+		g_signal_connect(btn, "clicked", G_CALLBACK(on_pref_btn_clicked), p);
+		gtk_container_add(GTK_CONTAINER(align), btn);
+		page = align;
+	}
+	return page;
+}
+
+
+/* multiple plugin configure dialog
+ * current_plugin can be NULL */
+static void configure_plugins(Plugin *current_plugin)
+{
+	GtkWidget *dialog, *vbox, *nb;
+	GList *node;
+	gint cur_page = -1;
+
+	dialog = gtk_dialog_new_with_buttons(_("Configure Plugins"),
+		GTK_WINDOW(main_widgets.window), GTK_DIALOG_DESTROY_WITH_PARENT,
+		GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		GTK_STOCK_OK, GTK_RESPONSE_OK, NULL);
+	gtk_widget_set_name(dialog, "GeanyDialog");
+
+	vbox = ui_dialog_vbox_new(GTK_DIALOG(dialog));
+	nb = gtk_notebook_new();
+	gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
+	gtk_box_pack_start(GTK_BOX(vbox), nb, TRUE, TRUE, 0);
+
+	foreach_list(node, active_plugin_list)
+	{
+		Plugin *p = node->data;
+		GtkWidget *page = create_pref_page(p, dialog);
+
+		if (page)
+		{
+			GtkWidget *label = gtk_label_new(p->info.name);
+			gint n = gtk_notebook_append_page(GTK_NOTEBOOK(nb), page, label);
+
+			if (p == current_plugin)
+				cur_page = n;
+		}
+	}
+	if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(nb)))
+	{
+		gtk_widget_show_all(vbox);
+		if (cur_page >= 0)
+			gtk_notebook_set_current_page(GTK_NOTEBOOK(nb), cur_page);
+
+		/* run the dialog */
+		while (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_APPLY);
+	}
+	else
+		utils_beep();
+
+	gtk_widget_destroy(dialog);
+}
+
+/* Shows the plugin's configure dialog.
+ * The plugin must implement one of the plugin_configure() or plugin_configure_single() symbols.
+ * NULL to show the configure dialog for all plugins
+ */
+void plugins_configure(Plugin *current)
+{
+	if (!current)
+		configure_plugins(NULL);
+	else if (current->configure)
+		configure_plugins(current);
+	else
+	{
+		g_return_if_fail(current->configure_single);
+		current->configure_single(main_widgets.window);
+	}
+}
 
 /* Plugin Manager */
 
