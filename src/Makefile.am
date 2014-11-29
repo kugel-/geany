@@ -146,6 +146,7 @@ geany_LDADD = \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
 	@PEAS_LIBS@ \
+	$(LIBS) \
 	$(INTLLIBS)
 
 AM_CFLAGS = -DGEANY_DATADIR=\""$(datadir)"\" \

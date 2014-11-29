@@ -75,6 +75,39 @@ static GtkWidget *menu_separator = NULL;
 static gchar *get_plugin_path(void);
 static void pm_show_dialog(GtkMenuItem *menuitem, gpointer user_data);
 
+#if !defined(G_OS_WIN32)
+#include <dlfcn.h>
+/* This works around libpeas not applying the G_MODULE_BIND_LOCAL flags for extensions. It
+ * essentially shadows g_module_open() in order to set that flag when we need it. Upstream
+ * libpeas as of 1.14 has fixed it. Please let us remove this once we can depend on that version.
+ * The workaround is not required on Windows because local linkage is mandatory there anyway.
+ * In fact glib ignores the G_MODULE_BIND_LOCAL flag on Windows. */
+G_MODULE_EXPORT GModule *
+g_module_open(const gchar *file_name, GModuleFlags flags)
+{
+	static GModule *(*g_module_open_real)(const gchar *file_name, GModuleFlags flags) = NULL;
+	const GList *node;
+
+	/* The file_name used by libpeas does not include the suffix, so that loading .la files
+	 * with g_module_open() works. Therefore we try to match without suffix. Conviniently,
+	 * peas_plugin_info_get_module_name() returns the without the suffix. We have to loop
+	 * around the plugin list to make sure we don't set the flag for innocent libs.
+	 * */
+	foreach_list(node, peas_engine_get_plugin_list(peas))
+	{
+		if (g_str_has_suffix(file_name, peas_plugin_info_get_module_name(node->data)))
+		{
+			flags |= G_MODULE_BIND_LOCAL;
+			break;
+		}
+	}
+
+	if (!g_module_open_real)
+		g_module_open_real = dlsym(RTLD_NEXT, "g_module_open");
+	return g_module_open_real(file_name, flags);
+}
+#endif
+
 static PluginFuncs plugin_funcs = {
 	&plugin_add_toolbar_item,
 	&plugin_module_make_resident,

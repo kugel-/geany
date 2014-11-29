@@ -13,6 +13,7 @@ AC_DEFUN([GEANY_CHECK_MINGW],
 			;;
 		*)
 			AM_CONDITIONAL([MINGW], false)
+			AC_CHECK_LIB(dl, dlsym, [], [AC_MSG_ERROR([libdl not found])])
 			;;
 	esac
 ])
