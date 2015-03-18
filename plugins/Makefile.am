@@ -26,11 +26,12 @@ plugin_LTLIBRARIES = \
 	export.la \
 	saveactions.la \
 	filebrowser.la \
-	splitwindow.la
+	splitwindow.la \
+	demoplugin.la
+
 
 # Plugins not to be installed
-noinst_LTLIBRARIES = \
-	demoplugin.la
+#~ noinst_LTLIBRARIES =
 
 demoplugin_la_SOURCES    = demoplugin.c
 classbuilder_la_SOURCES  = classbuilder.c

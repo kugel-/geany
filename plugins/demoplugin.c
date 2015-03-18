@@ -35,20 +35,16 @@
 #include "geanyplugin.h"	/* plugin API, always comes first */
 #include "Scintilla.h"	/* for the SCNotification struct */
 
-
-/* These items are set by Geany before plugin_init() is called. */
-GeanyPlugin		*geany_plugin;
-GeanyData		*geany_data;
-GeanyFunctions	*geany_functions;
-
-
-/* Check that the running Geany supports the plugin API version used below, and check
- * for binary compatibility. */
-PLUGIN_VERSION_CHECK(147)
+#undef geany
 
 /* All plugins must set name, description, version and author. */
-PLUGIN_SET_INFO(_("Demo"), _("Example plugin."), "0.1" , _("The Geany developer team"))
-
+static void demo_set_info(GeanyPlugin *plugin, gpointer data)
+{
+	plugin->info->name = _("Demo");
+	plugin->info->description = _("Example plugin.");
+	plugin->info->version = "0.2";
+	plugin->info->author =  _("The Geany developer team");
+}
 
 static GtkWidget *main_menu_item = NULL;
 /* text to be shown in the plugin dialog */
@@ -61,6 +57,7 @@ static gboolean on_editor_notify(GObject *object, GeanyEditor *editor,
 {
 	/* For detailed documentation about the SCNotification struct, please see
 	 * http://www.scintilla.org/ScintillaDoc.html#Notifications. */
+	GeanyData *geany = data;
 	switch (nt->nmhdr.code)
 	{
 		case SCN_UPDATEUI:
@@ -100,7 +97,7 @@ static gboolean on_editor_notify(GObject *object, GeanyEditor *editor,
 }
 
 
-PluginCallback plugin_callbacks[] =
+static PluginCallback demo_callbacks[] =
 {
 	/* Set 'after' (third field) to TRUE to run the callback @a after the default handler.
 	 * If 'after' is FALSE, the callback is run @a before the default handler, so the plugin
@@ -115,6 +112,10 @@ static void
 item_activate(GtkMenuItem *menuitem, gpointer gdata)
 {
 	GtkWidget *dialog;
+	GeanyPlugin *plugin = gdata;
+	GeanyData *geany = plugin->geany_data;
+
+	printf("item act %d\n", GTK_IS_WIDGET(geany->main_widgets->window));
 
 	dialog = gtk_message_dialog_new(
 		GTK_WINDOW(geany->main_widgets->window),
@@ -123,24 +124,24 @@ item_activate(GtkMenuItem *menuitem, gpointer gdata)
 		GTK_BUTTONS_OK,
 		"%s", welcome_text);
 	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
-		_("(From the %s plugin)"), geany_plugin->info->name);
+		_("(From the %s plugin)"), plugin->info->name);
 
 	gtk_dialog_run(GTK_DIALOG(dialog));
 	gtk_widget_destroy(dialog);
 }
 
 
-/* Called by Geany to initialize the plugin.
- * Note: data is the same as geany_data. */
-void plugin_init(GeanyData *data)
+/* Called by Geany to initialize the plugin */
+static void demo_init(GeanyPlugin *plugin, gpointer data)
 {
 	GtkWidget *demo_item;
+	GeanyData *geany = plugin->geany_data;
 
 	/* Add an item to the Tools menu */
 	demo_item = gtk_menu_item_new_with_mnemonic(_("_Demo Plugin"));
 	gtk_widget_show(demo_item);
 	gtk_container_add(GTK_CONTAINER(geany->main_widgets->tools_menu), demo_item);
-	g_signal_connect(demo_item, "activate", G_CALLBACK(item_activate), NULL);
+	g_signal_connect(demo_item, "activate", G_CALLBACK(item_activate), plugin);
 
 	/* make the menu item sensitive only when documents are open */
 	ui_add_document_sensitive(demo_item);
@@ -148,13 +149,16 @@ void plugin_init(GeanyData *data)
 	main_menu_item = demo_item;
 
 	welcome_text = g_strdup(_("Hello World!"));
+
+	demo_callbacks[0].user_data = geany;
 }
 
 
-/* Callback connected in plugin_configure(). */
+/* Callback connected in demo_configure(). */
 static void
 on_configure_response(GtkDialog *dialog, gint response, gpointer user_data)
-{
+{                                              
+	gboolean (*p_geany_load_module)(GeanyPlugin *, GModule *);
 	/* catch OK or Apply clicked */
 	if (response == GTK_RESPONSE_OK || response == GTK_RESPONSE_APPLY)
 	{
@@ -171,13 +175,12 @@ on_configure_response(GtkDialog *dialog, gint response, gpointer user_data)
 	}
 }
 
-
 /* Called by Geany to show the plugin's configure dialog. This function is always called after
- * plugin_init() was called.
+ * demo_init() was called.
  * You can omit this function if the plugin doesn't need to be configured.
  * Note: parent is the parent window which can be used as the transient window for the created
  *       dialog. */
-GtkWidget *plugin_configure(GtkDialog *dialog)
+static GtkWidget *demo_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)
 {
 	GtkWidget *label, *entry, *vbox;
 
@@ -204,11 +207,23 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 
 /* Called by Geany before unloading the plugin.
  * Here any UI changes should be removed, memory freed and any other finalization done.
- * Be sure to leave Geany as it was before plugin_init(). */
-void plugin_cleanup(void)
+ * Be sure to leave Geany as it was before demo_init(). */
+static void demo_cleanup(GeanyPlugin *plugin, gpointer data)
 {
-	/* remove the menu item added in plugin_init() */
+	/* remove the menu item added in demo_init() */
 	gtk_widget_destroy(main_menu_item);
 	/* release other allocated strings and objects */
 	g_free(welcome_text);
+}
+
+gboolean geany_load_module(GeanyPlugin *plugin, GModule *module)
+{
+	static PluginHooks hooks = {
+		.init = demo_init,
+		.configure = demo_configure,
+		.cleanup = demo_cleanup,
+		.callbacks = demo_callbacks,
+		.set_info = demo_set_info,
+	};
+	return geany_register_plugin(plugin, 147, GEANY_ABI_VERSION, &hooks, NULL);
 }
