@@ -318,10 +318,13 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 {
 	GtkWidget *page = NULL;	/* some plugins don't have prefs */
 
-	if (p->configure)
-	{
+	if (p->hooks && p->hooks->configure)
+		page = p->hooks->configure(&p->public, GTK_DIALOG(dialog), p->hooks_data);
+	else if (p->configure)
 		page = p->configure(GTK_DIALOG(dialog));
 
+	if (page)
+	{
 		if (! GTK_IS_WIDGET(page))
 		{
 			geany_debug("Invalid widget returned from plugin_configure() in plugin \"%s\"!",
@@ -421,7 +424,7 @@ void plugin_show_configure(GeanyPlugin *plugin)
 	}
 	p = plugin->priv;
 
-	if (p->configure)
+	if (p->hooks || p->configure)
 		configure_plugins(p);
 	else
 	{

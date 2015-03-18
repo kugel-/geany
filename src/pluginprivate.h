@@ -32,6 +32,8 @@
 
 G_BEGIN_DECLS
 
+typedef struct GeanyData GeanyData;
+
 typedef struct SignalConnection
 {
 	GObject	*object;
@@ -39,7 +41,8 @@ typedef struct SignalConnection
 }
 SignalConnection;
 
-
+typedef struct GeanyPluginPrivate Plugin;      /* shorter alias */
+ 
 typedef struct GeanyPluginPrivate
 {
 	GModule 		*module;
@@ -47,11 +50,16 @@ typedef struct GeanyPluginPrivate
 	PluginInfo		info;				/* plugin name, description, etc */
 	GeanyPlugin		public;				/* fields the plugin can read */
 
+	PluginHooks		*hooks;			/* new-style hooks, set by geany_register_plugin
+											 * NULL for legacy plugins (they do not call
+											 * geany_register_plugin) */
 	void		(*init) (GeanyData *data);			/* Called when the plugin is enabled */
 	GtkWidget*	(*configure) (GtkDialog *dialog);	/* plugins configure dialog, optional */
 	void		(*configure_single) (GtkWidget *parent); /* plugin configure dialog, optional */
 	void		(*help) (void);						/* Called when the plugin should show some help, optional */
 	void		(*cleanup) (void);					/* Called when the plugin is disabled or when Geany exits */
+	gint		(*version_check) (gint abi_ver);	/* Called when the plugin is loaded to verify API and ABI compatibility */
+	void		(*set_info) (PluginInfo *info);		/* Called to let the plugin provide metadata for the PM dialog */
 
 	/* extra stuff */
 	PluginFields	fields;
@@ -59,6 +67,10 @@ typedef struct GeanyPluginPrivate
 	GeanyAutoSeparator	toolbar_separator;
 	GArray			*signal_ids;			/* SignalConnection's to disconnect when unloading */
 	GList			*sources;				/* GSources to destroy when unloading */
+
+	gpointer		hooks_data;				/* user data passed back to functions in PluginHooks */
+	gboolean		loaded_ok;				/* TRUE if the plugin called geany_register_plugin
+											 * without error */
 }
 GeanyPluginPrivate;
 

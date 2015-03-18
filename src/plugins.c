@@ -163,39 +163,26 @@ static Plugin *find_active_plugin_by_name(const gchar *filename)
 
 
 static gboolean
-plugin_check_version(GModule *module)
+plugin_check_version(Plugin *plugin, int abi_api_code)
 {
-	gint (*version_check)(gint) = NULL;
-
-	g_module_symbol(module, "plugin_version_check", (void *) &version_check);
-
-	if (G_UNLIKELY(! version_check))
+	GModule *module = plugin->module;
+	if (abi_api_code < 0)
 	{
-		geany_debug("Plugin \"%s\" has no plugin_version_check() function - ignoring plugin!",
-				g_module_name(module));
+		msgwin_status_add(_("The plugin \"%s\" is not binary compatible with this "
+			"release of Geany - please recompile it."), g_module_name(module));
+		geany_debug("Plugin \"%s\" is not binary compatible with this "
+			"release of Geany - recompile it.", g_module_name(module));
 		return FALSE;
 	}
-	else
+	if (abi_api_code > GEANY_API_VERSION)
 	{
-		gint result = version_check(GEANY_ABI_VERSION);
-
-		if (result < 0)
-		{
-			msgwin_status_add(_("The plugin \"%s\" is not binary compatible with this "
-				"release of Geany - please recompile it."), g_module_name(module));
-			geany_debug("Plugin \"%s\" is not binary compatible with this "
-				"release of Geany - recompile it.", g_module_name(module));
-			return FALSE;
-		}
-		if (result > GEANY_API_VERSION)
-		{
-			geany_debug("Plugin \"%s\" requires a newer version of Geany (API >= v%d).",
-				g_module_name(module), result);
-			return FALSE;
-		}
+		geany_debug("Plugin \"%s\" requires a newer version of Geany (API >= v%d).",
+			g_module_name(module), abi_api_code);
+		return FALSE;
 	}
 	return TRUE;
 }
+
 
 
 static void add_callbacks(Plugin *plugin, PluginCallback *callbacks)
@@ -269,67 +256,131 @@ static gint cmp_plugin_names(gconstpointer a, gconstpointer b)
 }
 
 
-static void
-plugin_load(Plugin *plugin)
+GEANY_API_SYMBOL
+gboolean geany_register_plugin(GeanyPlugin *plugin, gint api_version, gint abi_version,
+                               PluginHooks *hooks, gpointer pdata)
 {
-	GeanyPlugin **p_geany_plugin;
-	PluginCallback *callbacks;
-	PluginInfo **p_info;
-	PluginFields **plugin_fields;
+	Plugin *p;
 
-	/* set these symbols before plugin_init() is called
-	 * we don't set geany_data since it is set directly by plugin_new() */
-	g_module_symbol(plugin->module, "geany_plugin", (void *) &p_geany_plugin);
-	if (p_geany_plugin)
-		*p_geany_plugin = &plugin->public;
-	g_module_symbol(plugin->module, "plugin_info", (void *) &p_info);
-	if (p_info)
-		*p_info = &plugin->info;
-	g_module_symbol(plugin->module, "plugin_fields", (void *) &plugin_fields);
-	if (plugin_fields)
-		*plugin_fields = &plugin->fields;
-	read_key_group(plugin);
+	g_return_val_if_fail(plugin != NULL, FALSE);
 
-	/* start the plugin */
-	g_return_if_fail(plugin->init);
-	plugin->init(&geany_data);
+	p = plugin->priv;
+	/* Prevent registering incompatible plugins */
+	if (! plugin_check_version(p, abi_version != GEANY_ABI_VERSION ? -1 : api_version))
+		return FALSE;
+	/* If it ever becomes necessary we can save the api version in Plugin
+	 * and apply compat code on a per-plugin basis, because we learn about
+	 * the requested API version here. Also if we add to PluginHooks then
+	 * we have to inspect the plugin's api so that we don't misinterpret
+	 * function pointers the plugin doesn't know anything about */
+	p->hooks = hooks;
+	p->hooks_data = pdata;
+	p->loaded_ok = TRUE;
 
-	/* store some function pointers for later use */
-	g_module_symbol(plugin->module, "plugin_configure", (void *) &plugin->configure);
-	g_module_symbol(plugin->module, "plugin_configure_single", (void *) &plugin->configure_single);
-	if (app->debug_mode && plugin->configure && plugin->configure_single)
-		g_warning("Plugin '%s' implements plugin_configure_single() unnecessarily - "
-			"only plugin_configure() will be used!",
-			plugin->info.name);
+#define CHECK_HOOK(__h)                                                           \
+	if (! hooks->__h) {                                                           \
+		geany_debug("Plugin '%s' has no " ##__h "function - ignoring plugin!",    \
+				g_module_name(p->module));                                        \
+		p->loaded_ok = FALSE;                                                     \
+	}                                                                             \
+	CHECK_HOOK(init);                                                             \
+	CHECK_HOOK(set_info);                                                         \
+	CHECK_HOOK(cleanup);
+#undef CHECK_HOOK
 
-	g_module_symbol(plugin->module, "plugin_help", (void *) &plugin->help);
-	g_module_symbol(plugin->module, "plugin_cleanup", (void *) &plugin->cleanup);
-	if (plugin->cleanup == NULL)
+	return p->loaded_ok;
+}
+
+
+static gboolean set_legacy_hooks(Plugin *plugin, GModule *module)
+{
+	gboolean ret;
+
+#define CHECK_HOOK(__x)                                                                    \
+	ret = g_module_symbol(module, "plugin_" #__x, (void *) &plugin->__x);                  \
+	if (G_UNLIKELY(! ret))                                                                 \
+	{                                                                                      \
+		geany_debug("Plugin \"%s\" has no plugin_" #__x "() function - ignoring plugin!", \
+				g_module_name(plugin->module));                                            \
+		return FALSE;                                                                      \
+	}
+	CHECK_HOOK(version_check);
+	CHECK_HOOK(set_info);
+	CHECK_HOOK(init);
+#undef CHECK_HOOK
+
+	g_module_symbol(module, "plugin_configure", (void *) &plugin->configure);
+	g_module_symbol(module, "plugin_configure_single", (void *) &plugin->configure_single);
+	g_module_symbol(module, "plugin_help", (void *) &plugin->help);
+	g_module_symbol(module, "plugin_cleanup", (void *) &plugin->cleanup);
+
+	if (app->debug_mode)
 	{
-		if (app->debug_mode)
+		if (plugin->configure && plugin->configure_single)
+			g_warning("Plugin '%s' implements plugin_configure_single() unnecessarily - "
+				"only plugin_configure() will be used!",
+				plugin->info.name);
+		if (plugin->cleanup == NULL)
 			g_warning("Plugin '%s' has no plugin_cleanup() function - there may be memory leaks!",
 				plugin->info.name);
 	}
 
-	/* now read any plugin-owned data that might have been set in plugin_init() */
+	return TRUE;
+}
 
-	if (plugin->fields.flags & PLUGIN_IS_DOCUMENT_SENSITIVE)
+
+static void
+plugin_load(Plugin *plugin)
+{
+	PluginCallback *callbacks;
+
+	if (! plugin->hooks)
 	{
-		ui_add_document_sensitive(plugin->fields.menu_item);
+		GeanyPlugin **p_geany_plugin;
+		PluginInfo **p_info;
+		PluginFields **plugin_fields;
+		/* set these symbols before plugin_init() is called
+		 * we don't set geany_data since it is set directly by plugin_new() */
+		g_module_symbol(plugin->module, "geany_plugin", (void *) &p_geany_plugin);
+		if (p_geany_plugin)
+			*p_geany_plugin = &plugin->public;
+		g_module_symbol(plugin->module, "plugin_info", (void *) &p_info);
+		if (p_info)
+			*p_info = &plugin->info;
+		g_module_symbol(plugin->module, "plugin_fields", (void *) &plugin_fields);
+		if (plugin_fields)
+			*plugin_fields = &plugin->fields;
+		read_key_group(plugin);
+
+		/* start the plugin */
+		g_return_if_fail(plugin->init);
+		plugin->init(&geany_data);
+
+		/* now read any plugin-owned data that might have been set in plugin_init() */
+		if (plugin->fields.flags & PLUGIN_IS_DOCUMENT_SENSITIVE)
+		{
+			ui_add_document_sensitive(plugin->fields.menu_item);
+		}
+
+		g_module_symbol(plugin->module, "plugin_callbacks", (void *) &callbacks);
+	}
+	else
+	{
+		plugin->hooks->init(&plugin->public, plugin->hooks_data);
+		callbacks = plugin->hooks->callbacks;
 	}
 
-	g_module_symbol(plugin->module, "plugin_callbacks", (void *) &callbacks);
+	/* new-style hook plugins set their callbacks in geany_load_module() */
 	if (callbacks)
 		add_callbacks(plugin, callbacks);
-
 	/* remember which plugins are active.
 	 * keep list sorted so tools menu items and plugin preference tabs are
 	 * sorted by plugin name */
 	active_plugin_list = g_list_insert_sorted(active_plugin_list, plugin, cmp_plugin_names);
 
-	geany_debug("Loaded:   %s (%s)", plugin->filename,
-		FALLBACK(plugin->info.name, "<Unknown>"));
+	geany_debug("Loaded:   %s (%s)", plugin->filename, plugin->info.name);
 }
+
 
 
 /* Load and optionally init a plugin.
@@ -344,6 +395,7 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 	GModule *module;
 	GeanyData **p_geany_data;
 	void (*plugin_set_info)(PluginInfo*);
+	gboolean (*p_geany_load_module)(GeanyPlugin *, GModule *);
 
 	g_return_val_if_fail(fname, NULL);
 	g_return_val_if_fail(g_module_supported(), NULL);
@@ -387,24 +439,43 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 		return NULL;
 	}
 
-	if (! plugin_check_version(module))
-	{
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		return NULL;
-	}
-
-	g_module_symbol(module, "plugin_set_info", (void *) &plugin_set_info);
-	if (plugin_set_info == NULL)
-	{
-		geany_debug("No plugin_set_info() defined for \"%s\" - ignoring plugin!", fname);
-
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		return NULL;
-	}
-
 	plugin = g_new0(Plugin, 1);
+	plugin->module = module;
+	plugin->filename = g_strdup(fname);
+	plugin->public.priv = plugin;
+
+	if (g_module_symbol(module, "geany_load_module", (void *) &p_geany_load_module))
+	{
+		/* The plugin should call geany_register_plugin() here, this will set up its
+		 * hooks and perform the ABI and API checks */
+		p_geany_load_module(&plugin->public, module);
+		if (! plugin->loaded_ok)
+		{
+			geany_debug("Plugin %s failed to load. Ignoring plugin.", g_module_name(module));
+			if (! g_module_close(module))
+				g_warning("%s: %s", fname, g_module_error());
+			return NULL;
+		}
+	}
+	else
+	{
+		/* This is the legacy / deprecated code path */
+		if (set_legacy_hooks(plugin, module))
+		{
+			if (! plugin_check_version(plugin, plugin->version_check(GEANY_ABI_VERSION)))
+			{
+				if (! g_module_close(module))
+					g_warning("%s: %s", fname, g_module_error());
+				return NULL;
+			}
+		}
+		else
+		{
+			if (! g_module_close(module))
+				g_warning("%s: %s", fname, g_module_error());
+			return NULL;
+		}
+	}
 
 	/* set basic fields here to allow plugins to call Geany functions in set_info() */
 	g_module_symbol(module, "geany_data", (void *) &p_geany_data);
@@ -412,7 +483,13 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 		*p_geany_data = &geany_data;
 
 	/* read plugin name, etc. */
-	plugin_set_info(&plugin->info);
+	plugin->public.info = &plugin->info;
+	plugin->public.geany_data = &geany_data;
+	if (plugin->hooks)
+		plugin->hooks->set_info(&plugin->public, plugin->hooks_data);
+	else
+		plugin->set_info(&plugin->info);
+	
 	if (G_UNLIKELY(EMPTY(plugin->info.name)))
 	{
 		geany_debug("No plugin name set in plugin_set_info() for \"%s\" - ignoring plugin!",
@@ -424,23 +501,7 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 		return NULL;
 	}
 
-	g_module_symbol(module, "plugin_init", (void *) &plugin->init);
-	if (plugin->init == NULL)
-	{
-		geany_debug("Plugin '%s' has no plugin_init() function - ignoring plugin!",
-			plugin->info.name);
-
-		if (! g_module_close(module))
-			g_warning("%s: %s", fname, g_module_error());
-		g_free(plugin);
-		return NULL;
-	}
 	/*geany_debug("Initializing plugin '%s'", plugin->info.name);*/
-
-	plugin->filename = g_strdup(fname);
-	plugin->module = module;
-	plugin->public.info = &plugin->info;
-	plugin->public.priv = plugin;
 
 	if (load_plugin)
 		plugin_load(plugin);
@@ -853,6 +914,8 @@ gboolean plugins_have_preferences(void)
 		Plugin *plugin = item->data;
 		if (plugin->configure != NULL || plugin->configure_single != NULL)
 			return TRUE;
+		if (plugin->hooks && plugin->hooks->configure)
+			return TRUE;
 	}
 
 	return FALSE;
@@ -891,7 +954,7 @@ static void pm_update_buttons(Plugin *p)
 
 	is_active = is_active_plugin(p);
 	gtk_widget_set_sensitive(pm_widgets.configure_button,
-		(p->configure || p->configure_single) && is_active);
+		(p->configure || p->configure_single || (p->hooks && p->hooks->configure)) && is_active);
 	gtk_widget_set_sensitive(pm_widgets.help_button, p->help != NULL && is_active);
 	gtk_widget_set_sensitive(pm_widgets.keybindings_button,
 		p->key_group && p->key_group->plugin_key_count > 0 && is_active);
