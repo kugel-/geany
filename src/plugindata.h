@@ -237,12 +237,15 @@ GeanyData;
 
 #define geany			geany_data	/**< Simple macro for @c geany_data that reduces typing. */
 
+typedef struct GeanyPluginFuncs GeanyPluginFuncs;
+
 /** Basic information for the plugin and identification.
  * @see geany_plugin. */
 typedef struct GeanyPlugin
 {
 	PluginInfo	*info;	/**< Fields set in plugin_set_info(). */
 	GeanyData	*geany_data;	/**< Pointer to global GeanyData intance */
+	GeanyPluginFuncs *funcs;	/**< Functions implemented by the plugin, set in geany_load_module() */
 
 	struct GeanyPluginPrivate *priv;	/* private */
 }
@@ -277,7 +280,7 @@ void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_vers
  *
  * @since 1.26
  **/
-typedef struct GeanyPluginFuncs
+struct GeanyPluginFuncs
 {
 	/** Array of plugin-provided signal handlers @see PluginCallback */
 	PluginCallback *callbacks;
@@ -289,12 +292,20 @@ typedef struct GeanyPluginFuncs
 	void        (*help)      (GeanyPlugin *plugin, gpointer pdata);
 	/** Called when the plugin is disabled or when Geany exits (must not be @c NULL) */
 	void        (*cleanup)   (GeanyPlugin *plugin, gpointer pdata);
-}
-GeanyPluginFuncs;
+};
 
-gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_api_version,
-                               gint abi_version, GeanyPluginFuncs *cbs);
-void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify destroy_notify);
+gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version,
+                               gint min_api_version, gint abi_version);
+void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify free_func);
+
+/** Convinience macro to register a plugin.
+ *
+ * It simply calls geany_plugin_register() with GEANY_API_VERSION and GEANY_ABI_VERSION.
+ *
+ * @since 1.26
+ * */
+#define GEANY_PLUGIN_REGISTER(plugin, min_api_version) \
+	geany_plugin_register((plugin), GEANY_API_VERSION, (min_api_version), GEANY_ABI_VERSION)
 
 /* Deprecated aliases */
 #ifndef GEANY_DISABLE_DEPRECATED
