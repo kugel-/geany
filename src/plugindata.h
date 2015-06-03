@@ -293,7 +293,8 @@ typedef struct GeanyPluginFuncs
 GeanyPluginFuncs;
 
 gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_api_version,
-                               gint abi_version, GeanyPluginFuncs *cbs, gpointer pdata);
+                               gint abi_version, GeanyPluginFuncs *cbs);
+void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify destroy_notify);
 
 /* Deprecated aliases */
 #ifndef GEANY_DISABLE_DEPRECATED
