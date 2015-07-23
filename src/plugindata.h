@@ -278,6 +278,8 @@ void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_vers
  * plugin-defined data pointer as well as the corresponding GeanyPlugin instance
  * pointer.
  *
+ * @see @ref howto
+ *
  * @since 1.26
  **/
 struct GeanyPluginFuncs
