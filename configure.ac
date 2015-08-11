@@ -74,10 +74,13 @@ AS_IF([test "x$enable_gtk3" = xyes],
 AM_CONDITIONAL([GTK3], [test "x$gtk_package" = "xgtk+-3.0"])
 
 # GTK/GLib/GIO checks
-gtk_modules="$gtk_package >= $gtk_min_version glib-2.0 >= 2.28"
-gtk_modules_private="gio-2.0 >= 2.28 gmodule-no-export-2.0"
-PKG_CHECK_MODULES([GTK], [$gtk_modules $gtk_modules_private])
-AC_SUBST([DEPENDENCIES], [$gtk_modules])
+gtk_modules="$gtk_package glib-2.0"
+gtk_modules_v="$gtk_package >= $gtk_min_version glib-2.0 >= 2.28"
+gtk_modules_private_v="gio-2.0 >= 2.28 gmodule-no-export-2.0"
+PKG_CHECK_MODULES([GTK], [$gtk_modules_v $gtk_modules_private_v])
+AC_SUBST([DEPENDENCIES], [$gtk_modules_v])
+# replaced manually because of multi-line issues with automake
+AC_SUBST([PKG_DEPS],[$gtk_modules])
 AC_SUBST([GTK_CFLAGS])
 AC_SUBST([GTK_LIBS])
 GTK_VERSION=`$PKG_CONFIG --modversion $gtk_package`
@@ -126,8 +129,11 @@ GEANY_CHECK_DOXYGEN
 GEANY_CHECK_GTKDOC_HEADER
 
 # For generating gobject introspection data out of doxygen output
+# New vapigen is required because older versions have a bug that generate incorrect vapi
+# for struct types
 AM_COND_IF([WITH_DOXYGEN],
-  [GOBJECT_INTROSPECTION_CHECK([1.30.0])],
+  [GOBJECT_INTROSPECTION_CHECK([1.30.0])
+   VAPIGEN_CHECK([0.28])],
   [])
 
 # libgeany

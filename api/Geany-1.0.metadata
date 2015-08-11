@@ -1,0 +1,27 @@
+document_* parent="Geany.Document" name="document_(.+)"
+utils_* parent="Geany.Utils" name="utils_(.+)"
+ui_* parent="Geany.UiUtils" name="ui_(.+)"
+sci_* parent="Geany.Sci" name="sci_(.+)"
+highlighting_* parent="Geany.Highlighting" name="highlighting_(.+)"
+build_* parent="Geany.Build" name="build_(.+)"
+filetypes_* parent="Geany.Filetype" name="filetypes_(.+)"
+PluginFuncs
+	.init type="Geany.init"
+	.cleanup type="Geany.cleanup"
+	.help type="Geany.help"
+	.configure type="Geany.configure"
+ProxyFuncs
+	.probe type="Geany.probe"
+	.load type="Geany.load"
+	.unload type="Geany.unload"
+
+App struct=false
+MainWidgets struct=false
+Data struct=false
+Document struct=false
+Editor struct=false
+Filetype struct=false
+*Prefs struct=false
+Plugin* struct=false
+*Funcs struct=false
+Project struct=false
