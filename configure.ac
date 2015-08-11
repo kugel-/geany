@@ -125,12 +125,18 @@ GEANY_CHECK_DOCUTILS
 GEANY_CHECK_DOXYGEN
 GEANY_CHECK_GTKDOC_HEADER
 
+# For generating gobject introspection data out of doxygen output
+AM_COND_IF([WITH_DOXYGEN],
+  [GOBJECT_INTROSPECTION_CHECK([1.30.0])],
+  [])
+
 # libgeany
 GEANY_LIB_INIT
 
 # Output
 AC_CONFIG_FILES([
 		Makefile
+		api/Makefile
 		icons/Makefile
 		icons/16x16/Makefile
 		icons/24x24/Makefile
