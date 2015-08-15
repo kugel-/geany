@@ -696,7 +696,11 @@ plugin_free(Plugin *plugin)
 	g_return_if_fail(plugin->module);
 
 	if (is_active_plugin(plugin))
+	{
 		plugin_cleanup(plugin);
+		if (plugin->cb_data_destroy)
+			plugin->cb_data_destroy(plugin->cb_data);
+	}
 
 	active_plugin_list = g_list_remove(active_plugin_list, plugin);
 
@@ -704,9 +708,6 @@ plugin_free(Plugin *plugin)
 		g_warning("%s: %s", plugin->filename, g_module_error());
 
 	plugin_list = g_list_remove(plugin_list, plugin);
-
-	if (plugin->cb_data_destroy)
-		plugin->cb_data_destroy(plugin->cb_data);
 	g_free(plugin->filename);
 	g_free(plugin);
 	plugin = NULL;
