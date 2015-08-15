@@ -265,6 +265,22 @@ void plugin_configure_single(GtkWidget *parent);
 void plugin_help(void);
 void plugin_cleanup(void);
 
+/** Called by Geany when a plugin library is loaded.
+ *
+ * This is the original entry point. Implement and export this function to be loadable at all.
+ * Then fill in GeanyPlugin::info and GeanyPlugin::funcs of the passed @p plugin. Finally
+ * GEANY_PLUGIN_REGISTER() and specify a minimum supported API version.
+ *
+ * For all glory details please read @ref howto.
+ *
+ * @param plugin The unique plugin handle to your plugin. You must set some fields here.
+ * @param module The GModule associated with your plugin library.
+ * @param geany_api_version The API version exposed by the Geany instance that loads your plugin.
+ *           This probably not the same as the one your plugin was compiled against.
+ *
+ * @since 1.26 (API 225)
+ * @see @ref howto
+ */
 void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version);
 
 #endif
@@ -278,9 +294,8 @@ void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_vers
  * plugin-defined data pointer as well as the corresponding GeanyPlugin instance
  * pointer.
  *
+ * @since 1.26 (API 225)
  * @see @ref howto
- *
- * @since 1.26
  **/
 struct GeanyPluginFuncs
 {
@@ -304,7 +319,8 @@ void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify fr
  *
  * It simply calls geany_plugin_register() with GEANY_API_VERSION and GEANY_ABI_VERSION.
  *
- * @since 1.26
+ * @since 1.26  (API 225)
+ * @see @ref howto
  * */
 #define GEANY_PLUGIN_REGISTER(plugin, min_api_version) \
 	geany_plugin_register((plugin), GEANY_API_VERSION, (min_api_version), GEANY_ABI_VERSION)

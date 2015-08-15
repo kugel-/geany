@@ -270,9 +270,9 @@ static gint cmp_plugin_names(gconstpointer a, gconstpointer b)
  * at least init() and cleanup() functions must be implemented and set.
  *
  * The return value must be checked. It may be FALSE if the plugin failed to register which can
- * mainly happen for two reasons (future Geany versions may add bad conditions):
+ * mainly happen for two reasons (future Geany versions may add new failure conditions):
  *  - Not all mandatory fields of GeanyPlugin have been set.
- *  - The ABI or API versions reported by the plugin are incompatible to the running Geany.
+ *  - The ABI or API versions reported by the plugin are incompatible with the running Geany.
  *
  * @param plugin The plugin provided by Geany
  * @param api_version The API version the plugin is compiled against (pass GEANY_API_VERSION)
@@ -281,7 +281,7 @@ static gint cmp_plugin_names(gconstpointer a, gconstpointer b)
  *
  * @return TRUE if the plugin was successfully registered. Otherwise FALSE.
  *
- * @since 1.26
+ * @since 1.26 (API 225)
  **/
 GEANY_API_SYMBOL
 gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_api_version,

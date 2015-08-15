@@ -26,7 +26,7 @@
  * Symbols declared from within plugins, all of this is <b>deprecated</b>.
  *
  * @deprecated This is the legacy way of making plugins for Geany. Refer to @ref howto for the
- * modernized process and @ref legacy to learn how to transition your plugin to that new world.
+ * reworked process and @ref legacy to learn how to port your plugin to that new world.
  * Meanwhile Geany will still load plugins programmed against this interface (even the items that
  * are marked deprecated individually such as @ref plugin_fields).
  *
@@ -111,4 +111,3 @@ void plugin_cleanup();
  * or something else.
  * Can be omitted when not needed. */
 void plugin_help();
-

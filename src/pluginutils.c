@@ -528,10 +528,10 @@ void plugin_builder_connect_signals(GeanyPlugin *plugin,
  * @ref geany_plugin_register(). So-called legacy plugins cannot not use this function.
  *
  * @param plugin The plugin provided by Geany
- * @param pdata pdata The plugin's data to associate, must not be @c NULL
+ * @param pdata The plugin's data to associate, must not be @c NULL
  * @param free_func The destroy notify
  *
- * @since 1.26
+ * @since 1.26 (API 225)
  */
 GEANY_API_SYMBOL
 void geany_plugin_set_data(GeanyPlugin *plugin, gpointer pdata, GDestroyNotify free_func)
