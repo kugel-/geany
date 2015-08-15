@@ -285,14 +285,11 @@ void plugin_cleanup(void);
  * For all glory details please read @ref howto.
  *
  * @param plugin The unique plugin handle to your plugin. You must set some fields here.
- * @param module The GModule associated with your plugin library.
- * @param geany_api_version The API version exposed by the Geany instance that loads your plugin.
- *           This probably not the same as the one your plugin was compiled against.
  *
  * @since 1.26 (API 225)
  * @see @ref howto
  */
-void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version);
+void geany_load_module(GeanyPlugin *plugin);
 
 #endif
 

@@ -489,7 +489,7 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 {
 	Plugin *plugin;
 	GModule *module;
-	void (*p_geany_load_module)(GeanyPlugin *, GModule *, gint);
+	void (*p_geany_load_module)(GeanyPlugin *);
 
 	g_return_val_if_fail(fname, NULL);
 	g_return_val_if_fail(g_module_supported(), NULL);
@@ -550,7 +550,7 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 		 * The ABI and API checks are performed by geany_plugin_register() (i.e. by us).
 		 * We check the LOADED_OK flag separately to protect us against buggy plugins
 		 * who ignore the result of geany_plugin_register() and register anyway */
-		p_geany_load_module(&plugin->public, module, GEANY_API_VERSION);
+		p_geany_load_module(&plugin->public);
 	}
 	else
 	{
