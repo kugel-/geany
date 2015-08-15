@@ -315,15 +315,25 @@ gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version,
                                gint min_api_version, gint abi_version);
 void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify free_func);
 
-/** Convinience macro to register a plugin.
+/** Convenience macro to register a plugin.
  *
- * It simply calls geany_plugin_register() with GEANY_API_VERSION and GEANY_ABI_VERSION.
+ * It calls geany_plugin_register() with GEANY_API_VERSION and GEANY_ABI_VERSION as
+ * well as initializes locale by calling main_locale_init() if the plugin
+ * has defined @c LOCALEDIR and @c GETTEXT_PACKAGE.
  *
  * @since 1.26  (API 225)
  * @see @ref howto
  * */
-#define GEANY_PLUGIN_REGISTER(plugin, min_api_version) \
+#if defined(LOCALEDIR) && defined(GETTEXT_PACKAGE)
+# define GEANY_PLUGIN_REGISTER(plugin, min_api_version) \
+	do { \
+		main_locale_init(LOCALEDIR, GETTEXT_PACKAGE); \
+		geany_plugin_register((plugin), GEANY_API_VERSION, (min_api_version), GEANY_ABI_VERSION); \
+	} while (0)
+#else
+# define GEANY_PLUGIN_REGISTER(plugin, min_api_version) \
 	geany_plugin_register((plugin), GEANY_API_VERSION, (min_api_version), GEANY_ABI_VERSION)
+#endif
 
 /* Deprecated aliases */
 #ifndef GEANY_DISABLE_DEPRECATED

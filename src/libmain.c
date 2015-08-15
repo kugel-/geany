@@ -433,8 +433,11 @@ gboolean main_is_realized(void)
  *  to adjust the build system of your plugin to get internationalisation support
  *  working properly.
  *
- *  If you have already used @ref PLUGIN_SET_TRANSLATABLE_INFO() you
+ *  @note If you have already used @ref PLUGIN_SET_TRANSLATABLE_INFO() you
  *  don't need to call main_locale_init() again as it has already been done.
+ *
+ *  @note Since Geany 1.26 you no longer need to use this function if you use
+ *  the GEANY_PLUGIN_REGISTER() macro.
  *
  *  @param locale_dir The location where the translation files should be searched. This is
  *                    usually the @c LOCALEDIR macro, defined by the build system.
@@ -445,6 +448,7 @@ gboolean main_is_realized(void)
  *                 defined by the build system.
  *
  *  @since 0.16
+ *  @deprecated Since 1.26 and even earlier, plugin's shouldn't often need to call this function.
  **/
 GEANY_API_SYMBOL
 void main_locale_init(const gchar *locale_dir, const gchar *package)
