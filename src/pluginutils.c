@@ -561,4 +561,12 @@ void geany_plugin_set_data(GeanyPlugin *plugin, gpointer pdata, GDestroyNotify f
 }
 
 
+/* Get the API version at the time when Geany was compiled */
+GEANY_API_SYMBOL
+gint geany_api_version(void)
+{
+	return GEANY_API_VERSION;
+}
+
+
 #endif

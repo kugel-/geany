@@ -60,6 +60,18 @@ G_BEGIN_DECLS
  */
 #define GEANY_API_VERSION 224
 
+/**
+ * Gets the run-time API version of the Geany core
+ *
+ * @note Unlike GEANY_API_VERSION this version is the value of that
+ * define at the time when Geany itself was compiled. This can be useful
+ * to have "soft" dependencies on Geany features.
+ *
+ * @return The value of GEANY_API_VERSION at Geany's compile time.
+ * @since 1.26
+ */
+gint geany_api_version(void);
+
 /* hack to have a different ABI when built with GTK3 because loading GTK2-linked plugins
  * with GTK3-linked Geany leads to crash */
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -73,7 +85,6 @@ G_BEGIN_DECLS
 /* This should usually stay the same if fields are only appended, assuming only pointers to
  * structs and not structs themselves are declared by plugins. */
 #define GEANY_ABI_VERSION (71 << GEANY_ABI_SHIFT)
-
 
 /** Defines a function to check the plugin is safe to load.
  * This performs runtime checks that try to ensure:
@@ -274,14 +285,11 @@ void plugin_cleanup(void);
  * For all glory details please read @ref howto.
  *
  * @param plugin The unique plugin handle to your plugin. You must set some fields here.
- * @param module The GModule associated with your plugin library.
- * @param geany_api_version The API version exposed by the Geany instance that loads your plugin.
- *           This probably not the same as the one your plugin was compiled against.
  *
  * @since 1.26 (API 225)
  * @see @ref howto
  */
-void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version);
+void geany_load_module(GeanyPlugin *plugin);
 
 #endif
 

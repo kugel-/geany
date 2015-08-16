@@ -205,7 +205,7 @@ static void demo_cleanup(GeanyPlugin *plugin, gpointer data)
 	g_free(welcome_text);
 }
 
-void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version)
+void geany_load_module(GeanyPlugin *plugin)
 {
 	/* main_locale_init() must be called for your package before any localization can be done */
 	main_locale_init(LOCALEDIR, GETTEXT_PACKAGE);

@@ -489,7 +489,7 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 {
 	Plugin *plugin;
 	GModule *module;
-	void (*p_geany_load_module)(GeanyPlugin *, GModule *, gint);
+	void (*p_geany_load_module)(GeanyPlugin *);
 
 	g_return_val_if_fail(fname, NULL);
 	g_return_val_if_fail(g_module_supported(), NULL);
@@ -550,7 +550,7 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 		 * The ABI and API checks are performed by geany_plugin_register() (i.e. by us).
 		 * We check the LOADED_OK flag separately to protect us against buggy plugins
 		 * who ignore the result of geany_plugin_register() and register anyway */
-		p_geany_load_module(&plugin->public, module, GEANY_API_VERSION);
+		p_geany_load_module(&plugin->public);
 	}
 	else
 	{
@@ -696,7 +696,11 @@ plugin_free(Plugin *plugin)
 	g_return_if_fail(plugin->module);
 
 	if (is_active_plugin(plugin))
+	{
 		plugin_cleanup(plugin);
+		if (plugin->cb_data_destroy)
+			plugin->cb_data_destroy(plugin->cb_data);
+	}
 
 	active_plugin_list = g_list_remove(active_plugin_list, plugin);
 
@@ -704,9 +708,6 @@ plugin_free(Plugin *plugin)
 		g_warning("%s: %s", plugin->filename, g_module_error());
 
 	plugin_list = g_list_remove(plugin_list, plugin);
-
-	if (plugin->cb_data_destroy)
-		plugin->cb_data_destroy(plugin->cb_data);
 	g_free(plugin->filename);
 	g_free(plugin);
 	plugin = NULL;
