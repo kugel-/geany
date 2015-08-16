@@ -218,15 +218,15 @@ instance which acts as a unique handle to your plugin. Use this pointer for regi
 API calls. It won't change for the life time of the plugin. Registering the plugin consists of a
 number of steps:
 
-  1. Filing in GeanyPlugin::info with metadata that is shown to the user.
+  1. Filling in GeanyPlugin::info with metadata that is shown to the user.
     - @ref PluginInfo::name : The name of your plugin
     - @ref PluginInfo::description : A brief description.
     - @ref PluginInfo::version : The plugin's version.
     - @ref PluginInfo::author : Your contact information, preferably in the form "Name <email>".
     .
-    Filing in all of them is recommended to provide the best user experience, but only the name is
+    Filling in all of them is recommended to provide the best user experience, but only the name is
     truly mandatory. Since all of the strings are shown to the user they should be human readable.
-  2. Filing in GeanyPlugin::funcs with function pointers that are called by Geany.
+  2. Filling in GeanyPlugin::funcs with function pointers that are called by Geany.
     - @ref GeanyPluginFuncs::init : an initialization function
     - @ref GeanyPluginFuncs::cleanup : a finalization function
     - @ref GeanyPluginFuncs::configure : a function that provides configuration (optional)
@@ -234,8 +234,8 @@ number of steps:
     - @ref GeanyPluginFuncs::callbacks : a pointer to an array of PluginCallback (optional).
     .
     @a init and @a cleanup are mandatory, the other ones depend on how advanced your plugin is.
-    Furthermore, the @a init and @a cleanup pair is called when the user activates and deactivates
-    your plugin in the Plugin Manager, and on startup and exit respectively. So use these to do
+    Furthermore, the @a init and @a cleanup pair is called when the user activates and
+    deactivates your plugin in the Plugin Manager, and on startup and exit. So use these to do
     advanced initialization and teardown as to not waste resources when the plugin is not even
     enabled.
   3. Actually registering by calling GEANY_PLUGIN_REGISTER(), passing the GeanyPlugin pointer that
@@ -270,7 +270,7 @@ These refer to Geany's versioning scheme to manage plugin compatibility. The fol
     Geany and the one that's compiled into the plugin must match exactly (==). In case of mismatch,
     the affected plugins need to be recompiled (generally without source code changes) against the
     running Geany. The ABI is usually stable even across multiple releases of Geany.
-  - The API version is secondary. It must not match exactly, however the plugin can report
+  - The API version is secondary. It doesn't have to match exactly, however a plugin can report
     a minimum API version that it requires to run. Geany will check if its own API is larger than
     that (>=) and will otherwise refuse to load the plugin. The API version is incremented when
     functions or variables are added to the API which often happens more than once within a release
@@ -382,7 +382,7 @@ compiler here, for example @c g++.
 
 Let's go on and implement some real functionality.
 
-As mentioned before, GeanyPluginFuncs::init() will be called when the plugin is loaded by
+As mentioned before, GeanyPluginFuncs::init() will be called when the plugin is activated by
 Geany. So it should implement everything that needs to be done during startup. In this case, we'd
 like to add a menu item to Geany's Tools menu which runs a dialog printing "Hello World".
 
@@ -475,8 +475,12 @@ static void item_activate_cb(GtkMenuItem *menuitem, gpointer user_data)
 
 static gboolean hello_init(GeanyPlugin *plugin, gpointer pdata)
 {
-	GtkWidget *main_menu_item = gtk_menu_item_new_with_mnemonic("Hello World");
+	main_menu_item = gtk_menu_item_new_with_mnemonic("Hello World");
 	gtk_widget_show(main_menu_item);
+	gtk_container_add(GTK_CONTAINER(geany->main_widgets->tools_menu),
+			main_menu_item);
+	g_signal_connect(main_menu_item, "activate",
+			G_CALLBACK(item_activate_cb), NULL);
 
 	geany_plugin_set_data(plugin, main_menu_item, NULL);
 	retrun TRUE;
@@ -561,8 +565,8 @@ static gboolean hello_init(GeanyPlugin *plugin, gpointer pdata)
 
 This page briefly describes the deprecated, legacy plugin entry points. These have been in place
 prior to Geany 1.26 and are still loadable and working for the time being. However, do not create
-new plugins against these. For this reason, the acutal description here is rather minimalistic and
-concentrates on the transition of legacy plugins to the new interface. Basically it's main purpose
+new plugins against these. For this reason, the actual description here is rather minimalistic and
+concentrates on porting legacy plugins to the new interface. Basically it's main purpose
 is to give newcomers an idea of what they are looking at if they come across a legacy plugin.
 
 @section overview Overview
@@ -588,7 +592,7 @@ The functions should generally perform the same tasks as their eqivalents in Gea
 Geany also recognized numerous variable fields if the plugin exported them globally, and actually
 set a few of them inside the plugins data section.
 
-@section transition Porting a Legacy Plugin
+@section porting Porting a Legacy Plugin
 
 Given a legacy plugin it can be modified to use the new entry points without much effort. This
 section gives a basic recipe that should work for most existing plugins. The transition should
@@ -599,10 +603,12 @@ allow adaption to the current entry points as quickly as possible and without a 
 should also work even for rather complex plugins comprising multiple source files. On the other hand
 it does not make use of new features such as geany_plugin_set_data().
 
-@subsection functions Functions Probably the biggest hurdle is the dropped support of the
-long-deprecated plugin_configure_single(). This means you first have to port the configuration
-dialog (if any) to the combined plugin dialog. While you previously created a custom dialog you now
-attach the main widget of that dialog to the combined plugin dialog simply by returning it from
+@subsection functions Functions
+
+Probably the biggest hurdle is the dropped support of the long-deprecated
+plugin_configure_single(). This means you first have to port the configuration dialog (if any) to
+the combined plugin dialog. While you previously created a custom dialog you now attach the main
+widget of that dialog to the combined plugin dialog simply by returning it from
 GeanyPluginFuncs::configure. You don't actually add it, Geany will do that for you. The pointer to
 the dialog is passed to @a configure simply to allow you to connect to its "response" or "close"
 signals.
@@ -685,7 +691,7 @@ static gboolean my_init(GeanyPlugin *plugin, gpointer pdata)
 pointer if it's set to NULL.
 
 @code
-PluginCallback plugin_callbacks[] = {
+static PluginCallback plugin_callbacks[] = {
 	{ "editor-notify", (GCallback) &on_editor_notify_cb, FALSE, NULL },
 // ...
 };
