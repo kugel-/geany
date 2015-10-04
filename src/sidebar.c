@@ -497,7 +497,7 @@ static void tree_copy_item(GtkTreeIter *parent, GtkTreeIter *parent_old, GtkTree
 }
 
 
-/**
+/*
  * Recursively copy all nodes from old parent to new parent
  * */
 static void tree_copy_recursive(GtkTreeIter *parent_old, GtkTreeIter *parent_new)
@@ -538,7 +538,7 @@ static void tree_add_new_dir(GtkTreeIter *child, GtkTreeIter *parent, gchar *fil
 }
 
 
-/**
+/*
  * Returns the position of dir delimiter where paths don't match
  * */
 static gint pathcmp(const gchar *s1, const gchar *s2)
