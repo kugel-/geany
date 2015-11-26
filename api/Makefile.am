@@ -1,8 +1,10 @@
 
-if WITH_PYTHON
+if ENABLE_GTKDOC_HEADER
 
 INTROSPECTION_GIRS = Geany-1.0.gir GeanyScintilla-1.0.gir
-INTROSPECTION_SCANNER_ARGS = --accept-unprefixed --c-include=geanyplugin.h
+INTROSPECTION_SCANNER_ARGS  = --accept-unprefixed --c-include=geanyplugin.h
+INTROSPECTION_SCANNER_ARGS += --program-arg=--introspection-dump=$(srcdir)/get-type.txt,$(builddir)/get-type.out
+
 
 Geany_1_0_gir_NAMESPACE = Geany
 Geany_1_0_gir_VERSION = 1.0

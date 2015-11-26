@@ -44,7 +44,6 @@
 
 #define SSM(s, m, w, l) scintilla_send_message(s, m, w, l)
 
-
 /* line numbers visibility */
 void sci_set_line_numbers(ScintillaObject *sci, gboolean set)
 {

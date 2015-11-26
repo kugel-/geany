@@ -136,6 +136,9 @@ AM_COND_IF([WITH_DOXYGEN],
    VAPIGEN_CHECK([0.28])],
   [])
 
+#~ AC_SUBST([INTROSPECTION_SCANNER_ORIG],[$INTROSPECTION_SCANNER])
+#~ AC_SUBST([INTROSPECTION_SCANNER],['$(top_srcdir)/scripts/g-ir-scanner-wrapper.sh'])
+
 # libgeany
 GEANY_LIB_INIT
 
