@@ -94,6 +94,7 @@ libgeany_la_SOURCES = \
 	printing.c printing.h \
 	project.c project.h \
 	sciwrappers.c sciwrappers.h \
+	scimethods.c scimethods.h \
 	search.c search.h \
 	socket.c socket.h \
 	spawn.c spawn.h \
@@ -173,6 +174,12 @@ endif
 
 callbacks.c: signallist.i
 
+scimethods.h: sciwrappers.h
+	$(SED) -e 's/sci_/scintilla_object_/g' $< > $@
+
+scimethods.c: sciwrappers.c scimethods.h
+	$(SED) -e 's/sci_/scintilla_object_/g' -e 's/sciwrappers.h/scimethods.h/g' $< > $@
+
 glade_file=$(top_srcdir)/data/geany.glade
 
 signallist.i: $(glade_file) Makefile
@@ -182,7 +189,7 @@ signallist.i: $(glade_file) Makefile
 			| $(SORT) | $(UNIQ) \
 	) > $@ || { $(RM) $@ && exit 1; }
 
-CLEANFILES += signallist.i
+CLEANFILES += signallist.i scimethods.c scimethods.h
 
 # Ubuntu ld has a bug so that libtool sees /usr/local/lib as a system path so
 # doesn't add RPATH, but ld requires explicit ldconfig there, unlike when
