@@ -35,6 +35,7 @@
 #include "dialogs.h"
 #include "documentprivate.h"
 #include "encodings.h"
+#include "encodingsprivate.h"
 #include "filetypesprivate.h"
 #include "geany.h" /* FIXME: why is this needed for DOC_FILENAME()? should come from documentprivate.h/document.h */
 #include "geanyobject.h"
@@ -80,25 +81,11 @@
 
 #include <gdk/gdkkeysyms.h>
 
+
+#define USE_GIO_FILE_OPERATIONS (!file_prefs.use_safe_file_saving && file_prefs.use_gio_unsafe_file_saving)
+
+
 GeanyFilePrefs file_prefs;
-
-
-/** Dynamic array of GeanyDocument pointers.
- * Once a pointer is added to this, it is never freed. This means the same document pointer
- * can represent a different document later on, or it may have been closed and become invalid.
- * For this reason, you should use document_find_by_id() instead of storing
- * document pointers over time if there is a chance the user can close the
- * document.
- *
- * @warning You must check @c GeanyDocument::is_valid when iterating over this array.
- * This is done automatically if you use the foreach_document() macro.
- *
- * @note
- * Never assume that the order of document pointers is the same as the order of notebook tabs.
- * One reason is that notebook tabs can be reordered.
- * Use @c document_get_from_page() to lookup a document from a notebook tab number.
- *
- * @see documents. */
 GPtrArray *documents_array = NULL;
 
 
@@ -141,7 +128,7 @@ static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgty
  * @param realname The filename to search, which should be identical to the
  * string returned by @c tm_get_real_path().
  *
- * @return The matching document, or @c NULL.
+ * @return @transfer{none} @nullable The matching document, or @c NULL.
  * @note This is only really useful when passing a @c TMSourceFile::file_name.
  * @see GeanyDocument::real_path.
  * @see document_find_by_filename().
@@ -191,7 +178,7 @@ static gchar *get_real_path_from_utf8(const gchar *utf8_filename)
  *
  *  @param utf8_filename The filename to search (in UTF-8 encoding).
  *
- *  @return The matching document, or @c NULL.
+ *  @return @transfer{none} @nullable The matching document, or @c NULL.
  *  @see document_find_by_real_path().
  **/
 GEANY_API_SYMBOL
@@ -245,7 +232,7 @@ GeanyDocument *document_find_by_sci(ScintillaObject *sci)
  * Useful when the corresponding document may have been closed since the
  * ID was retrieved.
  * @param id The ID of the document to find
- * @return @c NULL if the document is no longer open.
+ * @return @transfer{none} @c NULL if the document is no longer open.
  *
  * Example:
  * @code
@@ -361,7 +348,7 @@ GeanyDocument *document_get_from_notebook_child(GtkWidget *page)
  *
  *  @param page_num The notebook page number to search.
  *
- *  @return The corresponding document for the given notebook page, or @c NULL.
+ *  @return @transfer{none} @nullable The corresponding document for the given notebook page, or @c NULL.
  **/
 GEANY_API_SYMBOL
 GeanyDocument *document_get_from_page(guint page_num)
@@ -380,7 +367,7 @@ GeanyDocument *document_get_from_page(guint page_num)
 /**
  *  Finds the current document.
  *
- *  @return A pointer to the current document or @c NULL if there are no opened documents.
+ *  @return @transfer{none} @nullable A pointer to the current document or @c NULL if there are no opened documents.
  **/
 GEANY_API_SYMBOL
 GeanyDocument *document_get_current(void)
@@ -507,6 +494,9 @@ static gint document_get_new_idx(void)
 
 static void queue_colourise(GeanyDocument *doc)
 {
+	if (doc->priv->colourise_needed)
+		return;
+
 	/* Colourise the editor before it is next drawn */
 	doc->priv->colourise_needed = TRUE;
 
@@ -821,11 +811,11 @@ GeanyDocument *document_new_file_if_non_open(void)
  *  Line endings in @a text will be converted to the default setting.
  *  Afterwards, the @c "document-new" signal is emitted for plugins.
  *
- *  @param utf8_filename The file name in UTF-8 encoding, or @c NULL to open a file as "untitled".
- *  @param ft The filetype to set or @c NULL to detect it from @a filename if not @c NULL.
- *  @param text The initial content of the file (in UTF-8 encoding), or @c NULL.
+ *  @param utf8_filename @nullable The file name in UTF-8 encoding, or @c NULL to open a file as "untitled".
+ *  @param ft @nullable The filetype to set or @c NULL to detect it from @a filename if not @c NULL.
+ *  @param text @nullable The initial content of the file (in UTF-8 encoding), or @c NULL.
  *
- *  @return The new document.
+ *  @return @transfer{none} The new document.
  **/
 GEANY_API_SYMBOL
 GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, const gchar *text)
@@ -885,7 +875,7 @@ GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, 
 #ifdef USE_GIO_FILEMON
 	monitor_file_setup(doc);
 #else
-	doc->priv->mtime = time(NULL);
+	doc->priv->mtime = 0;
 #endif
 
 	/* "the" SCI signal (connect after initial setup(i.e. adding text)) */
@@ -906,10 +896,10 @@ GeanyDocument *document_new_file(const gchar *utf8_filename, GeanyFiletype *ft, 
  *
  *  @param locale_filename The filename of the document to load, in locale encoding.
  *  @param readonly Whether to open the document in read-only mode.
- *  @param ft The filetype for the document or @c NULL to auto-detect the filetype.
- *  @param forced_enc The file encoding to use or @c NULL to auto-detect the file encoding.
+ *  @param ft @nullable The filetype for the document or @c NULL to auto-detect the filetype.
+ *  @param forced_enc @nullable The file encoding to use or @c NULL to auto-detect the file encoding.
  *
- *  @return The document opened or @c NULL.
+ *  @return @transfer{none} @nullable The document opened or @c NULL.
  **/
 GEANY_API_SYMBOL
 GeanyDocument *document_open_file(const gchar *locale_filename, gboolean readonly,
@@ -930,12 +920,60 @@ typedef struct
 } FileData;
 
 
+static gboolean get_mtime(const gchar *locale_filename, time_t *time)
+{
+	GError *error = NULL;
+	const gchar *err_msg = NULL;
+
+	if (USE_GIO_FILE_OPERATIONS)
+	{
+		GFile *file = g_file_new_for_path(locale_filename);
+		GFileInfo *info = g_file_query_info(file, G_FILE_ATTRIBUTE_TIME_MODIFIED, G_FILE_QUERY_INFO_NONE, NULL, &error);
+
+		if (info)
+		{
+			GTimeVal timeval;
+
+			g_file_info_get_modification_time(info, &timeval);
+			g_object_unref(info);
+			*time = timeval.tv_sec;
+		}
+		else if (error)
+			err_msg = error->message;
+
+		g_object_unref(file);
+	}
+	else
+	{
+		GStatBuf st;
+
+		if (g_stat(locale_filename, &st) == 0)
+			*time = st.st_mtime;
+		else
+			err_msg = g_strerror(errno);
+	}
+
+	if (err_msg)
+	{
+		gchar *utf8_filename = utils_get_utf8_from_locale(locale_filename);
+
+		ui_set_statusbar(TRUE, _("Could not open file %s (%s)"),
+			utf8_filename, err_msg);
+		g_free(utf8_filename);
+	}
+
+	if (error)
+		g_error_free(error);
+
+	return err_msg == NULL;
+}
+
+
 /* loads textfile data, verifies and converts to forced_enc or UTF-8. Also handles BOM. */
 static gboolean load_text_file(const gchar *locale_filename, const gchar *display_filename,
 	FileData *filedata, const gchar *forced_enc)
 {
 	GError *err = NULL;
-	struct stat st;
 
 	filedata->data = NULL;
 	filedata->len = 0;
@@ -943,23 +981,26 @@ static gboolean load_text_file(const gchar *locale_filename, const gchar *displa
 	filedata->bom = FALSE;
 	filedata->readonly = FALSE;
 
-	if (g_stat(locale_filename, &st) != 0)
-	{
-		ui_set_statusbar(TRUE, _("Could not open file %s (%s)"),
-			display_filename, g_strerror(errno));
+	if (!get_mtime(locale_filename, &filedata->mtime))
 		return FALSE;
+
+	if (USE_GIO_FILE_OPERATIONS)
+	{
+		GFile *file = g_file_new_for_path(locale_filename);
+
+		g_file_load_contents(file, NULL, &filedata->data, &filedata->len, NULL, &err);
+		g_object_unref(file);
 	}
+	else
+		g_file_get_contents(locale_filename, &filedata->data, &filedata->len, &err);
 
-	filedata->mtime = st.st_mtime;
-
-	if (! g_file_get_contents(locale_filename, &filedata->data, NULL, &err))
+	if (err)
 	{
 		ui_set_statusbar(TRUE, "%s", err->message);
 		g_error_free(err);
 		return FALSE;
 	}
 
-	filedata->len = (gsize) st.st_size;
 	if (! encodings_convert_to_utf8_auto(&filedata->data, &filedata->len, forced_enc,
 				&filedata->enc, &filedata->bom, &filedata->readonly))
 	{
@@ -1477,7 +1518,6 @@ GeanyDocument *document_open_file_full(GeanyDocument *doc, const gchar *filename
 void document_open_file_list(const gchar *data, gsize length)
 {
 	guint i;
-	gchar *filename;
 	gchar **list;
 
 	g_return_if_fail(data != NULL);
@@ -1487,7 +1527,8 @@ void document_open_file_list(const gchar *data, gsize length)
 	/* stop at the end or first empty item, because last item is empty but not null */
 	for (i = 0; list[i] != NULL && list[i][0] != '\0'; i++)
 	{
-		filename = utils_get_path_from_uri(list[i]);
+		gchar *filename = utils_get_path_from_uri(list[i]);
+
 		if (filename == NULL)
 			continue;
 		document_open_file(filename, FALSE, NULL, NULL);
@@ -1502,10 +1543,10 @@ void document_open_file_list(const gchar *data, gsize length)
  *  Opens each file in the list @a filenames.
  *  Internally, document_open_file() is called for every list item.
  *
- *  @param filenames A list of filenames to load, in locale encoding.
+ *  @param filenames @elementtype{filename} A list of filenames to load, in locale encoding.
  *  @param readonly Whether to open the document in read-only mode.
- *  @param ft The filetype for the document or @c NULL to auto-detect the filetype.
- *  @param forced_enc The file encoding to use or @c NULL to auto-detect the file encoding.
+ *  @param ft @nullable The filetype for the document or @c NULL to auto-detect the filetype.
+ *  @param forced_enc @nullable The file encoding to use or @c NULL to auto-detect the file encoding.
  **/
 GEANY_API_SYMBOL
 void document_open_files(const GSList *filenames, gboolean readonly, GeanyFiletype *ft,
@@ -1520,12 +1561,30 @@ void document_open_files(const GSList *filenames, gboolean readonly, GeanyFilety
 }
 
 
+static void on_keep_edit_history_on_reload_response(GtkWidget *bar, gint response_id, GeanyDocument *doc)
+{
+	if (response_id == GTK_RESPONSE_NO)
+	{
+		file_prefs.keep_edit_history_on_reload = FALSE;
+		document_reload_force(doc, doc->encoding);
+	}
+	else if (response_id == GTK_RESPONSE_CANCEL)
+	{
+		/* this condition cannot be reached via info bar buttons, but by our code
+		 * to replace this bar with a higher priority one */
+		file_prefs.show_keep_edit_history_on_reload_msg = TRUE;
+	}
+	doc->priv->info_bars[MSG_TYPE_POST_RELOAD] = NULL;
+	gtk_widget_destroy(bar);
+}
+
+
 /**
  *  Reloads the document with the specified file encoding.
  *  @a forced_enc or @c NULL to auto-detect the file encoding.
  *
  *  @param doc The document to reload.
- *  @param forced_enc The file encoding to use or @c NULL to auto-detect the file encoding.
+ *  @param forced_enc @nullable The file encoding to use or @c NULL to auto-detect the file encoding.
  *
  *  @return @c TRUE if the document was actually reloaded or @c FALSE otherwise.
  **/
@@ -1534,6 +1593,7 @@ gboolean document_reload_force(GeanyDocument *doc, const gchar *forced_enc)
 {
 	gint pos = 0;
 	GeanyDocument *new_doc;
+	GtkWidget *bar;
 
 	g_return_val_if_fail(doc != NULL, FALSE);
 
@@ -1544,6 +1604,21 @@ gboolean document_reload_force(GeanyDocument *doc, const gchar *forced_enc)
 	/* try to set the cursor to the position before reloading */
 	pos = sci_get_current_position(doc->editor->sci);
 	new_doc = document_open_file_full(doc, NULL, pos, doc->readonly, doc->file_type, forced_enc);
+
+	if (file_prefs.keep_edit_history_on_reload && file_prefs.show_keep_edit_history_on_reload_msg)
+	{
+		bar = document_show_message(doc, GTK_MESSAGE_INFO,
+						on_keep_edit_history_on_reload_response,
+						GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+						_("Discard history"), GTK_RESPONSE_NO,
+						NULL, 0, _("The buffer's previous state is stored in the history and "
+						"undoing restores it. You can disable this by discarding the history upon "
+						"reload. This message will not be displayed again but "
+						"Your choice can be changed in the various preferences."),
+						_("The file has been reloaded."));
+		doc->priv->info_bars[MSG_TYPE_POST_RELOAD] = bar;
+		file_prefs.show_keep_edit_history_on_reload_msg = FALSE;
+	}
 
 	return (new_doc != NULL);
 }
@@ -1583,25 +1658,13 @@ gboolean document_reload_prompt(GeanyDocument *doc, const gchar *forced_enc)
 }
 
 
-static gboolean document_update_timestamp(GeanyDocument *doc, const gchar *locale_filename)
+static void document_update_timestamp(GeanyDocument *doc, const gchar *locale_filename)
 {
 #ifndef USE_GIO_FILEMON
-	struct stat st;
+	g_return_if_fail(doc != NULL);
 
-	g_return_val_if_fail(doc != NULL, FALSE);
-
-	/* stat the file to get the timestamp, otherwise on Windows the actual
-	 * timestamp can be ahead of time(NULL) */
-	if (g_stat(locale_filename, &st) != 0)
-	{
-		ui_set_statusbar(TRUE, _("Could not open file %s (%s)"), doc->file_name,
-			g_strerror(errno));
-		return FALSE;
-	}
-
-	doc->priv->mtime = st.st_mtime; /* get the modification time from file and keep it */
+	get_mtime(locale_filename, &doc->priv->mtime); /* get the modification time from file and keep it */
 #endif
-	return TRUE;
 }
 
 
@@ -1734,7 +1797,7 @@ gboolean document_need_save_as(GeanyDocument *doc)
  * Saves the document, detecting the filetype.
  *
  * @param doc The document for the file to save.
- * @param utf8_fname The new name for the document, in UTF-8, or NULL.
+ * @param utf8_fname @nullable The new name for the document, in UTF-8, or @c NULL.
  * @return @c TRUE if the file was saved or @c FALSE if the file could not be saved.
  *
  * @see document_save_file().
@@ -1867,7 +1930,7 @@ static gchar *write_data_to_disk(const gchar *locale_filename,
 		if (g_file_set_contents(locale_filename, data, len, &error))
 			geany_debug("Wrote %s with g_file_set_contents().", locale_filename);
 	}
-	else if (file_prefs.use_gio_unsafe_file_saving)
+	else if (USE_GIO_FILE_OPERATIONS)
 	{
 		GFile *fp;
 
@@ -2062,10 +2125,10 @@ gboolean document_save_file(GeanyDocument *doc, gboolean force)
 	fp = project_get_file_prefs();
 	/* replaces tabs with spaces but only if the current file is not a Makefile */
 	if (fp->replace_tabs && doc->file_type->id != GEANY_FILETYPES_MAKE)
-		editor_replace_tabs(doc->editor);
+		editor_replace_tabs(doc->editor, TRUE);
 	/* strip trailing spaces */
 	if (fp->strip_trailing_spaces)
-		editor_strip_trailing_spaces(doc->editor);
+		editor_strip_trailing_spaces(doc->editor, TRUE);
 	/* ensure the file has a newline at the end */
 	if (fp->final_new_line)
 		editor_ensure_final_newline(doc->editor);
@@ -2632,7 +2695,6 @@ void document_update_tags(GeanyDocument *doc)
 void document_highlight_tags(GeanyDocument *doc)
 {
 	GString *keywords_str;
-	gchar *keywords;
 	gint keyword_idx;
 
 	/* some filetypes support type keywords (such as struct names), but not
@@ -2669,10 +2731,16 @@ void document_highlight_tags(GeanyDocument *doc)
 	keywords_str = symbols_find_typenames_as_string(doc->file_type->lang, FALSE);
 	if (keywords_str)
 	{
-		keywords = g_string_free(keywords_str, FALSE);
-		sci_set_keywords(doc->editor->sci, keyword_idx, keywords);
+		gchar *keywords = g_string_free(keywords_str, FALSE);
+		guint hash = g_str_hash(keywords);
+
+		if (hash != doc->priv->keyword_hash)
+		{
+			sci_set_keywords(doc->editor->sci, keyword_idx, keywords);
+			queue_colourise(doc); /* force re-highlighting the entire document */
+			doc->priv->keyword_hash = hash;
+		}
 		g_free(keywords);
-		queue_colourise(doc); /* force re-highlighting the entire document */
 	}
 }
 
@@ -2734,7 +2802,10 @@ static void document_load_config(GeanyDocument *doc, GeanyFiletype *type,
 		editor_set_indentation_guides(doc->editor);
 		build_menu_update(doc);
 		queue_colourise(doc);
-		doc->priv->symbol_list_sort_mode = type->priv->symbol_list_sort_mode;
+		if (type->priv->symbol_list_sort_mode == SYMBOLS_SORT_USE_PREVIOUS)
+			doc->priv->symbol_list_sort_mode = interface_prefs.symbols_sort_mode;
+		else
+			doc->priv->symbol_list_sort_mode = type->priv->symbol_list_sort_mode;
 	}
 
 	document_update_tags(doc);
@@ -2820,11 +2891,10 @@ void document_set_encoding(GeanyDocument *doc, const gchar *new_encoding)
 /* Clears an Undo or Redo buffer. */
 void document_undo_clear_stack(GTrashStack **stack)
 {
-	undo_action *a;
-
 	while (g_trash_stack_height(stack) > 0)
 	{
-		a = g_trash_stack_pop(stack);
+		undo_action *a = g_trash_stack_pop(stack);
+
 		if (G_LIKELY(a != NULL))
 		{
 			switch (a->type)
@@ -2945,12 +3015,29 @@ void document_undo(GeanyDocument *doc)
 				document_redo_add(doc, UNDO_ENCODING, g_strdup(doc->encoding));
 
 				document_set_encoding(doc, (const gchar*)action->data);
-
-				ignore_callback = TRUE;
-				encodings_select_radio_item((const gchar*)action->data);
-				ignore_callback = FALSE;
-
 				g_free(action->data);
+
+				ui_update_statusbar(doc, -1);
+				ui_document_show_hide(doc);
+				break;
+			}
+			case UNDO_EOL:
+			{
+				undo_action *next_action;
+
+				document_redo_add(doc, UNDO_EOL, GINT_TO_POINTER(sci_get_eol_mode(doc->editor->sci)));
+
+				sci_set_eol_mode(doc->editor->sci, GPOINTER_TO_INT(action->data));
+
+				ui_update_statusbar(doc, -1);
+				ui_document_show_hide(doc);
+
+				/* When undoing, UNDO_EOL is always followed by UNDO_SCINTILLA
+				 * which undos the line endings in the editor and should be
+				 * performed together with UNDO_EOL. */
+				next_action = g_trash_stack_peek(&doc->priv->undo_actions);
+				if (next_action && next_action->type == UNDO_SCINTILLA)
+					document_undo(doc);
 				break;
 			}
 			case UNDO_RELOAD:
@@ -3017,9 +3104,18 @@ void document_redo(GeanyDocument *doc)
 		{
 			case UNDO_SCINTILLA:
 			{
+				undo_action *next_action;
+
 				document_undo_add_internal(doc, UNDO_SCINTILLA, NULL);
 
 				sci_redo(doc->editor->sci);
+
+				/* When redoing an EOL change, the UNDO_SCINTILLA which changes
+				 * the line ends in the editor is followed by UNDO_EOL
+				 * which should be performed together with UNDO_SCINTILLA. */
+				next_action = g_trash_stack_peek(&doc->priv->redo_actions);
+				if (next_action != NULL && next_action->type == UNDO_EOL)
+					document_redo(doc);
 				break;
 			}
 			case UNDO_BOM:
@@ -3036,12 +3132,20 @@ void document_redo(GeanyDocument *doc)
 				document_undo_add_internal(doc, UNDO_ENCODING, g_strdup(doc->encoding));
 
 				document_set_encoding(doc, (const gchar*)action->data);
-
-				ignore_callback = TRUE;
-				encodings_select_radio_item((const gchar*)action->data);
-				ignore_callback = FALSE;
-
 				g_free(action->data);
+
+				ui_update_statusbar(doc, -1);
+				ui_document_show_hide(doc);
+				break;
+			}
+			case UNDO_EOL:
+			{
+				document_undo_add_internal(doc, UNDO_EOL, GINT_TO_POINTER(sci_get_eol_mode(doc->editor->sci)));
+
+				sci_set_eol_mode(doc->editor->sci, GPOINTER_TO_INT(action->data));
+
+				ui_update_statusbar(doc, -1);
+				ui_document_show_hide(doc);
 				break;
 			}
 			case UNDO_RELOAD:
@@ -3156,8 +3260,8 @@ const gchar *document_get_status_widget_class(GeanyDocument *doc)
  *
  *  @param doc The document to use.
  *
- *  @return The color for the document or @c NULL if the default color should be used. The color
- *          object is owned by Geany and should not be modified or freed.
+ *  @return @nullable The color for the document or @c NULL if the default color should be used.
+ *          The color object is owned by Geany and should not be modified or freed.
  *
  *  @since 0.16
  */
@@ -3184,7 +3288,7 @@ const GdkColor *document_get_status_color(GeanyDocument *doc)
 		gtk_widget_path_iter_set_name(path, -1, document_status_styles[status].name);
 		gtk_style_context_set_screen(ctx, gtk_widget_get_screen(GTK_WIDGET(doc->editor->sci)));
 		gtk_style_context_set_path(ctx, path);
-		gtk_style_context_get_color(ctx, GTK_STATE_NORMAL, &color);
+		gtk_style_context_get_color(ctx, gtk_style_context_get_state(ctx), &color);
 		document_status_styles[status].color.red   = 0xffff * color.red;
 		document_status_styles[status].color.green = 0xffff * color.green;
 		document_status_styles[status].color.blue  = 0xffff * color.blue;
@@ -3206,10 +3310,10 @@ const GdkColor *document_get_status_color(GeanyDocument *doc)
 }
 
 
-/** Accessor function for @ref documents_array items.
+/** Accessor function for @ref GeanyData::documents_array items.
  * @warning Always check the returned document is valid (@c doc->is_valid).
- * @param idx @c documents_array index.
- * @return The document, or @c NULL if @a idx is out of range.
+ * @param idx @c GeanyData::documents_array index.
+ * @return @transfer{none} @nullable The document, or @c NULL if @a idx is out of range.
  *
  *  @since 0.16
  */
@@ -3352,7 +3456,7 @@ static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgty
 {
 	va_list args;
 	gchar *text, *markup;
-	GtkWidget *hbox, *vbox, *icon, *label, *extra_label, *content_area;
+	GtkWidget *hbox, *icon, *label, *content_area;
 	GtkWidget *info_widget, *parent;
 	parent = document_get_notebook_child(doc);
 
@@ -3411,8 +3515,9 @@ static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgty
 
 	if (extra_text)
 	{
-		vbox = gtk_vbox_new(FALSE, 6);
-		extra_label = geany_wrap_label_new(extra_text);
+		GtkWidget *vbox = gtk_vbox_new(FALSE, 6);
+		GtkWidget *extra_label = geany_wrap_label_new(extra_text);
+
 		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
 		gtk_box_pack_start(GTK_BOX(vbox), extra_label, TRUE, TRUE, 0);
 		gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
@@ -3582,8 +3687,7 @@ gboolean document_check_disk_status(GeanyDocument *doc, gboolean force)
 {
 	gboolean ret = FALSE;
 	gboolean use_gio_filemon;
-	time_t cur_time = 0;
-	struct stat st;
+	time_t mtime;
 	gchar *locale_filename;
 	FileDiskStatus old_status;
 
@@ -3603,7 +3707,8 @@ gboolean document_check_disk_status(GeanyDocument *doc, gboolean force)
 	}
 	else
 	{
-		cur_time = time(NULL);
+		time_t cur_time = time(NULL);
+
 		if (! force && doc->priv->last_check > (cur_time - file_prefs.disk_check_timeout))
 			return FALSE;
 
@@ -3611,22 +3716,16 @@ gboolean document_check_disk_status(GeanyDocument *doc, gboolean force)
 	}
 
 	locale_filename = utils_get_locale_from_utf8(doc->file_name);
-	if (g_stat(locale_filename, &st) != 0)
+	if (!get_mtime(locale_filename, &mtime))
 	{
 		monitor_resave_missing_file(doc);
 		/* doc may be closed now */
 		ret = TRUE;
 	}
-	else if (! use_gio_filemon && /* ignore check when using GIO */
-		doc->priv->mtime > cur_time)
-	{
-		g_warning("%s: Something is wrong with the time stamps.", G_STRFUNC);
-		/* Note: on Windows st.st_mtime can be newer than cur_time */
-	}
-	else if (doc->priv->mtime < st.st_mtime)
+	else if (doc->priv->mtime < mtime)
 	{
 		/* make sure the user is not prompted again after he cancelled the "reload file?" message */
-		doc->priv->mtime = st.st_mtime;
+		doc->priv->mtime = mtime;
 		monitor_reload_file(doc);
 		/* doc may be closed now */
 		ret = TRUE;
@@ -3728,3 +3827,15 @@ void document_grab_focus(GeanyDocument *doc)
 
 	gtk_widget_grab_focus(GTK_WIDGET(doc->editor->sci));
 }
+
+static void        *copy_(void *src) { return src; }
+static void         free_(void *doc) { }
+
+/** @gironly
+ * Gets the GType of GeanyDocument
+ *
+ * @return the GeanyDocument type */
+GEANY_API_SYMBOL
+GType document_get_type (void);
+
+G_DEFINE_BOXED_TYPE(GeanyDocument, document, copy_, free_);

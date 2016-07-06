@@ -38,6 +38,7 @@
 #include "build.h"
 #include "document.h"
 #include "encodings.h"
+#include "encodingsprivate.h"
 #include "filetypes.h"
 #include "geanyobject.h"
 #include "main.h"
@@ -48,6 +49,7 @@
 #include "sciwrappers.h"
 #include "stash.h"
 #include "support.h"
+#include "symbols.h"
 #include "templates.h"
 #include "toolbar.h"
 #include "ui_utils.h"
@@ -82,12 +84,12 @@
 #ifdef __APPLE__
 #define GEANY_DEFAULT_TOOLS_BROWSER		"open -a safari"
 #define GEANY_DEFAULT_FONT_SYMBOL_LIST	"Helvetica Medium 12"
-#define GEANY_DEFAULT_FONT_MSG_WINDOW	"Helvetica Medium 12"
+#define GEANY_DEFAULT_FONT_MSG_WINDOW	"Menlo Medium 12"
 #define GEANY_DEFAULT_FONT_EDITOR		"Menlo Medium 12"
 #else
 #define GEANY_DEFAULT_TOOLS_BROWSER		"firefox"
 #define GEANY_DEFAULT_FONT_SYMBOL_LIST	"Sans 9"
-#define GEANY_DEFAULT_FONT_MSG_WINDOW	"Sans 9"
+#define GEANY_DEFAULT_FONT_MSG_WINDOW	"Monospace 9"
 #define GEANY_DEFAULT_FONT_EDITOR		"Monospace 10"
 #endif
 #define GEANY_DEFAULT_TOOLS_PRINTCMD	"lpr"
@@ -160,6 +162,11 @@ static void init_pref_groups(void)
 		"sidebar_pos", GTK_POS_LEFT,
 		"radio_sidebar_left", GTK_POS_LEFT,
 		"radio_sidebar_right", GTK_POS_RIGHT,
+		NULL);
+	stash_group_add_radio_buttons(group, &interface_prefs.symbols_sort_mode,
+		"symbols_sort_mode", SYMBOLS_SORT_BY_NAME,
+		"radio_symbols_sort_by_name", SYMBOLS_SORT_BY_NAME,
+		"radio_symbols_sort_by_appearance", SYMBOLS_SORT_BY_APPEARANCE,
 		NULL);
 	stash_group_add_radio_buttons(group, &interface_prefs.msgwin_orientation,
 		"msgwin_orientation", GTK_ORIENTATION_VERTICAL,
@@ -235,6 +242,8 @@ static void init_pref_groups(void)
 		"use_gio_unsafe_file_saving", TRUE);
 	stash_group_add_boolean(group, &file_prefs.keep_edit_history_on_reload,
 		"keep_edit_history_on_reload", TRUE);
+	stash_group_add_boolean(group, &file_prefs.show_keep_edit_history_on_reload_msg,
+		"show_keep_edit_history_on_reload_msg", TRUE);
 	/* for backwards-compatibility */
 	stash_group_add_integer(group, &editor_prefs.indentation->hard_tab_width,
 		"indent_hard_tab_width", 8);
@@ -361,7 +370,6 @@ void configuration_save_session_files(GKeyFile *config)
 	gint npage;
 	gchar entry[16];
 	guint i = 0, j = 0, max;
-	GeanyDocument *doc;
 
 	npage = gtk_notebook_get_current_page(GTK_NOTEBOOK(main_widgets.notebook));
 	g_key_file_set_integer(config, "files", "current_page", npage);
@@ -373,7 +381,8 @@ void configuration_save_session_files(GKeyFile *config)
 	max = gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
 	for (i = 0; i < max; i++)
 	{
-		doc = document_get_from_page(i);
+		GeanyDocument *doc = document_get_from_page(i);
+
 		if (doc != NULL && doc->real_path != NULL)
 		{
 			gchar *fname;

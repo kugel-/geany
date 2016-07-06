@@ -34,7 +34,7 @@ typedef enum {
     K_CONSTANT,
     K_TYPE,
     K_VARIABLE,
-    K_ATRIBUTE,
+    K_ATTRIBUTE,
     K_SIGNAL,
     K_FUNCTION,
     K_PROCEDURE,
@@ -68,7 +68,7 @@ static kindOption VhdlKinds [] = {
  { TRUE, 'c', "variable",     "constants" },
  { TRUE, 't', "typedef",      "types" },
  { TRUE, 'v', "variable",     "variables" },
- { TRUE, 'a', "atribute",     "atributes" },
+ { TRUE, 'a', "attribute",    "attributes" },
  { TRUE, 's', "variable",     "signals" },
  { TRUE, 'f', "function",     "functions" },
  { TRUE, 'p', "function",     "procedure" },
@@ -79,7 +79,7 @@ static kindOption VhdlKinds [] = {
  { TRUE, 'o', "struct",       "architecture" },
  { TRUE, 'u', "port",         "ports" },
  { TRUE, 'b', "member",       "blocks" },
- { TRUE, 'v', "typedef",      "alias" }
+ { TRUE, 'A', "typedef",      "alias" }
  };
 
 static keywordAssoc VhdlKeywordTable [] = {

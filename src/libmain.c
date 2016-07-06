@@ -36,7 +36,7 @@
 #include "callbacks.h"
 #include "dialogs.h"
 #include "document.h"
-#include "encodings.h"
+#include "encodingsprivate.h"
 #include "filetypes.h"
 #include "geanyobject.h"
 #include "highlighting.h"
@@ -119,7 +119,7 @@ static GOptionEntry entries[] =
 	{ "config", 'c', 0, G_OPTION_ARG_FILENAME, &alternate_config, N_("Use an alternate configuration directory"), NULL },
 	{ "ft-names", 0, 0, G_OPTION_ARG_NONE, &ft_names, N_("Print internal filetype names"), NULL },
 	{ "generate-tags", 'g', 0, G_OPTION_ARG_NONE, &generate_tags, N_("Generate global tags file (see documentation)"), NULL },
-	{ "no-preprocessing", 'P', 0, G_OPTION_ARG_NONE, &no_preprocessing, N_("Don't preprocess C/C++ files when generating tags"), NULL },
+	{ "no-preprocessing", 'P', 0, G_OPTION_ARG_NONE, &no_preprocessing, N_("Don't preprocess C/C++ files when generating tags file"), NULL },
 #ifdef HAVE_SOCKET
 	{ "new-instance", 'i', 0, G_OPTION_ARG_NONE, &cl_options.new_instance, N_("Don't open files in a running instance, force opening a new instance"), NULL },
 	{ "socket-file", 0, 0, G_OPTION_ARG_FILENAME, &cl_options.socket_filename, N_("Use this socket filename for communication with a running Geany instance"), NULL },
@@ -222,6 +222,15 @@ static void apply_settings(void)
 }
 
 
+static void on_window_active_changed(GtkWindow *window, GParamSpec *pspec, gpointer data)
+{
+	GeanyDocument *doc = document_get_current();
+
+	if (doc && gtk_window_is_active(window))
+		document_check_disk_status(doc, TRUE);
+}
+
+
 static void main_init(void)
 {
 	/* add our icon path in case we aren't installed in the system prefix */
@@ -242,12 +251,12 @@ static void main_init(void)
 	file_prefs.tab_order_beside		= FALSE;
 	main_status.quitting			= FALSE;
 	ignore_callback	= FALSE;
-	app->tm_workspace		= tm_get_workspace();
 	ui_prefs.recent_queue				= g_queue_new();
 	ui_prefs.recent_projects_queue		= g_queue_new();
 	main_status.opening_session_files	= FALSE;
 
 	main_widgets.window = create_window1();
+	g_signal_connect(main_widgets.window, "notify::is-active", G_CALLBACK(on_window_active_changed), NULL);
 
 	/* add recent projects to the Project menu */
 	ui_widgets.recent_projects_menuitem = ui_lookup_widget(main_widgets.window, "recent_projects1");
@@ -568,7 +577,7 @@ static void parse_command_line_options(gint *argc, gchar ***argv)
 
 	if (alternate_config)
 	{
-		geany_debug("alternate config: %s", alternate_config);
+		geany_debug("Using alternate configuration directory");
 		app->configdir = alternate_config;
 	}
 	else
@@ -668,7 +677,7 @@ static gint create_config_dir(void)
 			g_free(old_dir);
 		}
 #endif
-		geany_debug("creating config directory %s", app->configdir);
+		geany_debug("Creating configuration directory");
 		saved_errno = utils_mkdir(app->configdir, TRUE);
 	}
 
@@ -694,7 +703,7 @@ static gint create_config_dir(void)
 		if (saved_errno == 0 && ! g_file_test(filedefs_readme, G_FILE_TEST_EXISTS))
 		{
 			gchar *text = g_strconcat(
-"Copy files from ", app->datadir, " to this directory to overwrite "
+"Copy files from ", app->datadir, "/filedefs to this directory to overwrite "
 "them. To use the defaults, just delete the file in this directory.\nFor more information read "
 "the documentation (in ", app->docdir, G_DIR_SEPARATOR_S "index.html or visit " GEANY_HOMEPAGE ").", NULL);
 			utils_write_file(filedefs_readme, text);
@@ -737,9 +746,6 @@ For more information read the documentation (in ", app->docdir, G_DIR_SEPARATOR_
 static gint setup_config_dir(void)
 {
 	gint mkdir_result = 0;
-
-	/* convert configdir to locale encoding to avoid troubles */
-	SETPTR(app->configdir, utils_get_locale_from_utf8(app->configdir));
 
 	mkdir_result = create_config_dir();
 	if (mkdir_result != 0)
@@ -804,7 +810,11 @@ gboolean main_handle_filename(const gchar *locale_filename)
 	{	/* create new file with the given filename */
 		gchar *utf8_filename = utils_get_utf8_from_locale(filename);
 
-		doc = document_new_file(utf8_filename, NULL, NULL);
+		doc = document_find_by_filename(utf8_filename);
+		if (doc)
+			document_show_tab(doc);
+		else
+			doc = document_new_file(utf8_filename, NULL, NULL);
 		if (doc != NULL)
 			ui_add_recent_document(doc);
 		g_free(utf8_filename);
@@ -1009,6 +1019,7 @@ gint main_lib(gint argc, gchar **argv)
 	GeanyDocument *doc;
 	gint config_dir_result;
 	const gchar *locale;
+	gchar *utf8_configdir;
 
 #if ! GLIB_CHECK_VERSION(2, 36, 0)
 	g_type_init();
@@ -1035,6 +1046,8 @@ gint main_lib(gint argc, gchar **argv)
 #ifdef ENABLE_NLS
 	main_locale_init(utils_resource_dir(RESOURCE_DIR_LOCALE), GETTEXT_PACKAGE);
 #endif
+	/* initialize TM before parsing command-line - needed for tag file generation */
+	app->tm_workspace = tm_get_workspace();
 	parse_command_line_options(&argc, &argv);
 
 #if ! GLIB_CHECK_VERSION(2, 32, 0)
@@ -1097,7 +1110,9 @@ gint main_lib(gint argc, gchar **argv)
 		gtk_major_version, gtk_minor_version, gtk_micro_version,
 		glib_major_version, glib_minor_version, glib_micro_version);
 	geany_debug("System data dir: %s", app->datadir);
-	geany_debug("User config dir: %s", app->configdir);
+	utf8_configdir = utils_get_utf8_from_locale(app->configdir);
+	geany_debug("User config dir: %s", utf8_configdir);
+	g_free(utf8_configdir);
 
 	/* create the object so Geany signals can be connected in init() functions */
 	geany_object = geany_object_new();

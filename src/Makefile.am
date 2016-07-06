@@ -5,6 +5,7 @@ EXTRA_DIST = \
 	gb.c \
 	plugindata.h \
 	documentprivate.h \
+	encodingsprivate.h \
 	filetypesprivate.h \
 	keybindingsprivate.h \
 	pluginprivate.h \
@@ -54,6 +55,7 @@ geany_include_HEADERS = \
 	project.h \
 	sciwrappers.h \
 	search.h \
+	spawn.h \
 	stash.h \
 	support.h \
 	symbols.h \
@@ -118,8 +120,6 @@ libgeany_la_LDFLAGS = @LIBGEANY_LDFLAGS@
 
 libgeany_la_LIBADD = \
 	$(top_builddir)/scintilla/libscintilla.la \
-	$(top_builddir)/tagmanager/ctags/libctags.la \
-	$(top_builddir)/tagmanager/mio/libmio.la \
 	$(top_builddir)/tagmanager/src/libtagmanager.la \
 	@GTK_LIBS@ \
 	@GTHREAD_LIBS@ \
@@ -148,7 +148,7 @@ WINDRES = $(host_alias)-windres
 geany_private.res: $(top_srcdir)/geany_private.rc
 	$(WINDRES) -i $(top_srcdir)/geany_private.rc --input-format=rc -o $@ -O coff
 
-libgeany_la_SOURCES += win32.c win32.h win32defines.h
+libgeany_la_SOURCES += win32.c win32.h
 libgeany_la_LIBADD  += -lole32 -lwsock32 -lcomdlg32
 libgeany_la_LDFLAGS += -Wl,-luuid -mwindows -mms-bitfields -no-undefined
 geany_LDFLAGS       += -mwindows -mms-bitfields
@@ -181,3 +181,16 @@ signallist.i: $(glade_file) Makefile
 	) > $@ || { $(RM) $@ && exit 1; }
 
 CLEANFILES += signallist.i
+
+# Ubuntu ld has a bug so that libtool sees /usr/local/lib as a system path so
+# doesn't add RPATH, but ld requires explicit ldconfig there, unlike when
+# installing in /usr/lib.  So, workaround this by calling it explicitly when
+# installing in /usr/local/lib and libgeany is not found by the linker.
+fix-ubuntu-libdir:
+	if test "$(DESTDIR)$(libdir)" = /usr/local/lib && \
+	   LANG=C ldd "$(DESTDIR)$(bindir)/geany" | grep -q 'libgeany.*not found' \
+	; then \
+		ldconfig "$(DESTDIR)$(libdir)"; \
+	fi
+
+install-exec-hook: fix-ubuntu-libdir

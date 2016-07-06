@@ -33,6 +33,7 @@
 #include "app.h"
 #include "document.h"
 #include "encodings.h"
+#include "encodingsprivate.h"
 #include "keyfile.h"
 #include "msgwindow.h"
 #include "prefs.h"
@@ -301,7 +302,7 @@ static void on_widget_toggled_set_insensitive(
 
 static GtkWidget *add_find_checkboxes(GtkDialog *dialog)
 {
-	GtkWidget *checkbox1, *checkbox2, *check_regexp, *check_back, *checkbox5,
+	GtkWidget *checkbox1, *checkbox2, *check_regexp, *checkbox5,
 			  *checkbox7, *check_multiline, *hbox, *fbox, *mbox;
 
 	check_regexp = gtk_check_button_new_with_mnemonic(_("_Use regular expressions"));
@@ -319,7 +320,7 @@ static GtkWidget *add_find_checkboxes(GtkDialog *dialog)
 		_("Replace \\\\, \\t, \\n, \\r and \\uXXXX (Unicode characters) with the "
 		  "corresponding control characters"));
 
-	check_multiline = gtk_check_button_new_with_mnemonic(_("Use multi-_line matching"));
+	check_multiline = gtk_check_button_new_with_mnemonic(_("Use multi-line matchin_g"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_multiline), FALSE);
 	gtk_widget_set_sensitive(check_multiline, FALSE);
 	ui_hookup_widget(dialog, check_multiline, "check_multiline");
@@ -337,7 +338,7 @@ static GtkWidget *add_find_checkboxes(GtkDialog *dialog)
 
 	if (dialog != GTK_DIALOG(find_dlg.dialog))
 	{
-		check_back = gtk_check_button_new_with_mnemonic(_("Search _backwards"));
+		GtkWidget *check_back = gtk_check_button_new_with_mnemonic(_("Search _backwards"));
 		ui_hookup_widget(dialog, check_back, "check_back");
 		gtk_button_set_focus_on_click(GTK_BUTTON(check_back), FALSE);
 		gtk_container_add(GTK_CONTAINER(fbox), check_back);
@@ -1715,8 +1716,8 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
 	}
 	else
 	{
-		geany_debug("%s: spawn_with_callbacks() failed: %s", G_STRFUNC, error->message);
-		ui_set_statusbar(TRUE, _("Process failed (%s)"), error->message);
+		ui_set_statusbar(TRUE, _("Cannot execute grep tool \"%s\": %s. "
+			"Check the path setting in Preferences."), tool_prefs.grep_cmd, error->message);
 		g_error_free(error);
 	}
 
@@ -1833,34 +1834,34 @@ static void read_fif_io(gchar *msg, GIOCondition condition, gchar *enc, gint msg
 
 static void search_read_io(GString *string, GIOCondition condition, gpointer data)
 {
-	return read_fif_io(string->str, condition, data, COLOR_BLACK);
+	read_fif_io(string->str, condition, data, COLOR_BLACK);
 }
 
 
 static void search_read_io_stderr(GString *string, GIOCondition condition, gpointer data)
 {
-	return read_fif_io(string->str, condition, data, COLOR_DARK_RED);
+	read_fif_io(string->str, condition, data, COLOR_DARK_RED);
 }
 
 
 static void search_finished(GPid child_pid, gint status, gpointer user_data)
 {
 	const gchar *msg = _("Search failed.");
-#ifdef G_OS_UNIX
-	gint exit_status = 1;
+	gint exit_status;
 
-	if (WIFEXITED(status))
+	if (SPAWN_WIFEXITED(status))
 	{
-		exit_status = WEXITSTATUS(status);
+		exit_status = SPAWN_WEXITSTATUS(status);
 	}
-	else if (WIFSIGNALED(status))
+	else if (SPAWN_WIFSIGNALED(status))
 	{
 		exit_status = -1;
 		g_warning("Find in Files: The command failed unexpectedly (signal received).");
 	}
-#else
-	gint exit_status = status;
-#endif
+	else
+	{
+		exit_status = 1;
+	}
 
 	switch (exit_status)
 	{

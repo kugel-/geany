@@ -49,8 +49,13 @@ G_BEGIN_DECLS
  * E.g. @code SETPTR(str, g_strndup(str, 5)); @endcode
  **/
 #define SETPTR(ptr, result) \
-	do setptr(ptr, result) while (0)
+	do {\
+		gpointer setptr_tmp = ptr;\
+		ptr = result;\
+		g_free(setptr_tmp);\
+	} while (0)
 
+#ifndef GEANY_DISABLE_DEPRECATED
 /** @deprecated 2011/11/15 - use SETPTR() instead. */
 #define setptr(ptr, result) \
 	{\
@@ -58,6 +63,7 @@ G_BEGIN_DECLS
 		ptr = result;\
 		g_free(setptr_tmp);\
 	}
+#endif
 
 /** Duplicates a string on the stack using @c g_alloca().
  * Like glibc's @c strdupa(), but portable.
@@ -115,6 +121,14 @@ G_BEGIN_DECLS
  * @param list @c GSList to traverse. */
 #define foreach_slist(node, list) \
 	foreach_list(node, list)
+
+/* Iterates all the nodes in @a list. Safe against removal during iteration
+ * @param node should be a (@c GList*).
+ * @param list @c GList to traverse. */
+#define foreach_list_safe(node, list) \
+	for (GList *_node = (list), *_next = (list) ? (list)->next : NULL; \
+	     (node = _node) != NULL; \
+	     _node = _next, _next = _next ? _next->next : NULL)
 
 /** Iterates through each unsorted filename in a @c GDir.
  * @param filename (@c const @c gchar*) locale-encoded filename, without path. Do not modify or free.
@@ -276,8 +290,6 @@ gchar *utils_get_current_time_string(void);
 
 GIOChannel *utils_set_up_io_channel(gint fd, GIOCondition cond, gboolean nblock,
 									GIOFunc func, gpointer data);
-
-gchar **utils_read_file_in_array(const gchar *filename);
 
 gboolean utils_str_replace_escape(gchar *string, gboolean keep_backslash);
 

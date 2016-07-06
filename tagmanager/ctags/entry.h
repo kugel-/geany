@@ -58,7 +58,7 @@ typedef struct sTagEntryInfo {
     MIOPos	filePosition;	/* file position of line containing tag */
     int bufferPosition;		/* buffer position of line containing tag */
     const char*	language;	/* language of source file */
-    boolean	isFileScope;	/* is tag visibile only within source file? */
+    boolean	isFileScope;	/* is tag visible only within source file? */
     boolean	isFileEntry;	/* is this just an entry for a file name? */
     boolean	truncateLine;	/* truncate tag line at end of tag name? */
     const char *sourceFileName;	/* name of source file */
@@ -95,7 +95,6 @@ extern void closeTagFile (const boolean resize);
 extern void beginEtagsFile (void);
 extern void endEtagsFile (const char *const name);
 extern void makeTagEntry (const tagEntryInfo *const tag);
-extern void setTagArglistByName (const char *tag_name, const char *arglist);
 extern void initTagEntry (tagEntryInfo *const e, const char *const name);
 
 #endif	/* _ENTRY_H */

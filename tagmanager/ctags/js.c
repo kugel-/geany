@@ -138,8 +138,8 @@ static kindOption JsKinds [] = {
 	{ TRUE,  'f', "function",	  "functions"		   },
 	{ TRUE,  'c', "class",		  "classes"			   },
 	{ TRUE,  'm', "method",		  "methods"			   },
-	{ TRUE,  'p', "member",		  "properties"		   },
-	{ TRUE,  'C', "macro",		  "constants"		   },
+	{ TRUE,  'p', "property",	  "properties"		   },
+	{ TRUE,  'C', "constant",	  "constants"		   },
 	{ TRUE,  'v', "variable",	  "global variables"   }
 };
 
@@ -1298,7 +1298,7 @@ static boolean parseStatement (tokenInfo *const token, tokenInfo *const parent, 
 	if ( is_inside_class )
 		is_class = TRUE;
 	/*
-	 * var can preceed an inner function
+	 * var can precede an inner function
 	 */
 	if ( isKeyword(token, KEYWORD_var) ||
 		 isKeyword(token, KEYWORD_let) ||
@@ -1914,7 +1914,7 @@ static void findJsTags (void)
 	deleteToken (token);
 }
 
-/* Create parser definition stucture */
+/* Create parser definition structure */
 extern parserDefinition* JavaScriptParser (void)
 {
 	static const char *const extensions [] = { "js", NULL };

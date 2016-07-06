@@ -30,7 +30,7 @@ typedef enum {
 
 static kindOption MakeKinds [] = {
 	{ TRUE, 'm', "macro",  "macros"},
-	{ TRUE, 't', "function", "targets"}
+	{ TRUE, 't', "target", "targets"}
 };
 
 /*
@@ -110,7 +110,7 @@ static void readIdentifier (const int first, vString *const id)
 	vStringClear (id);
 	while (isIdentifier (c) || (depth > 0 && c != EOF && c != '\n'))
 	{
-		if (c == '(' || c == '}')
+		if (c == '(' || c == '{')
 			depth++;
 		else if (depth > 0 && (c == ')' || c == '}'))
 			depth--;

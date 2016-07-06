@@ -39,7 +39,7 @@
 #include "dialogs.h"
 #include "documentprivate.h"
 #include "editor.h"
-#include "encodings.h"
+#include "encodingsprivate.h"
 #include "filetypes.h"
 #include "geanywraplabel.h"
 #include "keybindingsprivate.h"
@@ -56,6 +56,7 @@
 #include "ui_utils.h"
 #include "utils.h"
 #include "vte.h"
+#include "osx.h"
 
 #include "gtkcompat.h"
 
@@ -178,7 +179,7 @@ static void kb_tree_view_change_button_clicked_cb(GtkWidget *button, KbData *kbd
 			gchar *str;
 
 			dialog = gtk_dialog_new_with_buttons(_("Grab Key"), GTK_WINDOW(ui_widgets.prefs_dialog),
-					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
+					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 					GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 					GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, NULL);
 
@@ -213,13 +214,14 @@ static void kb_tree_view_change_button_clicked_cb(GtkWidget *button, KbData *kbd
 
 static void kb_show_popup_menu(KbData *kbdata, GtkWidget *widget, GdkEventButton *event)
 {
-	GtkWidget *item;
 	static GtkWidget *menu = NULL;
 	guint button;
 	guint32 event_time;
 
 	if (menu == NULL)
 	{
+		GtkWidget *item;
+
 		menu = gtk_menu_new();
 
 		item = ui_image_menu_item_new(GTK_STOCK_ADD, _("_Expand All"));
@@ -1197,6 +1199,10 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 			kb_update(&global_kb_data);
 			tools_create_insert_custom_command_menu_items();
 			keybindings_write_to_file();
+#ifdef MAC_INTEGRATION
+			/* Force re-syncing the menubar to update displayed keybindings. */
+			gtkosx_application_sync_menubar(gtkosx_application_get());
+#endif
 		}
 
 		/* Printing */
@@ -1492,7 +1498,7 @@ static gboolean kb_find_duplicate(GtkTreeStore *store, GtkWidget *parent, GtkTre
 					/* carry on looking for other duplicates if overriding */
 					continue;
 				}
-				return ret == GTK_RESPONSE_NO;
+				return ret != GTK_RESPONSE_APPLY;
 			}
 		}
 		while (gtk_tree_model_iter_next(model, &iter));
@@ -1558,8 +1564,7 @@ static void on_sidebar_visible_toggled(GtkToggleButton *togglebutton, gpointer u
 {
 	gboolean sens = gtk_toggle_button_get_active(togglebutton);
 
-	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_openfiles"), sens);
-	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_symbol"), sens);
+	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "box_sidebar_visible_children"), sens);
 }
 
 

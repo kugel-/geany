@@ -47,10 +47,10 @@ typedef enum {
 } RustKind;
 
 static kindOption rustKinds[] = {
-	{TRUE, 'n', "namespace", "module"},
+	{TRUE, 'n', "module", "module"},
 	{TRUE, 's', "struct", "structural type"},
 	{TRUE, 'i', "interface", "trait interface"},
-	{TRUE, 'c', "class", "implementation"},
+	{TRUE, 'c', "implementation", "implementation"},
 	{TRUE, 'f', "function", "Function"},
 	{TRUE, 'g', "enum", "Enum"},
 	{TRUE, 't', "typedef", "Type Alias"},
@@ -650,7 +650,8 @@ static void parseQualifiedType (lexerState *lexer, vString* name)
 	{
 		if (lexer->cur_token == TOKEN_IDENT)
 		{
-			if (strcmp(lexer->token_str->buffer, "for") == 0)
+			if (strcmp(lexer->token_str->buffer, "for") == 0
+				|| strcmp(lexer->token_str->buffer, "where") == 0)
 				break;
 			vStringClear(name);
 			vStringCat(name, lexer->token_str);

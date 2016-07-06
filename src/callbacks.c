@@ -127,13 +127,14 @@ void on_save_as1_activate(GtkMenuItem *menuitem, gpointer user_data)
 void on_save_all1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	guint i, max = (guint) gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
-	GeanyDocument *doc, *cur_doc = document_get_current();
+	GeanyDocument *cur_doc = document_get_current();
 	guint count = 0;
 
 	/* iterate over documents in tabs order */
 	for (i = 0; i < max; i++)
 	{
-		doc = document_get_from_page(i);
+		GeanyDocument *doc = document_get_from_page(i);
+
 		if (! doc->changed)
 			continue;
 
@@ -431,13 +432,6 @@ void on_normal_size1_activate(GtkMenuItem *menuitem, gpointer user_data)
 }
 
 
-static gboolean delayed_check_disk_status(gpointer data)
-{
-	document_check_disk_status(data, FALSE);
-	return FALSE;
-}
-
-
 /* Changes window-title after switching tabs and lots of other things.
  * note: using 'after' makes Scintilla redraw before the UI, appearing more responsive */
 static void on_notebook1_switch_page_after(GtkNotebook *notebook, gpointer page,
@@ -462,10 +456,7 @@ static void on_notebook1_switch_page_after(GtkNotebook *notebook, gpointer page,
 		sidebar_update_tag_list(doc, FALSE);
 		document_highlight_tags(doc);
 
-		/* We delay the check to avoid weird fast, unintended switching of notebook pages when
-		 * the 'file has changed' dialog is shown while the switch event is not yet completely
-		 * finished. So, we check after the switch has been performed to be safe. */
-		g_idle_add(delayed_check_disk_status, doc);
+		document_check_disk_status(doc, TRUE);
 
 #ifdef HAVE_VTE
 		vte_cwd((doc->real_path != NULL) ? doc->real_path : doc->file_name, FALSE);
@@ -497,8 +488,15 @@ static void convert_eol(gint mode)
 
 	g_return_if_fail(doc != NULL);
 
+	/* sci_convert_eols() adds UNDO_SCINTILLA action in on_editor_notify().
+	 * It is added to the undo stack before sci_convert_eols() finishes
+	 * so after adding UNDO_EOL, UNDO_EOL will be at the top of the stack
+	 * and UNDO_SCINTILLA below it. */
 	sci_convert_eols(doc->editor->sci, mode);
+	document_undo_add(doc, UNDO_EOL, GINT_TO_POINTER(sci_get_eol_mode(doc->editor->sci)));
+
 	sci_set_eol_mode(doc->editor->sci, mode);
+
 	ui_update_statusbar(doc, -1);
 }
 
@@ -536,7 +534,7 @@ void on_replace_tabs_activate(GtkMenuItem *menuitem, gpointer user_data)
 
 	g_return_if_fail(doc != NULL);
 
-	editor_replace_tabs(doc->editor);
+	editor_replace_tabs(doc->editor, FALSE);
 }
 
 
@@ -555,7 +553,6 @@ void on_toggle_case1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();
 	ScintillaObject *sci;
-	gchar *text;
 	gboolean keep_sel = TRUE;
 
 	g_return_if_fail(doc != NULL);
@@ -573,8 +570,7 @@ void on_toggle_case1_activate(GtkMenuItem *menuitem, gpointer user_data)
 		gchar *result = NULL;
 		gint cmd = SCI_LOWERCASE;
 		gboolean rectsel = (gboolean) scintilla_send_message(sci, SCI_SELECTIONISRECTANGLE, 0, 0);
-
-		text = sci_get_selection_contents(sci);
+		gchar *text = sci_get_selection_contents(sci);
 
 		if (utils_str_has_upper(text))
 		{
@@ -602,7 +598,6 @@ void on_toggle_case1_activate(GtkMenuItem *menuitem, gpointer user_data)
 			sci_send_command(sci, cmd);
 
 		g_free(text);
-
 	}
 }
 
@@ -1134,7 +1129,7 @@ static void on_comments_fileheader_activate(GtkMenuItem *menuitem, gpointer user
 }
 
 
-static void on_file_properties_activate(GtkMenuItem *menuitem, gpointer user_data)
+void on_file_properties_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();
 	g_return_if_fail(doc != NULL);
@@ -1452,6 +1447,7 @@ void on_context_action1_activate(GtkMenuItem *menuitem, gpointer user_data)
 	gchar *word, *command;
 	GError *error = NULL;
 	GeanyDocument *doc = document_get_current();
+	const gchar *check_msg;
 
 	g_return_if_fail(doc != NULL);
 
@@ -1469,22 +1465,30 @@ void on_context_action1_activate(GtkMenuItem *menuitem, gpointer user_data)
 		!EMPTY(doc->file_type->context_action_cmd))
 	{
 		command = g_strdup(doc->file_type->context_action_cmd);
+		check_msg = _("Check the path setting in Filetype configuration.");
 	}
 	else
 	{
 		command = g_strdup(tool_prefs.context_action_cmd);
+		check_msg = _("Check the path setting in Preferences.");
 	}
 
 	/* substitute the wildcard %s and run the command if it is non empty */
 	if (G_LIKELY(!EMPTY(command)))
 	{
-		utils_str_replace_all(&command, "%s", word);
+		gchar *command_line = g_strdup(command);
 
-		if (!spawn_async(NULL, command, NULL, NULL, NULL, &error))
+		utils_str_replace_all(&command_line, "%s", word);
+
+		if (!spawn_async(NULL, command_line, NULL, NULL, NULL, &error))
 		{
-			ui_set_statusbar(TRUE, "Context action command failed: %s", error->message);
+			/* G_SHELL_ERROR is parsing error, it may be caused by %s word with quotes */
+			ui_set_statusbar(TRUE, _("Cannot execute context action command \"%s\": %s. %s"),
+				error->domain == G_SHELL_ERROR ? command_line : command, error->message,
+				check_msg);
 			g_error_free(error);
 		}
+		g_free(command_line);
 	}
 	g_free(word);
 	g_free(command);
@@ -1608,7 +1612,7 @@ static void on_strip_trailing_spaces1_activate(GtkMenuItem *menuitem, gpointer u
 	doc = document_get_current();
 	g_return_if_fail(doc != NULL);
 
-	editor_strip_trailing_spaces(doc->editor);
+	editor_strip_trailing_spaces(doc->editor, FALSE);
 }
 
 
@@ -1652,7 +1656,7 @@ void on_replace_spaces_activate(GtkMenuItem *menuitem, gpointer user_data)
 
 	g_return_if_fail(doc != NULL);
 
-	editor_replace_spaces(doc->editor);
+	editor_replace_spaces(doc->editor, FALSE);
 }
 
 
@@ -1899,6 +1903,14 @@ static void on_detect_type_from_file_activate(GtkMenuItem *menuitem, gpointer us
 		editor_set_indent_type(doc->editor, type);
 		ui_document_show_hide(doc);
 	}
+}
+
+
+static void on_show_symbol_list_toggled(GtkToggleButton *button, gpointer user_data)
+{
+	GtkWidget *widget = ui_lookup_widget(ui_widgets.prefs_dialog, "box_show_symbol_list_children");
+
+	gtk_widget_set_sensitive(widget, gtk_toggle_button_get_active(button));
 }
 
 

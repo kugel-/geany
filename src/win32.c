@@ -27,11 +27,14 @@
 # include "config.h"
 #endif
 
+/* Need Windows XP for SHGetFolderPathAndSubDirW */
+#define _WIN32_WINNT 0x0501
+/* Needed for SHGFP_TYPE */
+#define _WIN32_IE 0x0500
+
 #include "win32.h"
 
 #ifdef G_OS_WIN32
-
-#include "win32defines.h"
 
 #include "dialogs.h"
 #include "document.h"
@@ -281,7 +284,7 @@ INT CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
 gchar *win32_show_folder_dialog(GtkWidget *parent, const gchar *title, const gchar *initial_dir)
 {
 	BROWSEINFOW bi;
-	LPCITEMIDLIST pidl;
+	LPITEMIDLIST pidl;
 	gchar *result = NULL;
 	wchar_t fname[MAX_PATH];
 	wchar_t w_title[512];
@@ -297,19 +300,19 @@ gchar *win32_show_folder_dialog(GtkWidget *parent, const gchar *title, const gch
 	bi.lpszTitle = w_title;
 	bi.lpfn = BrowseCallbackProc;
 	bi.lParam = (LPARAM) get_dir_for_path(initial_dir);
-	bi.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_RETURNONLYFSDIRS | BIF_STATUSTEXT;
+	bi.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_RETURNONLYFSDIRS | BIF_STATUSTEXT | BIF_USENEWUI;
 
 	pidl = SHBrowseForFolderW(&bi);
 
 	/* convert the strange Windows folder list item something into an usual path string ;-) */
-	if (pidl != 0)
+	if (pidl != NULL)
 	{
 		if (SHGetPathFromIDListW(pidl, fname))
 		{
 			result = g_malloc0(MAX_PATH * 2);
 			WideCharToMultiByte(CP_UTF8, 0, fname, -1, result, MAX_PATH * 2, NULL, NULL);
 		}
-		/* SHBrowseForFolder() probably leaks memory here, but how to free the allocated memory? */
+		CoTaskMemFree(pidl);
 	}
 	return result;
 }
@@ -340,11 +343,7 @@ gchar *win32_show_project_open_dialog(GtkWidget *parent, const gchar *title,
 
 	/* initialise file dialog info struct */
 	memset(&of, 0, sizeof of);
-#ifdef OPENFILENAME_SIZE_VERSION_400
-	of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
 	of.lStructSize = sizeof of;
-#endif
 	of.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(parent));
 	of.lpstrFilter = get_filters(project_file_filter);
 
@@ -356,7 +355,8 @@ gchar *win32_show_project_open_dialog(GtkWidget *parent, const gchar *title,
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY | OFN_ENABLEHOOK;
+	of.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_HIDEREADONLY |
+		OFN_ENABLEHOOK | OFN_ENABLESIZING;
 	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	if (! allow_new_file)
 		of.Flags |= OFN_FILEMUSTEXIST;
@@ -403,11 +403,7 @@ gboolean win32_show_document_open_dialog(GtkWindow *parent, const gchar *title, 
 
 	/* initialise file dialog info struct */
 	memset(&of, 0, sizeof of);
-#ifdef OPENFILENAME_SIZE_VERSION_400
-	of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
 	of.lStructSize = sizeof of;
-#endif
 	of.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(GTK_WIDGET(parent)));
 	of.lpstrFilter = get_file_filters();
 
@@ -419,7 +415,8 @@ gboolean win32_show_document_open_dialog(GtkWindow *parent, const gchar *title, 
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_ALLOWMULTISELECT | OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.Flags = OFN_ALLOWMULTISELECT | OFN_FILEMUSTEXIST | OFN_EXPLORER |
+		OFN_ENABLEHOOK | OFN_ENABLESIZING;
 	of.lpfnHook = win32_dialog_explorer_hook_proc;
 
 	retval = GetOpenFileNameW(&of);
@@ -497,11 +494,7 @@ gchar *win32_show_document_save_as_dialog(GtkWindow *parent, const gchar *title,
 
 	/* initialise file dialog info struct */
 	memset(&of, 0, sizeof of);
-#ifdef OPENFILENAME_SIZE_VERSION_400
-	of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
 	of.lStructSize = sizeof of;
-#endif
 	of.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(GTK_WIDGET(parent)));
 
 	of.lpstrFilter = get_file_filter_all_files();
@@ -513,7 +506,7 @@ gchar *win32_show_document_save_as_dialog(GtkWindow *parent, const gchar *title,
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.Flags = OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_ENABLEHOOK | OFN_ENABLESIZING;
 	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	retval = GetSaveFileNameW(&of);
 
@@ -554,11 +547,7 @@ gchar *win32_show_file_dialog(GtkWindow *parent, const gchar *title, const gchar
 
 	/* initialise file dialog info struct */
 	memset(&of, 0, sizeof of);
-#ifdef OPENFILENAME_SIZE_VERSION_400
-	of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
 	of.lStructSize = sizeof of;
-#endif
 	of.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(GTK_WIDGET(parent)));
 
 	of.lpstrFile = w_file;
@@ -566,7 +555,7 @@ gchar *win32_show_file_dialog(GtkWindow *parent, const gchar *title, const gchar
 	of.lpstrFileTitle = NULL;
 	of.lpstrTitle = w_title;
 	of.lpstrDefExt = L"";
-	of.Flags = OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.Flags = OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK | OFN_ENABLESIZING;
 	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	retval = GetOpenFileNameW(&of);
 
@@ -671,11 +660,7 @@ void win32_show_pref_file_dialog(GtkEntry *item)
 
 	/* initialize file dialog info struct */
 	memset(&of, 0, sizeof of);
-#ifdef OPENFILENAME_SIZE_VERSION_400
-	of.lStructSize = OPENFILENAME_SIZE_VERSION_400;
-#else
 	of.lStructSize = sizeof of;
-#endif
 	of.hwndOwner = GDK_WINDOW_HWND(gtk_widget_get_window(ui_widgets.prefs_dialog));
 
 	of.lpstrFilter = get_filters(FALSE);
@@ -689,7 +674,8 @@ void win32_show_pref_file_dialog(GtkEntry *item)
 	of.lpstrInitialDir = NULL;
 	of.lpstrTitle = NULL;
 	of.lpstrDefExt = L"exe";
-	of.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLEHOOK;
+	of.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_EXPLORER |
+		OFN_ENABLEHOOK | OFN_ENABLESIZING;
 	of.lpfnHook = win32_dialog_explorer_hook_proc;
 	retval = GetOpenFileNameW(&of);
 
@@ -799,6 +785,7 @@ gint win32_check_write_permission(const gchar *dir)
 /* Just a simple wrapper function to open a browser window */
 void win32_open_browser(const gchar *uri)
 {
+	gint ret;
 	if (strncmp(uri, "file://", 7) == 0)
 	{
 		uri += 7;
@@ -808,7 +795,14 @@ void win32_open_browser(const gchar *uri)
 				uri++;
 		}
 	}
-	ShellExecute(NULL, "open", uri, NULL, NULL, SW_SHOWNORMAL);
+	ret = (gint) ShellExecute(NULL, "open", uri, NULL, NULL, SW_SHOWNORMAL);
+	if (ret <= 32)
+	{
+		gchar *err = g_win32_error_message(GetLastError());
+		ui_set_statusbar(TRUE, _("Failed to open URI \"%s\": %s"), uri, err);
+		g_warning("ShellExecute failed opening \"%s\" (code %d): %s", uri, ret, err);
+		g_free(err);
+	}
 }
 
 
@@ -826,11 +820,11 @@ static FILE *open_std_handle(DWORD handle, const char *mode)
 		g_free(err);
 		return NULL;
 	}
-	hConHandle = _open_osfhandle((long)lStdHandle, _O_TEXT);
+	hConHandle = _open_osfhandle((intptr_t)lStdHandle, _O_TEXT);
 	if (hConHandle == -1)
 	{
 		gchar *err = g_win32_error_message(GetLastError());
-		g_warning("_open_osfhandle(%ld, _O_TEXT) failed: %s", (long)lStdHandle, err);
+		g_warning("_open_osfhandle(handle(%ld), _O_TEXT) failed: %s", (long)handle, err);
 		g_free(err);
 		return NULL;
 	}
@@ -982,14 +976,14 @@ gchar *win32_get_shortcut_target(const gchar *file_name)
 	gchar *path = NULL;
 	wchar_t *wfilename = g_utf8_to_utf16(file_name, -1, NULL, NULL, NULL);
 	HWND hWnd = NULL;
-	
+
 	if (main_widgets.window != NULL)
 	{
 		GdkWindow *window = gtk_widget_get_window(main_widgets.window);
 		if (window != NULL)
 			hWnd = GDK_WINDOW_HWND(window);
 	}
-	
+
 	resolve_link(hWnd, wfilename, &path);
 	g_free(wfilename);
 

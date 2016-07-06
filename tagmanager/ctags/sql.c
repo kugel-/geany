@@ -218,18 +218,18 @@ static kindOption SqlKinds [] = {
 	{ FALSE, 'l', "local",		  "local variables"		   },
 	{ TRUE,  'L', "label",		  "block label"			   },
 	{ TRUE,  'P', "package",	  "packages"			   },
-	{ TRUE,  'n', "namespace",	  "procedures"			   },
+	{ TRUE,  'p', "procedure",	  "procedures"			   },
 	{ FALSE, 'r', "record",		  "records"				   },
 	{ TRUE,  's', "subtype",	  "subtypes"			   },
-	{ TRUE,  't', "class",		  "tables"				   },
-	{ TRUE,  'T', "macro",	  "triggers"			   },
+	{ TRUE,  't', "table",		  "tables"				   },
+	{ TRUE,  'T', "trigger",	  "triggers"			   },
 	{ TRUE,  'v', "variable",	  "variables"			   },
-	{ TRUE,  'i', "struct",		  "indexes"				   },
+	{ TRUE,  'i', "index",		  "indexes"				   },
 	{ TRUE,  'e', "event",		  "events"				   },
 	{ TRUE,  'U', "publication",  "publications"		   },
 	{ TRUE,  'R', "service",	  "services"			   },
 	{ TRUE,  'D', "domain",		  "domains"				   },
-	{ TRUE,  'm', "member",		  "views"				   },
+	{ TRUE,  'V', "view",		  "views"				   },
 	{ TRUE,  'n', "synonym",	  "synonyms"			   },
 	{ TRUE,  'x', "mltable",	  "MobiLink Table Scripts" },
 	{ TRUE,  'y', "mlconn",		  "MobiLink Conn Scripts"  },
@@ -673,7 +673,7 @@ getNextChar:
 }
 
 /*
- * reads an indentifier, possibly quoted:
+ * reads an identifier, possibly quoted:
  * 		identifier
  * 		"identifier"
  * 		[identifier]
@@ -1186,7 +1186,7 @@ static void parseDeclareANSI (tokenInfo *const token, const boolean local)
 	 *		 DECLARE varname2 datatype;
 	 *		 ...
 	 *
-	 * This differ from PL/SQL where DECLARE preceeds the BEGIN block
+	 * This differ from PL/SQL where DECLARE precedes the BEGIN block
 	 * and the DECLARE keyword is not repeated.
 	 */
 	while (isKeyword (token, KEYWORD_declare))

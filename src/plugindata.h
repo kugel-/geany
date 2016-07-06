@@ -32,6 +32,7 @@
 #ifndef GEANY_PLUGIN_DATA_H
 #define GEANY_PLUGIN_DATA_H 1
 
+#include "geany.h"  /* for GEANY_DEPRECATED */
 #include "build.h"  /* GeanyBuildGroup, GeanyBuildSource, GeanyBuildCmdEntries enums */
 #include "document.h" /* GeanyDocument */
 #include "editor.h"	/* GeanyEditor, GeanyIndentType */
@@ -58,7 +59,7 @@ G_BEGIN_DECLS
  * @warning You should not test for values below 200 as previously
  * @c GEANY_API_VERSION was defined as an enum value, not a macro.
  */
-#define GEANY_API_VERSION 224
+#define GEANY_API_VERSION 228
 
 /* hack to have a different ABI when built with GTK3 because loading GTK2-linked plugins
  * with GTK3-linked Geany leads to crash */
@@ -108,17 +109,6 @@ typedef struct PluginInfo
 PluginInfo;
 
 
-/** Basic information for the plugin and identification.
- * @see geany_plugin. */
-typedef struct GeanyPlugin
-{
-	PluginInfo	*info;	/**< Fields set in plugin_set_info(). */
-
-	struct GeanyPluginPrivate *priv;	/* private */
-}
-GeanyPlugin;
-
-
 /** Sets the plugin name and some other basic information about a plugin.
  *
  * @note If you want some of the arguments to be translated, see @ref PLUGIN_SET_TRANSLATABLE_INFO()
@@ -157,6 +147,256 @@ GeanyPlugin;
 	}
 
 
+/** Callback array entry type used with the @ref plugin_callbacks symbol. */
+typedef struct PluginCallback
+{
+	/** The name of signal, must be an existing signal. For a list of available signals,
+	 *  please see the @link pluginsignals.c Signal documentation @endlink. */
+	const gchar	*signal_name;
+	/** A callback function which is called when the signal is emitted. */
+	GCallback	callback;
+	/** Set to TRUE to connect your handler with g_signal_connect_after(). */
+	gboolean	after;
+	/** The user data passed to the signal handler. If set to NULL then the signal
+	 * handler will receive the data set with geany_plugin_register_full() or
+	 * geany_plugin_set_data() */
+	gpointer	user_data;
+}
+PluginCallback;
+
+
+/** This contains pointers to global variables owned by Geany for plugins to use.
+ * Core variable pointers can be appended when needed by plugin authors, if appropriate. */
+typedef struct GeanyData
+{
+	struct GeanyApp				*app;				/**< Geany application data fields */
+	struct GeanyMainWidgets		*main_widgets;		/**< Important widgets in the main window */
+	/** Dynamic array of GeanyDocument pointers.
+	 * Once a pointer is added to this, it is never freed. This means the same document pointer
+	 * can represent a different document later on, or it may have been closed and become invalid.
+	 * For this reason, you should use document_find_by_id() instead of storing
+	 * document pointers over time if there is a chance the user can close the
+	 * document.
+	 *
+	 * @warning You must check @c GeanyDocument::is_valid when iterating over this array.
+	 * This is done automatically if you use the foreach_document() macro.
+	 *
+	 * @note
+	 * Never assume that the order of document pointers is the same as the order of notebook tabs.
+	 * One reason is that notebook tabs can be reordered.
+	 * Use @c document_get_from_page() to lookup a document from a notebook tab number.
+	 *
+	 * @see documents.
+	 *
+	 * @elementtype{GeanyDocument}
+	 */
+	GPtrArray					*documents_array;
+	/** Dynamic array of filetype pointers
+	 *
+	 * List the list is dynamically expanded for custom filetypes filetypes so don't expect
+	 * the list of known filetypes to be a constant.
+	 *
+	 * @elementtype{GeanyFiletype}
+	 */
+	GPtrArray					*filetypes_array;
+	struct GeanyPrefs			*prefs;				/**< General settings */
+	struct GeanyInterfacePrefs	*interface_prefs;	/**< Interface settings */
+	struct GeanyToolbarPrefs	*toolbar_prefs;		/**< Toolbar settings */
+	struct GeanyEditorPrefs		*editor_prefs;		/**< Editor settings */
+	struct GeanyFilePrefs		*file_prefs;		/**< File-related settings */
+	struct GeanySearchPrefs		*search_prefs;		/**< Search-related settings */
+	struct GeanyToolPrefs		*tool_prefs;		/**< Tool settings */
+	struct GeanyTemplatePrefs	*template_prefs;	/**< Template settings */
+	gpointer					*_compat;			/* Remove field on next ABI break (abi-todo) */
+	/** List of filetype pointers sorted by name, but with @c filetypes_index(GEANY_FILETYPES_NONE)
+	 * first, as this is usually treated specially.
+	 * The list does not change (after filetypes have been initialized), so you can use
+	 * @code g_slist_nth_data(filetypes_by_title, n) @endcode and expect the same result at different times.
+	 * @see filetypes_get_sorted_by_name().
+	 *
+	 * @elementtype{GeanyFiletype}
+	 */
+	GSList						*filetypes_by_title;
+	/** @gironly
+	 * Global object signalling events via signals
+	 *
+	 * This is mostly for language bindings. Otherwise prefer to use
+	 * plugin_signal_connect() instead this which adds automatic cleanup. */
+	GObject						*object;
+}
+GeanyData;
+
+#define geany			geany_data	/**< Simple macro for @c geany_data that reduces typing. */
+
+typedef struct GeanyPluginFuncs GeanyPluginFuncs;
+typedef struct GeanyProxyFuncs GeanyProxyFuncs;
+
+/** Basic information for the plugin and identification.
+ * @see geany_plugin. */
+typedef struct GeanyPlugin
+{
+	PluginInfo	*info;	/**< Fields set in plugin_set_info(). */
+	GeanyData	*geany_data;	/**< Pointer to global GeanyData intance */
+	GeanyPluginFuncs *funcs;	/**< Functions implemented by the plugin, set in geany_load_module() */
+	GeanyProxyFuncs	*proxy_funcs; /**< Hooks implemented by the plugin if it wants to act as a proxy
+									   Must be set prior to calling geany_plugin_register_proxy() */
+	struct GeanyPluginPrivate *priv;	/* private */
+}
+GeanyPlugin;
+
+#ifndef GEANY_PRIVATE
+
+/* Prototypes for building plugins with -Wmissing-prototypes
+ * Also allows the compiler to check if the signature of the plugin's
+ * symbol properly matches what we expect. */
+gint plugin_version_check(gint abi_ver);
+void plugin_set_info(PluginInfo *info);
+
+void plugin_init(GeanyData *data);
+GtkWidget *plugin_configure(GtkDialog *dialog);
+void plugin_configure_single(GtkWidget *parent);
+void plugin_help(void);
+void plugin_cleanup(void);
+
+/** Called by Geany when a plugin library is loaded.
+ *
+ * This is the original entry point. Implement and export this function to be loadable at all.
+ * Then fill in GeanyPlugin::info and GeanyPlugin::funcs of the passed @p plugin. Finally
+ * GEANY_PLUGIN_REGISTER() and specify a minimum supported API version.
+ *
+ * For all glory details please read @ref howto.
+ *
+ * Because the plugin is not yet enabled by the user you may not call plugin API functions inside
+ * this function, except for the API functions below which are required for proper registration.
+ *
+ * API functions which are allowed to be called within this function:
+ *  - main_locale_init()
+ *  - geany_plugin_register() (and GEANY_PLUGIN_REGISTER())
+ *  - geany_plugin_register_full() (and GEANY_PLUGIN_REGISTER_FULL())
+ *  - plugin_module_make_resident()
+ *
+ * @param plugin The unique plugin handle to your plugin. You must set some fields here.
+ *
+ * @since 1.26 (API 225)
+ * @see @ref howto
+ */
+void geany_load_module(GeanyPlugin *plugin);
+
+#endif
+
+/** Callback functions that need to be implemented for every plugin.
+ *
+ * These callbacks should be registered by the plugin within Geany's call to
+ * geany_load_module() by calling geany_plugin_register() with an instance of this type.
+ *
+ * Geany will then call the callbacks at appropriate times. Each gets passed the
+ * plugin-defined data pointer as well as the corresponding GeanyPlugin instance
+ * pointer.
+ *
+ * @since 1.26 (API 225)
+ * @see @ref howto
+ **/
+struct GeanyPluginFuncs
+{
+	/** Array of plugin-provided signal handlers @see PluginCallback */
+	PluginCallback *callbacks;
+	/** Called to initialize the plugin, when the user activates it (must not be @c NULL) */
+	gboolean    (*init)      (GeanyPlugin *plugin, gpointer pdata);
+	/** plugins configure dialog, optional (can be @c NULL) */
+	GtkWidget*  (*configure) (GeanyPlugin *plugin, GtkDialog *dialog, gpointer pdata);
+	/** Called when the plugin should show some help, optional (can be @c NULL) */
+	void        (*help)      (GeanyPlugin *plugin, gpointer pdata);
+	/** Called when the plugin is disabled or when Geany exits (must not be @c NULL) */
+	void        (*cleanup)   (GeanyPlugin *plugin, gpointer pdata);
+};
+
+gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version,
+                               gint min_api_version, gint abi_version);
+gboolean geany_plugin_register_full(GeanyPlugin *plugin, gint api_version,
+                                    gint min_api_version, gint abi_version,
+                                    gpointer data, GDestroyNotify free_func);
+void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify free_func);
+
+/** Convenience macro to register a plugin.
+ *
+ * It simply calls geany_plugin_register() with GEANY_API_VERSION and GEANY_ABI_VERSION.
+ *
+ * @since 1.26 (API 225)
+ * @see @ref howto
+ **/
+#define GEANY_PLUGIN_REGISTER(plugin, min_api_version) \
+	geany_plugin_register((plugin), GEANY_API_VERSION, \
+	                      (min_api_version), GEANY_ABI_VERSION)
+
+/** Convenience macro to register a plugin with data.
+ *
+ * It simply calls geany_plugin_register_full() with GEANY_API_VERSION and GEANY_ABI_VERSION.
+ *
+ * @since 1.26 (API 225)
+ * @see @ref howto
+ **/
+#define GEANY_PLUGIN_REGISTER_FULL(plugin, min_api_version, pdata, free_func) \
+	geany_plugin_register_full((plugin), GEANY_API_VERSION, \
+	                           (min_api_version), GEANY_ABI_VERSION, (pdata), (free_func))
+
+/** Return values for GeanyProxyHooks::probe()
+ *
+ * Only @c PROXY_IGNORED, @c PROXY_MATCHED or @c PROXY_MATCHED|PROXY_NOLOAD
+ * are valid return values.
+ *
+ * @see geany_plugin_register_proxy() for a full description of the proxy plugin mechanisms.
+ *
+ * @since 1.26 (API 226)
+ */
+typedef enum
+{
+	/** The proxy is not responsible at all, and Geany or other plugins are free
+	 * to probe it.
+	 **/
+	PROXY_IGNORED,
+	/** The proxy is responsible for this file, and creates a plugin for it */
+	PROXY_MATCHED,
+
+	/** The proxy is does not directly load it, but it's still tied to the proxy
+	 *
+	 * This is for plugins that come in multiple files where only one of these
+	 * files is relevant for the plugin creation (for the PM dialog). The other
+	 * files should be ignored by Geany and other proxies. Example: libpeas has
+	 * a .plugin and a .so per plugin. Geany should not process the .so file
+	 * if there is a corresponding .plugin.
+	 */
+	PROXY_NOLOAD = 0x100,
+}
+GeanyProxyProbeResults;
+
+
+/** Hooks that need to be implemented by every proxy
+ *
+ * @see geany_plugin_register_proxy() for a full description of the proxy mechanism.
+ *
+ * @since 1.26 (API 226)
+ **/
+struct GeanyProxyFuncs
+{
+	/** Called to determine whether the proxy is truly responsible for the requested plugin.
+	 * A NULL pointer assumes the probe() function would always return @ref PROXY_MATCHED */
+	gint		(*probe)     (GeanyPlugin *proxy, const gchar *filename, gpointer pdata);
+	/** Called after probe(), to perform the actual job of loading the plugin */
+	gpointer	(*load)      (GeanyPlugin *proxy, GeanyPlugin *subplugin, const gchar *filename, gpointer pdata);
+	/** Called when the user initiates unloading of a plugin, e.g. on Geany exit */
+	void		(*unload)    (GeanyPlugin *proxy, GeanyPlugin *subplugin, gpointer load_data, gpointer pdata);
+};
+
+gint geany_plugin_register_proxy(GeanyPlugin *plugin, const gchar **extensions);
+
+/* Deprecated aliases */
+#ifndef GEANY_DISABLE_DEPRECATED
+
+/* This remains so that older plugins that contain a `GeanyFunctions *geany_functions;`
+ * variable in their plugin - as was previously required - will still compile
+ * without changes.  */
+typedef struct GeanyFunctionsUndefined GeanyFunctions GEANY_DEPRECATED;
+
 /** @deprecated - use plugin_set_key_group() instead.
  * @see PLUGIN_KEY_GROUP() macro. */
 typedef struct GeanyKeyGroupInfo
@@ -164,7 +404,7 @@ typedef struct GeanyKeyGroupInfo
 	const gchar *name;		/**< Group name used in the configuration file, such as @c "html_chars" */
 	gsize count;			/**< The number of keybindings the group will hold */
 }
-GeanyKeyGroupInfo;
+GeanyKeyGroupInfo GEANY_DEPRECATED_FOR(plugin_set_key_group);
 
 /** @deprecated - use plugin_set_key_group() instead.
  * Declare and initialise a keybinding group.
@@ -184,23 +424,6 @@ GeanyKeyGroupInfo;
 		{G_STRINGIFY(group_name), key_count} \
 	};\
 	GeanyKeyGroup *plugin_key_group = NULL;
-
-
-/** Callback array entry type used with the @ref plugin_callbacks symbol. */
-typedef struct PluginCallback
-{
-	/** The name of signal, must be an existing signal. For a list of available signals,
-	 *  please see the @link pluginsignals.c Signal documentation @endlink. */
-	const gchar	*signal_name;
-	/** A callback function which is called when the signal is emitted. */
-	GCallback	callback;
-	/** Set to TRUE to connect your handler with g_signal_connect_after(). */
-	gboolean	after;
-	/** The user data passed to the signal handler. */
-	gpointer	user_data;
-}
-PluginCallback;
-
 
 /** @deprecated Use @ref ui_add_document_sensitive() instead.
  * Flags to be set by plugins in PluginFields struct. */
@@ -222,56 +445,7 @@ typedef struct PluginFields
 	 *  This is required if using @c PLUGIN_IS_DOCUMENT_SENSITIVE, ignored otherwise */
 	GtkWidget	*menu_item;
 }
-PluginFields;
-
-
-/** This contains pointers to global variables owned by Geany for plugins to use.
- * Core variable pointers can be appended when needed by plugin authors, if appropriate. */
-typedef struct GeanyData
-{
-	struct GeanyApp				*app;				/**< Geany application data fields */
-	struct GeanyMainWidgets		*main_widgets;		/**< Important widgets in the main window */
-	GPtrArray					*documents_array;	/**< See document.h#documents_array. */
-	GPtrArray					*filetypes_array;	/**< Dynamic array of GeanyFiletype pointers */
-	struct GeanyPrefs			*prefs;				/**< General settings */
-	struct GeanyInterfacePrefs	*interface_prefs;	/**< Interface settings */
-	struct GeanyToolbarPrefs	*toolbar_prefs;		/**< Toolbar settings */
-	struct GeanyEditorPrefs		*editor_prefs;		/**< Editor settings */
-	struct GeanyFilePrefs		*file_prefs;		/**< File-related settings */
-	struct GeanySearchPrefs		*search_prefs;		/**< Search-related settings */
-	struct GeanyToolPrefs		*tool_prefs;		/**< Tool settings */
-	struct GeanyTemplatePrefs	*template_prefs;	/**< Template settings */
-	struct GeanyBuildInfo		*build_info;		/**< Current build information */
-	GSList						*filetypes_by_title; /**< See filetypes.h#filetypes_by_title. */
-}
-GeanyData;
-
-#define geany			geany_data	/**< Simple macro for @c geany_data that reduces typing. */
-
-
-#ifndef GEANY_PRIVATE
-
-/* Prototypes for building plugins with -Wmissing-prototypes
- * Also allows the compiler to check if the signature of the plugin's
- * symbol properly matches what we expect. */
-gint plugin_version_check(gint abi_ver);
-void plugin_set_info(PluginInfo *info);
-
-void plugin_init(GeanyData *data);
-GtkWidget *plugin_configure(GtkDialog *dialog);
-void plugin_configure_single(GtkWidget *parent);
-void plugin_help(void);
-void plugin_cleanup(void);
-
-#endif
-
-/* Deprecated aliases */
-#ifndef GEANY_DISABLE_DEPRECATED
-
-/* This remains so that older plugins that contain a `GeanyFunctions *geany_functions;`
- * variable in their plugin - as was previously required - will still compile
- * without changes.  */
-typedef struct GeanyFunctionsUndefined GeanyFunctions;
+PluginFields GEANY_DEPRECATED_FOR(ui_add_document_sensitive);
 
 #define document_reload_file document_reload_force
 

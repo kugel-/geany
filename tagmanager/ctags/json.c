@@ -69,12 +69,12 @@ typedef enum {
 static langType Lang_json;
 
 static kindOption JsonKinds [] = {
-	{ TRUE,  'o', "member",		"objects"	},
-	{ TRUE,  'a', "member",		"arrays"	},
-	{ TRUE,  'n', "member",		"numbers"	},
-	{ TRUE,  's', "member",		"strings"	},
-	{ TRUE,  'b', "member",		"booleans"	},
-	{ TRUE,  'z', "member",		"nulls"		}
+	{ TRUE,  'o', "object",		"objects"	},
+	{ TRUE,  'a', "array",		"arrays"	},
+	{ TRUE,  'n', "number",		"numbers"	},
+	{ TRUE,  's', "string",		"strings"	},
+	{ TRUE,  'b', "boolean",	"booleans"	},
+	{ TRUE,  'z', "null",		"nulls"		}
 };
 
 static tokenInfo *newToken (void)
@@ -377,7 +377,7 @@ static void initialize (const langType language)
 	addKeyword ("null", language, KEYWORD_null);
 }
 
-/* Create parser definition stucture */
+/* Create parser definition structure */
 extern parserDefinition* JsonParser (void)
 {
 	static const char *const extensions [] = { "json", NULL };

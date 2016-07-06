@@ -524,7 +524,7 @@ void build_remove_menu_item(const GeanyBuildSource src, const GeanyBuildGroup gr
  * @param grp the group of the specified menu item.
  * @param cmd the index of the command within the group.
  *
- * @return a pointer to the @a GeanyBuildCommand structure or @a NULL if it doesn't exist.
+ * @return a pointer to the @a GeanyBuildCommand structure or @c NULL if it doesn't exist.
  *         This is a pointer to an internal structure and must not be freed.
  *
  * @see build_menu_update
@@ -553,7 +553,7 @@ GeanyBuildCommand *build_get_menu_item(GeanyBuildSource src, GeanyBuildGroup grp
  * @param cmd the index of the command within the group.
  * @param fld the field to return
  *
- * @return a pointer to the constant string or @a NULL if it doesn't exist.
+ * @return @nullable a pointer to the constant string or @c NULL if it doesn't exist.
  *         This is a pointer to an internal structure and must not be freed.
  *
  **/
@@ -667,10 +667,8 @@ static void clear_all_errors(void)
 static gchar *build_replace_placeholder(const GeanyDocument *doc, const gchar *src)
 {
 	GString *stack;
-	gchar *filename = NULL;
 	gchar *replacement;
 	gchar *executable = NULL;
-	gchar *ret_str; /* to be freed when not in use anymore */
 	gint line_num;
 
 	g_return_val_if_fail(doc == NULL || doc->is_valid, NULL);
@@ -678,20 +676,18 @@ static gchar *build_replace_placeholder(const GeanyDocument *doc, const gchar *s
 	stack = g_string_new(src);
 	if (doc != NULL && doc->file_name != NULL)
 	{
-		filename = utils_get_utf8_from_locale(doc->file_name);
-
 		/* replace %f with the filename (including extension) */
-		replacement = g_path_get_basename(filename);
+		replacement = g_path_get_basename(doc->file_name);
 		utils_string_replace_all(stack, "%f", replacement);
 		g_free(replacement);
 
 		/* replace %d with the absolute path of the dir of the current file */
-		replacement = g_path_get_dirname(filename);
+		replacement = g_path_get_dirname(doc->file_name);
 		utils_string_replace_all(stack, "%d", replacement);
 		g_free(replacement);
 
 		/* replace %e with the filename (excluding extension) */
-		executable = utils_remove_ext_from_filename(filename);
+		executable = utils_remove_ext_from_filename(doc->file_name);
 		replacement = g_path_get_basename(executable);
 		utils_string_replace_all(stack, "%e", replacement);
 		g_free(replacement);
@@ -712,19 +708,15 @@ static gchar *build_replace_placeholder(const GeanyDocument *doc, const gchar *s
 	else if (strstr(stack->str, "%p"))
 	{   /* fall back to %d */
 		ui_set_statusbar(FALSE, _("failed to substitute %%p, no project active"));
-		if (doc != NULL && filename != NULL)
-			replacement = g_path_get_dirname(filename);
+		if (doc != NULL && doc->file_name != NULL)
+			replacement = g_path_get_dirname(doc->file_name);
 	}
 
 	utils_string_replace_all(stack, "%p", replacement);
 	g_free(replacement);
-
-	ret_str = utils_get_utf8_from_locale(stack->str);
 	g_free(executable);
-	g_free(filename);
-	g_string_free(stack, TRUE);
 
-	return ret_str; /* don't forget to free src also if needed */
+	return g_string_free(stack, FALSE); /* don't forget to free src also if needed */
 }
 
 
@@ -733,10 +725,10 @@ static gchar *build_replace_placeholder(const GeanyDocument *doc, const gchar *s
 static void build_spawn_cmd(GeanyDocument *doc, const gchar *cmd, const gchar *dir)
 {
 	GError *error = NULL;
-	gchar *argv[] = { "/bin/sh", "-c", (gchar *) cmd, NULL };
+	gchar *argv[] = { "/bin/sh", "-c", NULL, NULL };
 	gchar *working_dir;
 	gchar *utf8_working_dir;
-	gchar *utf8_cmd_string;
+	gchar *cmd_string;
 
 	g_return_if_fail(doc == NULL || doc->is_valid);
 
@@ -750,15 +742,16 @@ static void build_spawn_cmd(GeanyDocument *doc, const gchar *cmd, const gchar *d
 	clear_all_errors();
 	SETPTR(current_dir_entered, NULL);
 
-	utf8_cmd_string = utils_get_utf8_from_locale(cmd);
 	utf8_working_dir = !EMPTY(dir) ? g_strdup(dir) : g_path_get_dirname(doc->file_name);
 	working_dir = utils_get_locale_from_utf8(utf8_working_dir);
 
 	gtk_list_store_clear(msgwindow.store_compiler);
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(msgwindow.notebook), MSG_COMPILER);
-	msgwin_compiler_add(COLOR_BLUE, _("%s (in directory: %s)"), utf8_cmd_string, utf8_working_dir);
+	msgwin_compiler_add(COLOR_BLUE, _("%s (in directory: %s)"), cmd, utf8_working_dir);
 	g_free(utf8_working_dir);
-	g_free(utf8_cmd_string);
+
+	cmd_string = utils_get_locale_from_utf8(cmd);
+	argv[2] = cmd_string;
 
 #ifdef G_OS_UNIX
 	cmd = NULL;  /* under Unix, use argv to start cmd via sh for compatibility */
@@ -782,6 +775,7 @@ static void build_spawn_cmd(GeanyDocument *doc, const gchar *cmd, const gchar *d
 	}
 
 	g_free(working_dir);
+	g_free(cmd_string);
 }
 
 
@@ -909,8 +903,10 @@ static void build_run_cmd(GeanyDocument *doc, guint cmdindex)
 		}
 		else
 		{
-			geany_debug("spawn_async() failed: %s", error->message);
-			ui_set_statusbar(TRUE, _("Process failed (%s)"), error->message);
+			gchar *utf8_term_cmd = utils_get_utf8_from_locale(locale_term_cmd);
+			ui_set_statusbar(TRUE, _("Cannot execute build command \"%s\": %s. "
+				"Check the Terminal setting in Preferences"), utf8_term_cmd, error->message);
+			g_free(utf8_term_cmd);
 			g_error_free(error);
 			g_unlink(run_cmd);
 			run_info[cmdindex].pid = (GPid) 0;
@@ -1042,7 +1038,7 @@ static void show_build_result_message(gboolean failure)
 
 static void build_exit_cb(GPid child_pid, gint status, gpointer user_data)
 {
-	show_build_result_message(!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS);
+	show_build_result_message(!SPAWN_WIFEXITED(status) || SPAWN_WEXITSTATUS(status) != EXIT_SUCCESS);
 	utils_beep();
 
 	build_info.pid = 0;
@@ -1088,9 +1084,9 @@ static gchar *build_create_shellscript(const gchar *working_dir, const gchar *cm
 	str = g_strdup_printf("cd \"%s\"\n\n%s\n\n%s\ndel \"%%0\"\n\npause\n", working_dir, expanded_cmd, (autoclose) ? "" : "pause");
 	g_free(expanded_cmd);
 #else
-	escaped_dir = g_strescape(working_dir, NULL);
+	escaped_dir = g_shell_quote(working_dir);
 	str = g_strdup_printf(
-		"#!/bin/sh\n\nrm $0\n\ncd \'%s\'\n\n%s\n\necho \"\n\n------------------\n(program exited with code: $?)\" \
+		"#!/bin/sh\n\nrm $0\n\ncd %s\n\n%s\n\necho \"\n\n------------------\n(program exited with code: $?)\" \
 		\n\n%s\n", escaped_dir, cmd, (autoclose) ? "" :
 		"\necho \"Press return to continue\"\n#to be more compatible with shells like "
 			"dash\ndummy_var=\"\"\nread dummy_var");
@@ -1160,7 +1156,8 @@ static void build_command(GeanyDocument *doc, GeanyBuildGroup grp, guint cmd, gc
 	if (cmd_cat != NULL)
 		g_free(full_command);
 	build_menu_update(doc);
-
+	if (build_info.pid)
+		ui_progress_bar_start(NULL);
 }
 
 
@@ -1810,7 +1807,13 @@ static RowWidgets *build_add_dialog_row(GeanyDocument *doc, GtkTable *table, gui
 	label = gtk_label_new(text);
 	g_free(text);
 #if GTK_CHECK_VERSION(3,0,0)
-	gtk_style_context_get_color(gtk_widget_get_style_context(label), GTK_STATE_FLAG_INSENSITIVE, &insensitive_color);
+{
+	GtkStyleContext *ctx = gtk_widget_get_style_context(label);
+
+	gtk_style_context_save(ctx);
+	gtk_style_context_get_color(ctx, GTK_STATE_FLAG_INSENSITIVE, &insensitive_color);
+	gtk_style_context_restore(ctx);
+}
 #else
 	insensitive_color = gtk_widget_get_style(label)->text[GTK_STATE_INSENSITIVE];
 #endif

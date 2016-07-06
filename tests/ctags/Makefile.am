@@ -135,6 +135,7 @@ test_sources = \
 	cxx11-final.cpp					\
 	cxx11-noexcept.cpp				\
 	cxx11-override.cpp				\
+	cxx11-raw-strings.cpp			\
 	cxx14-combined.cpp				\
 	db-trig.sql						\
 	debian_432872.f90				\
@@ -210,6 +211,7 @@ test_sources = \
 	make-comment-in-rule.mak		\
 	make-gnumake-pattern-rules.mak	\
 	make-multi-target.mak			\
+	make-parentheses.mak			\
 	make-target-with-parentheses.mak	\
 	make-variable-on-cmdline.mak	\
 	masm.asm						\
@@ -226,6 +228,7 @@ test_sources = \
 	namespaces2.php					\
 	namespaces.php					\
 	no_terminator.js				\
+	non-ascii-ident1.php			\
 	numlib.f90						\
 	objectivec_implementation.mm	\
 	objectivec_interface.mm			\
@@ -253,6 +256,11 @@ test_sources = \
 	regexp.js						\
 	return-hint.zep					\
 	return-types.go					\
+	ruby-block-call.rb				\
+	ruby-doc.rb						\
+	ruby-namespaced-class.rb		\
+	ruby-scope-after-anonymous-class.rb	\
+	ruby-sf-bug-364.rb				\
 	rules.t2t						\
 	sample.t2t						\
 	secondary_fcn_name.js			\
@@ -300,6 +308,7 @@ test_sources = \
 	ui5.controller.js				\
 	union.f							\
 	value.f							\
+	var-and-return-type.cpp			\
 	whitespaces.php					\
 	$(NULL)
 test_results = $(test_sources:=.tags)

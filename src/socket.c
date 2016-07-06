@@ -79,7 +79,6 @@
 # include <netinet/in.h>
 # include <glib/gstdio.h>
 #else
-# include "win32defines.h"
 # include <winsock2.h>
 # include <windows.h>
 # include <gdk/gdkwin32.h>
@@ -104,7 +103,7 @@
 #endif
 #define BUFFER_LENGTH 4096
 
-struct socket_info_struct socket_info;
+struct SocketInfo socket_info;
 
 
 #ifdef G_OS_WIN32
@@ -129,7 +128,6 @@ static gint socket_fd_close			(gint sock);
 static void send_open_command(gint sock, gint argc, gchar **argv)
 {
 	gint i;
-	gchar *filename;
 
 	g_return_if_fail(argc > 1);
 	geany_debug("using running instance of Geany");
@@ -159,7 +157,7 @@ static void send_open_command(gint sock, gint argc, gchar **argv)
 
 	for (i = 1; i < argc && argv[i] != NULL; i++)
 	{
-		filename = main_get_argv_filename(argv[i]);
+		gchar *filename = main_get_argv_filename(argv[i]);
 
 		/* if the filename is valid or if a new file should be opened is check on the other side */
 		if (filename != NULL)
@@ -226,7 +224,7 @@ static void socket_get_document_list(gint sock)
 #ifndef G_OS_WIN32
 static void check_socket_permissions(void)
 {
-	struct stat socket_stat;
+	GStatBuf socket_stat;
 
 	if (g_lstat(socket_info.file_name, &socket_stat) == 0)
 	{	/* If the user id of the process is not the same as the owner of the socket
