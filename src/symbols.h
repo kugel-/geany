@@ -31,6 +31,7 @@ G_BEGIN_DECLS
 
 const gchar *symbols_get_context_separator(gint ft_id);
 
+gboolean symbols_goto_tag(const gchar *name, gboolean definition);
 
 #ifdef GEANY_PRIVATE
 
@@ -57,8 +58,6 @@ gboolean symbols_recreate_tag_list(GeanyDocument *doc, gint sort_mode);
 gint symbols_generate_global_tags(gint argc, gchar **argv, gboolean want_preprocess);
 
 void symbols_show_load_tags_dialog(void);
-
-gboolean symbols_goto_tag(const gchar *name, gboolean definition);
 
 gint symbols_get_current_function(GeanyDocument *doc, const gchar **tagname);
 

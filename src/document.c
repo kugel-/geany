@@ -1267,6 +1267,10 @@ void document_apply_indent_settings(GeanyDocument *doc)
 }
 
 
+/** Switches to the tab that contains @a doc, making it visible
+ *
+ * @since 1.28 (API 229) */
+GEANY_API_SYMBOL
 void document_show_tab(GeanyDocument *doc)
 {
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(main_widgets.notebook),

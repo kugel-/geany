@@ -45,17 +45,10 @@ typedef enum
 	tm_tag_max_t = 1048575 /**< Maximum value of TMTagType */
 } TMTagType;
 
-
-/** @gironly
- * A integral type which can hold known parser type IDs
+/**
+ An integral type which can hold known parser type IDs
  **/
-typedef gint TMParserType;
-
-
-#ifdef GEANY_PRIVATE
-
-/* keep in sync with ctags/parsers.h */
-enum
+typedef enum
 {
 	TM_PARSER_NONE = -2, /* keep in sync with ctags LANG_IGNORE */
 	TM_PARSER_ANY = -1,
@@ -111,8 +104,9 @@ enum
 	TM_PARSER_ZEPHIR,
 	TM_PARSER_POWERSHELL,
 	TM_PARSER_COUNT
-};
+} TMParserType;
 
+#ifdef GEANY_PRIVATE
 
 void tm_parser_verify_type_mappings(void);
 

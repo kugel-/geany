@@ -685,15 +685,16 @@ static void fill_find_tags_array(GPtrArray *dst, const GPtrArray *src,
 }
 
 
-/* Returns all matching tags found in the workspace.
+/** Returns all matching tags found in the workspace.
  @param name The name of the tag to find.
- @param scope The scope name of the tag to find, or NULL.
+ @param scope @nullable The scope name of the tag to find, or NULL.
  @param type The tag types to return (TMTagType). Can be a bitmask.
  @param attrs The attributes to sort and dedup on (0 terminated integer array).
  @param lang Specifies the language(see the table in parsers.h) of the tags to be found,
              -1 for all
- @return Array of matching tags.
+ @return @elementtype{TMTag} @transfer{container} Array of matching tags.
 */
+GEANY_API_SYMBOL
 GPtrArray *tm_workspace_find(const char *name, const char *scope, TMTagType type,
 	TMTagAttrType *attrs, TMParserType lang)
 {
@@ -735,14 +736,15 @@ static void fill_find_tags_array_prefix(GPtrArray *dst, const GPtrArray *src,
 }
 
 
-/* Returns tags with the specified prefix sorted by name. If there are several
+/** Returns tags with the specified prefix sorted by name. If there are several
  tags with the same name, only one of them appears in the resulting array.
  @param prefix The prefix of the tag to find.
  @param lang Specifies the language(see the table in parsers.h) of the tags to be found,
              -1 for all.
  @param max_num The maximum number of tags to return.
- @return Array of matching tags sorted by their name.
+ @return @elementtype{TMTag} @transfer{container} Array of matching tags sorted by their name.
 */
+GEANY_API_SYMBOL
 GPtrArray *tm_workspace_find_prefix(const char *prefix, TMParserType lang, guint max_num)
 {
 	TMTagAttrType attrs[] = { tm_tag_attr_name_t, 0 };

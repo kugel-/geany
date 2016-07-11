@@ -2099,6 +2099,12 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 }
 
 
+/** Moves to the location, switching to the document if necessary,
+ * @param name name of the tag
+ * @param definition whether to switch to the definition or declaration.
+ *
+ * @since 1.28 (API 229)  */
+GEANY_API_SYMBOL
 gboolean symbols_goto_tag(const gchar *name, gboolean definition)
 {
 	if (goto_tag(name, definition))
