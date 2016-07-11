@@ -58,6 +58,7 @@ typedef gint TMParserType;
 enum
 {
 	TM_PARSER_NONE = -2, /* keep in sync with ctags LANG_IGNORE */
+	TM_PARSER_ANY = -1,
 	TM_PARSER_C = 0,
 	TM_PARSER_CPP,
 	TM_PARSER_JAVA,

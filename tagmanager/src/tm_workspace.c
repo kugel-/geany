@@ -675,7 +675,7 @@ static void fill_find_tags_array(GPtrArray *dst, const GPtrArray *src,
 	for (i = 0; i < num; ++i)
 	{
 		if ((type & (*tag)->type) &&
-			tm_tag_langs_compatible(lang, (*tag)->lang) &&
+			(lang == TM_PARSER_ANY || tm_tag_langs_compatible(lang, (*tag)->lang)) &&
 			(!scope || g_strcmp0((*tag)->scope, scope) == 0))
 		{
 			g_ptr_array_add(dst, *tag);
@@ -722,7 +722,7 @@ static void fill_find_tags_array_prefix(GPtrArray *dst, const GPtrArray *src,
 	tag = tm_tags_find(src, name, TRUE, &count);
 	for (i = 0; i < count && num < max_num; ++i)
 	{
-		if (tm_tag_langs_compatible(lang, (*tag)->lang) &&
+		if ((lang == TM_PARSER_ANY || tm_tag_langs_compatible(lang, (*tag)->lang)) &&
 			!tm_tag_is_anon(*tag) &&
 			(!last || g_strcmp0(last->name, (*tag)->name) != 0))
 		{
