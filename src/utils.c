@@ -2225,7 +2225,6 @@ gchar **utils_strv_shorten_file_list(gchar **file_names, size_t num)
 					gsize copy_n = strlen(rem) + 1; /* include NUL */
 					memcpy(s, "...", 3); /* Maybe replace with unicode's "…" ? */
 					memmove(s+3, rem, copy_n);
-					printf("p %d %s\n", i, names[i]);
 				}
 			}
 		}
