@@ -72,6 +72,8 @@ cdata.set_quoted('PACKAGE_BUGREPORT', 'https://github.com/geany/geany/issues')
 cdata.set_quoted('PACKAGE_NAME','Geany')
 cdata.set_quoted('PACKAGE_STRING', 'Geany ' + meson.project_version())
 cdata.set_quoted('PACKAGE_VERSION', meson.project_version())
+cdata.set('GETTEXT_PACKAGE', 'PACKAGE')
+cdata.set('ENABLE_NLS', 1)
 
 prefix = get_option('prefix')
 cdata.set_quoted('GEANY_PREFIX', get_option('prefix'))
@@ -500,3 +502,17 @@ misc = [
 ]
     
 install_data(sources: misc, install_dir: geany_datadir)
+
+
+i18n = import('i18n')
+
+i18n.merge_file(
+  input: 'geany.desktop.in',
+  output: 'geany.desktop',
+  type: 'desktop',
+  po_dir: 'po',
+  install: true,
+  install_dir: join_paths(get_option('datadir'), 'applications')
+)
+
+subdir('po')
