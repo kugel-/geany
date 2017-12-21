@@ -3,18 +3,21 @@ project('geany', 'c', 'cpp', version: '1.32')
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
 
-have_gcc4_visibility = cc.has_argument('-fvisibility=hidden')
-def_cflags = ['-DHAVE_CONFIG_H=1', '-DGEANY_PRIVATE']
-if target_machine.system() == 'windows'
-  def_cflags += '-DGEANY_EXPORT_SYMBOL="__declspec(dllexport)"'
-elif have_gcc4_visibility
-  def_cflags += '-fvisibility=hidden'
-  def_cflags += '-DGEANY_EXPORT_SYMBOL=__attribute__((visibility("default")))'
-endif
-def_cflags += '-DGEANY_API_SYMBOL=GEANY_EXPORT_SYMBOL'
-def_cflags += '-DHAVE_REGCOMP' # Should always be 1, required for CTags.
-
+def_cflags  = [ '-DHAVE_CONFIG_H=1', '-DGTK' ]
 def_cflags += '-Wno-deprecated-declarations'
+
+geany_cflags = def_cflags
+have_gcc4_visibility = cc.has_argument('-fvisibility=hidden')
+geany_cflags += '-DGEANY_PRIVATE'
+if target_machine.system() == 'windows'
+  geany_cflags += '-DGEANY_EXPORT_SYMBOL="__declspec(dllexport)"'
+elif have_gcc4_visibility
+  geany_cflags += '-fvisibility=hidden'
+  geany_cflags += '-DGEANY_EXPORT_SYMBOL=__attribute__((visibility("default")))'
+endif
+geany_cflags += '-DGEANY_API_SYMBOL=GEANY_EXPORT_SYMBOL'
+geany_cflags += '-DHAVE_REGCOMP' # Should always be 1, required for CTags.
+geany_cflags += '-DHAVE_PLUGINS' # TODO: configurable
 
 cdata = configuration_data()
 check_headers = [
@@ -238,7 +241,7 @@ scintilla = static_library('scintilla',
     'scintilla/src/ViewStyle.h',
     'scintilla/src/XPM.cxx',
     'scintilla/src/XPM.h',
-    cpp_args: def_cflags + [ '-Wno-non-virtual-dtor', '-DNDEBUG', '-DGTK', '-DSCI_LEXER', '-DNO_CXX11_REGEX' ],
+    cpp_args: geany_cflags + [ '-Wno-non-virtual-dtor', '-DNDEBUG', '-DSCI_LEXER', '-DNO_CXX11_REGEX' ],
     dependencies: [ gtk ],
     include_directories: [iscintilla,
                           include_directories('scintilla/include',
@@ -292,7 +295,7 @@ ctags_parsers = static_library('ctags_parsers',
     'ctags/parsers/verilog.c',
     'ctags/parsers/vhdl.c',
     include_directories: [ictags_main],
-    c_args: def_cflags,
+    c_args: geany_cflags,
 )
 
 ctags = static_library('ctags',
@@ -312,7 +315,7 @@ ctags = static_library('ctags',
     'ctags/main/strlist.c',
     'ctags/main/vstring.c',
     'ctags/main/xtag.c',
-    c_args: def_cflags,
+    c_args: geany_cflags,
     dependencies: [glib]
 )
 dep_ctags = declare_dependency(link_with: [ctags, ctags_parsers], include_directories: [ictags_main])
@@ -323,7 +326,7 @@ tagmanager = static_library('tagmanager',
     'src/tagmanager/tm_parser.c',
     'src/tagmanager/tm_workspace.c',
     'src/tagmanager/tm_source_file.c',
-    c_args: def_cflags,
+    c_args: geany_cflags,
     dependencies: [dep_ctags, glib])
 dep_tagmanager = declare_dependency(link_with: tagmanager, include_directories: [itagmanager])
 
@@ -333,7 +336,6 @@ gen_src = custom_target('gen-signallist',
                         input : [ 'scripts/gen-signallist.sh', 'data/geany.glade' ],
                         output : [ 'signallist.i' ],
                         command : [sh, '@INPUT0@', '@INPUT1@', '@OUTPUT@' ])
-
 
 libgeany = shared_library('geany',
     'src/about.c',
@@ -381,13 +383,14 @@ libgeany = shared_library('geany',
     'src/win32.c',
     gen_src,
     soversion: '0',
-    c_args: [def_cflags, '-DGTK'],
+    c_args: geany_cflags,
     include_directories: [iscintilla],
     dependencies: [dep_tagmanager, dep_ctags, dep_scintilla, glib, gmodule, gtk],
     install: true)
 
 executable('geany', 'src/main.c',
             link_with: libgeany,
+            c_args: geany_cflags,
             dependencies: [dep_ctags, glib, gtk],
             build_rpath: meson.build_root(),
             install_rpath: join_paths(prefix, 'lib'),
@@ -516,3 +519,6 @@ i18n.merge_file(
 )
 
 subdir('po')
+subdir('plugins')
+
+geany_cflags += '-DGTK'
