@@ -421,116 +421,6 @@ executable('geany', 'src/main.c',
             install: true)
 
 
-geany_datadir = join_paths(get_option('datadir'), 'geany')
-filetypes = [
-    'data/filedefs/filetypes.abaqus',
-    'data/filedefs/filetypes.abc',
-    'data/filedefs/filetypes.actionscript',
-    'data/filedefs/filetypes.ada',
-    'data/filedefs/filetypes.Arduino.conf',
-    'data/filedefs/filetypes.asciidoc',
-    'data/filedefs/filetypes.asm',
-    'data/filedefs/filetypes.batch',
-    'data/filedefs/filetypes.c',
-    'data/filedefs/filetypes.caml',
-    'data/filedefs/filetypes.Clojure.conf',
-    'data/filedefs/filetypes.cmake',
-    'data/filedefs/filetypes.cobol',
-    'data/filedefs/filetypes.coffeescript',
-    'data/filedefs/filetypes.common',
-    'data/filedefs/filetypes.conf',
-    'data/filedefs/filetypes.cpp',
-    'data/filedefs/filetypes.cs',
-    'data/filedefs/filetypes.css',
-    'data/filedefs/filetypes.CUDA.conf',
-    'data/filedefs/filetypes.Cython.conf',
-    'data/filedefs/filetypes.d',
-    'data/filedefs/filetypes.diff',
-    'data/filedefs/filetypes.docbook',
-    'data/filedefs/filetypes.erlang',
-    'data/filedefs/filetypes.f77',
-    'data/filedefs/filetypes.ferite',
-    'data/filedefs/filetypes.forth',
-    'data/filedefs/filetypes.fortran',
-    'data/filedefs/filetypes.freebasic',
-    'data/filedefs/filetypes.Genie.conf',
-    'data/filedefs/filetypes.glsl',
-    'data/filedefs/filetypes.go',
-    'data/filedefs/filetypes.Graphviz.conf',
-    'data/filedefs/filetypes.haskell',
-    'data/filedefs/filetypes.haxe',
-    'data/filedefs/filetypes.html',
-    'data/filedefs/filetypes.java',
-    'data/filedefs/filetypes.javascript',
-    'data/filedefs/filetypes.JSON.conf',
-    'data/filedefs/filetypes.latex',
-    'data/filedefs/filetypes.lisp',
-    'data/filedefs/filetypes.lua',
-    'data/filedefs/filetypes.makefile',
-    'data/filedefs/filetypes.markdown',
-    'data/filedefs/filetypes.matlab',
-    'data/filedefs/filetypes.nsis',
-    'data/filedefs/filetypes.objectivec',
-    'data/filedefs/filetypes.pascal',
-    'data/filedefs/filetypes.perl',
-    'data/filedefs/filetypes.php',
-    'data/filedefs/filetypes.po',
-    'data/filedefs/filetypes.powershell',
-    'data/filedefs/filetypes.python',
-    'data/filedefs/filetypes.r',
-    'data/filedefs/filetypes.restructuredtext',
-    'data/filedefs/filetypes.ruby',
-    'data/filedefs/filetypes.rust',
-    'data/filedefs/filetypes.Scala.conf',
-    'data/filedefs/filetypes.sh',
-    'data/filedefs/filetypes.sql',
-    'data/filedefs/filetypes.tcl',
-    'data/filedefs/filetypes.txt2tags',
-    'data/filedefs/filetypes.vala',
-    'data/filedefs/filetypes.verilog',
-    'data/filedefs/filetypes.vhdl',
-    'data/filedefs/filetypes.xml',
-    'data/filedefs/filetypes.yaml',
-    'data/filedefs/filetypes.zephir',
-]
-install_data(sources: filetypes, install_dir: join_paths(geany_datadir, 'filedefs'))
-
-templates = [
-    'data/templates/bsd',
-    'data/templates/changelog',
-    'data/templates/fileheader',
-    'data/templates/function',
-    'data/templates/gpl'
-]
-install_data(sources: templates, install_dir: join_paths(geany_datadir, 'templates'))
-
-tags = [
-    'data/tags/std99.c.tags',
-    'data/tags/std.php.tags',
-    'data/tags/std.py.tags',
-    'data/tags/std.pas.tags',
-    'data/tags/entities.html.tags'
-]
-install_data(sources: tags, install_dir: join_paths(geany_datadir, 'tags'))
-
-colorschemes = [
-    'data/colorschemes/alt.conf'
-]
-install_data(sources: colorschemes, install_dir: join_paths(geany_datadir, 'colorschemes'))
-
-misc = [
-    'data/filetype_extensions.conf',
-    'data/snippets.conf',
-    'data/ui_toolbar.xml',
-    'data/geany.glade',
-    'data/geany-3.0.css',
-    'data/geany-3.20.css',
-    'data/geany.css'
-]
-    
-install_data(sources: misc, install_dir: geany_datadir)
-
-
 i18n = import('i18n')
 
 i18n.merge_file(
@@ -543,6 +433,7 @@ i18n.merge_file(
 )
 
 subdir('po')
+subdir('data')
 subdir('plugins')
 
 geany_cflags += '-DGTK'
