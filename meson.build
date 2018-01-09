@@ -3,6 +3,21 @@ project('geany', 'c', 'cpp', version: '1.32')
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
 
+deps_in = [
+	['glib-2.0',    '2.32'],
+	['gmodule-2.0', '2.32'],
+	['gtk+-3.0',    '3.0']
+]
+
+deps = []
+deps_for_pc = ''
+foreach dep : deps_in
+	deps += [dependency(dep[0], version: '>= ' + dep[1])]
+	deps_for_pc += ' ' + dep[0] + ' >= ' + dep[1]
+endforeach
+
+glib = deps[0]
+
 def_cflags  = [ '-DHAVE_CONFIG_H=1', '-DGTK' ]
 def_cflags += '-Wno-deprecated-declarations'
 
@@ -80,10 +95,17 @@ cdata.set('ENABLE_NLS', 1)
 
 prefix = get_option('prefix')
 cdata.set_quoted('GEANY_PREFIX', get_option('prefix'))
-foreach d : [ 'libdir', 'libexecdir', 'datadir', 'localedir' ]
+cdata.set('prefix', get_option('prefix'))
+foreach d : [ 'includedir', 'libdir', 'libexecdir', 'datadir', 'localedir' ]
   cdata.set_quoted('GEANY_' + d.underscorify().to_upper(), join_paths(prefix, get_option(d)))
+  cdata.set(d, join_paths(prefix, get_option(d)))
 endforeach
 cdata.set_quoted('GEANY_DOCDIR', join_paths(prefix, get_option('datadir'), 'doc'))
+# extra vars for geany.pc
+cdata.set('exec_prefix', cdata.get('prefix'))
+cdata.set('datarootdir', cdata.get('datadir'))
+cdata.set('DEPENDENCIES', deps_for_pc)
+cdata.set('VERSION', meson.project_version())
 
 git = find_program('git')
 ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
@@ -93,9 +115,11 @@ configure_file(input : 'config.h.meson',
   output : 'config.h',
   configuration : cdata)
 
-glib = dependency('glib-2.0', version: '>= 2.32')
-gmodule = dependency('gmodule-2.0', version: '>= 2.32')
-gtk = dependency('gtk+-3.0', version: '>= 3.0')
+configure_file(input: 'geany.pc.in',
+               install: true,
+               install_dir: join_paths(prefix, 'lib', 'pkgconfig'),
+               output: 'geany.pc',
+               configuration: cdata)
 
 ictags_main = include_directories('ctags/main')
 itagmanager = include_directories('src/tagmanager')
@@ -242,7 +266,7 @@ scintilla = static_library('scintilla',
     'scintilla/src/XPM.cxx',
     'scintilla/src/XPM.h',
     cpp_args: geany_cflags + [ '-Wno-non-virtual-dtor', '-DNDEBUG', '-DSCI_LEXER', '-DNO_CXX11_REGEX' ],
-    dependencies: [ gtk ],
+    dependencies: deps,
     include_directories: [iscintilla,
                           include_directories('scintilla/include',
                                               'scintilla/src',
@@ -385,13 +409,13 @@ libgeany = shared_library('geany',
     soversion: '0',
     c_args: geany_cflags,
     include_directories: [iscintilla],
-    dependencies: [dep_tagmanager, dep_ctags, dep_scintilla, glib, gmodule, gtk],
+    dependencies: [dep_tagmanager, dep_ctags, dep_scintilla] + deps,
     install: true)
 
 executable('geany', 'src/main.c',
             link_with: libgeany,
             c_args: geany_cflags,
-            dependencies: [dep_ctags, glib, gtk],
+            dependencies: [dep_ctags] + deps,
             build_rpath: meson.build_root(),
             install_rpath: join_paths(prefix, 'lib'),
             install: true)
