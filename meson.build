@@ -436,4 +436,24 @@ subdir('po')
 subdir('data')
 subdir('plugins')
 
+sh = find_program('sh')
+extra_data = [['COPYING', 'GPL-2']]
+if host_machine.system() == 'windows'
+extra_data += [['AUTHORS', 'Authors.txt']]
+extra_data += [['ChangeLog', 'Changelog.txt']]
+extra_data += [['COPYING', 'Copying.txt']]
+extra_data += [['README', 'Readme.txt']]
+extra_data += [['NEWS', 'News.txt']]
+extra_data += [['THANKS', 'Thanks.txt']]
+extra_data += [['TODO', 'Todo.txt']]
+endif
+message(extra_data)
+foreach file : extra_data
+    custom_target('gen-'+ file[0].to_lower(),
+                  input: file[0],
+                  output: file[1],
+                  command: [ 'cp', '@INPUT@', '@OUTPUT@' ],
+                  install: true,
+                  install_dir: join_paths(get_option('datadir'), 'geany'))
+endforeach
 geany_cflags += '-DGTK'
