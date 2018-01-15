@@ -67,6 +67,17 @@ GeanyEncoding encodings[GEANY_ENCODINGS_MAX];
 		encodings[Idx].charset = Charset; \
 		encodings[Idx].name = Name;
 
+static gchar *encodings_convert_to_utf8_from_charset_internal(const gchar *buffer,
+											gsize size, gsize *out_size,
+											const gchar *charset,
+											gboolean fast);
+static gchar *encodings_convert_to_utf8_internal(const gchar *buffer,
+										gsize size,
+										gsize *out_size,
+										const gchar *suggested_charset,
+										gchar **used_encoding,
+										gboolean fast);
+
 static void init_encodings(void)
 {
 	fill(0,		WESTEUROPEAN,	GEANY_ENCODING_ISO_8859_14,		"ISO-8859-14",		_("Celtic"));
@@ -626,6 +637,12 @@ GEANY_API_SYMBOL
 gchar *encodings_convert_to_utf8_from_charset(const gchar *buffer, gssize size,
 											  const gchar *charset, gboolean fast)
 {
+	return encodings_convert_to_utf8_from_charset_internal(buffer, size, NULL, charset, fast);
+}
+
+static gchar *encodings_convert_to_utf8_from_charset_internal(const gchar *buffer, gsize size, gsize *out_size,
+											  const gchar *charset, gboolean fast)
+{
 	gchar *utf8_content = NULL;
 	GError *conv_error = NULL;
 	gchar* converted_contents = NULL;
@@ -641,6 +658,7 @@ gchar *encodings_convert_to_utf8_from_charset(const gchar *buffer, gssize size,
 	{
 		utf8_content = converted_contents;
 		if (conv_error != NULL) g_error_free(conv_error);
+		geany_debug("Converted (FAST) from %s to UTF-8, written %d bytes.", charset, bytes_written);
 	}
 	else if (conv_error != NULL || ! g_utf8_validate(converted_contents, bytes_written, NULL))
 	{
@@ -651,7 +669,7 @@ gchar *encodings_convert_to_utf8_from_charset(const gchar *buffer, gssize size,
 			conv_error = NULL;
 		}
 		else
-			geany_debug("Couldn't convert from %s to UTF-8.", charset);
+			geany_debug("Converted from %s to UTF-8, written %d bytes.", charset, bytes_written);
 
 		utf8_content = NULL;
 		g_free(converted_contents);
@@ -662,6 +680,7 @@ gchar *encodings_convert_to_utf8_from_charset(const gchar *buffer, gssize size,
 		utf8_content = converted_contents;
 	}
 
+	if (out_size) *out_size = bytes_written;
 	return utf8_content;
 }
 
@@ -680,9 +699,24 @@ static gchar *encodings_check_regexes(const gchar *buffer, gsize size)
 	return NULL;
 }
 
+gchar *encodings_convert_to_utf8_fast(const gchar *buffer,
+        gsize size, gsize *out_size, gchar **used_encoding)
+{
+	return encodings_convert_to_utf8_internal(buffer, size, out_size, NULL, used_encoding, TRUE);
+}
 
 static gchar *encodings_convert_to_utf8_with_suggestion(const gchar *buffer, gssize size,
 		const gchar *suggested_charset, gchar **used_encoding)
+{
+	encodings_convert_to_utf8_internal(buffer, size, NULL, suggested_charset, used_encoding, FALSE);
+}
+
+static gchar *encodings_convert_to_utf8_internal(const gchar *buffer,
+										gsize size,
+										gsize *out_size,
+										const gchar *suggested_charset,
+										gchar **used_encoding,
+										gboolean fast)
 {
 	const gchar *locale_charset = NULL;
 	const gchar *charset;
@@ -749,7 +783,7 @@ static gchar *encodings_convert_to_utf8_with_suggestion(const gchar *buffer, gss
 
 		geany_debug("Trying to convert %" G_GSIZE_FORMAT " bytes of data from %s into UTF-8.",
 			size, charset);
-		utf8_content = encodings_convert_to_utf8_from_charset(buffer, size, charset, FALSE);
+		utf8_content = encodings_convert_to_utf8_from_charset_internal(buffer, size, out_size, charset, fast);
 
 		if (G_LIKELY(utf8_content != NULL))
 		{
@@ -968,7 +1002,16 @@ handle_encoding(BufferData *buffer, GeanyEncodingIndex enc_idx)
 				if (converted_text == NULL)
 				{
 					g_free(regex_charset);
-					return FALSE;
+					converted_text = encodings_convert_to_utf8_fast(
+					buffer->data, buffer->size, &buffer->len, &buffer->enc);
+					printf("data: %p %s\n", converted_text, !converted_text?"(null)":"");
+					if (converted_text == NULL)
+						return FALSE;
+					printf("%d\n", buffer->len);
+				}
+				else
+				{
+					buffer->len = strlen(converted_text);
 				}
 				SETPTR(buffer->data, converted_text);
 				buffer->len = strlen(converted_text);
