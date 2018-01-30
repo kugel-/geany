@@ -263,29 +263,32 @@ void sidebar_update_tag_list(GeanyDocument *doc, gboolean update)
 static gint documents_sort_func(GtkTreeModel *model, GtkTreeIter *iter_a,
 								GtkTreeIter *iter_b, gpointer data)
 {
-	gchar *key_a, *key_b;
 	gchar *name_a, *name_b;
-	gint cmp;
 	GeanyDocument *doc_a, *doc_b;
+	gint cmp;
 
 	gtk_tree_model_get(model, iter_a,
 		DOCUMENTS_SHORTNAME, &name_a,
 		DOCUMENTS_DOCUMENT, &doc_a, -1);
-	key_a = g_utf8_collate_key_for_filename(name_a, -1);
-	g_free(name_a);
 	gtk_tree_model_get(model, iter_b,
 		DOCUMENTS_SHORTNAME, &name_b,
 		DOCUMENTS_DOCUMENT, &doc_b, -1);
-	key_b = g_utf8_collate_key_for_filename(name_b, -1);
-	g_free(name_b);
-	cmp = strcmp(key_a, key_b);
-	g_free(key_b);
-	g_free(key_a);
 	/* sort dirs after files */
-	if (!doc_a)
-		cmp += 0xff;
-	if (!doc_b)
-		cmp -= 0xff;
+	if (!doc_a && doc_b)
+		cmp = 1;
+	else if (doc_a && !doc_b)
+		cmp = -1;
+	else
+	{
+		gchar *key_a = g_utf8_collate_key_for_filename(name_a, -1);
+		gchar *key_b = g_utf8_collate_key_for_filename(name_b, -1);
+		cmp = strcmp(key_a, key_b);
+		g_free(key_b);
+		g_free(key_a);
+	}
+
+	g_free(name_b);
+	g_free(name_a);
 
 	return cmp;
 }
