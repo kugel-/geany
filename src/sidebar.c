@@ -665,23 +665,18 @@ finally:
 	return FALSE;
 }
 
-
-static GtkTreeIter *get_doc_parent(GeanyDocument *doc, gboolean *new_parent)
+/* Returns TRUE if parent points to a newly added row,
+ * caller might want to expand the relevant rows in the tree view */
+static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 {
 	gchar *path;
-	static GtkTreeIter parent;
 	GtkTreeIter iter;
 	gint name_diff = 0;
 	gboolean has_parent;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
 	TreeForeachData data = {NULL, NULL, NULL, 0, 0, 0};
 
-	if (documents_show_paths == SHOW_PATHS_NONE)
-		return NULL;
-
 	path = g_path_get_dirname(DOC_FILENAME(doc));
-
-	*new_parent = TRUE;
 
 	/* find best opened dir */
 	data.needle = get_project_folder(path);
@@ -699,14 +694,13 @@ static GtkTreeIter *get_doc_parent(GeanyDocument *doc, gboolean *new_parent)
 	{
 		case TREE_CASE_EQUALS:
 		{
-			*new_parent = FALSE;
-			parent = data.best_iter;
+			*parent = data.best_iter;
 			break;
 		}
 		case TREE_CASE_CHLID_OF:
 		{
 			/* This dir is longer than existing so just add child */
-			tree_add_new_dir(&parent, &data.best_iter, path);
+			tree_add_new_dir(parent, &data.best_iter, path);
 			break;
 		}
 		case TREE_CASE_PARENT_OF:
@@ -714,8 +708,8 @@ static GtkTreeIter *get_doc_parent(GeanyDocument *doc, gboolean *new_parent)
 			/* More complicated logic. This dir should be a parent 
 			 * of existing, so reparent existing dir.  */
 			has_parent = gtk_tree_model_iter_parent(model, &iter, &data.best_iter);
-			tree_add_new_dir(&parent, has_parent ? &iter : NULL, path);
-			tree_copy_recursive(&data.best_iter, &parent);
+			tree_add_new_dir(parent, has_parent ? &iter : NULL, path);
+			tree_copy_recursive(&data.best_iter, parent);
 			gtk_tree_store_remove(store_openfiles, &data.best_iter);
 			break;
 		}
@@ -731,14 +725,14 @@ static GtkTreeIter *get_doc_parent(GeanyDocument *doc, gboolean *new_parent)
 			tree_copy_recursive(&data.best_iter, &parent_buf);
 			unfold_iter(&parent_buf);
 			gtk_tree_store_remove(store_openfiles, &data.best_iter);
-			tree_add_new_dir(&parent, &parent_buf, path);
+			tree_add_new_dir(parent, &parent_buf, path);
 
 			g_free(newpath);
 			break;
 		}
 		default:
 		{
-			tree_add_new_dir(&parent, NULL, path);
+			tree_add_new_dir(parent, NULL, path);
 			break;
 		}
 	}
@@ -746,7 +740,8 @@ finally:
 	if (data.needle != path)
 		g_free(data.needle);
 	g_free(path);
-	return &parent;
+
+	return data.best_case != TREE_CASE_EQUALS;
 }
 
 
@@ -755,17 +750,24 @@ finally:
 void sidebar_openfiles_add(GeanyDocument *doc)
 {
 	GtkTreeIter *iter = &doc->priv->iter;
-	gboolean new_parent;
-	GtkTreeIter *parent = get_doc_parent(doc, &new_parent);
 	gchar *basename;
 	const GdkColor *color = document_get_status_color(doc);
 	static GIcon *file_icon = NULL;
 
-	gtk_tree_store_append(store_openfiles, iter, parent);
+	if (documents_show_paths != SHOW_PATHS_NONE)
+	{
+		/* check if new parent */
+		GtkTreeIter parent;
+		if (get_doc_parent(doc, &parent))
+			unfold_iter(&parent);
+		gtk_tree_store_append(store_openfiles, iter, &parent);
+	}
+	else
+	{
+		gtk_tree_store_append(store_openfiles, iter, NULL);
+	}
 
-	/* check if new parent */
-	if (parent && new_parent)
-		unfold_iter(parent);
+
 	if (!file_icon)
 		file_icon = ui_get_mime_icon("text/plain");
 
