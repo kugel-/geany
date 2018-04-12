@@ -440,7 +440,9 @@ static void unfold_iter(GtkTreeIter *iter)
 
 static gchar *parent_dir_name(GtkTreeIter *parent, gchar *path)
 {
-	gint len = 0;
+	gsize parent_len = 0;
+	gchar *dirname;
+	gchar *pathname = NULL;
 
 	if (parent)
 	{
@@ -450,19 +452,26 @@ static gchar *parent_dir_name(GtkTreeIter *parent, gchar *path)
 		gtk_tree_model_get(model, parent, DOCUMENTS_FILENAME, &parent_dir, -1);
 		if (parent_dir)
 		{
-			gchar *pathname = get_doc_folder(parent_dir);
-			len = strlen(pathname) + 1;
-			g_free(pathname);
+			pathname = get_doc_folder(parent_dir);
+			parent_len = strlen(pathname) + 1;
 			g_free(parent_dir);
 		}
 	}
-	if (!len)
-		return get_doc_folder(path);
-	else
+
+	dirname = get_doc_folder(path);
+	if (parent_len)
 	{
-		gchar *dirname = get_doc_folder(path);
-		return memmove(dirname, dirname + len, strlen(dirname) - len + 1);
+		gsize len;
+		dirname = get_doc_folder(path);
+		len = strlen(dirname);
+		/* Maybe parent is /home but dirname is ~ (after substitution from /home/user) */
+		if (pathname[0] == dirname[0])
+			memmove(dirname, dirname + parent_len, len - parent_len + 1);
 	}
+
+	g_free(pathname);
+
+	return dirname;
 }
 
 static void tree_copy_item(GtkTreeIter *parent, GtkTreeIter *parent_old, GtkTreeIter *parent_new)
