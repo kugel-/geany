@@ -643,11 +643,10 @@ static gboolean tree_foreach_callback(GtkTreeModel *model, GtkTreePath *path,
 	diff = pathcmp(name, data->needle);
 	name_len = strlen(name);
 	if (diff == 0 ||
-		( /* do not split home dir "~" */
-			diff == data->home_dir_len &&
-			(name_len != data->home_dir_len ||
-			utils_filenamecmp(name, data->home_dir) != 0) &&
-			utils_filename_has_prefix(name, data->home_dir)
+		( /* do not split home dir "~", give it a separate tree node */
+			(utils_filename_has_prefix(data->needle, data->home_dir) ||
+			 utils_filename_has_prefix(name, data->home_dir)) &&
+			diff < data->home_dir_len
 		)
 	)
 		goto finally;
