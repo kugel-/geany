@@ -602,12 +602,9 @@ static guint pathcmp(const gchar *s1, const gchar *s2)
 
 
 typedef struct TreeForeachData {
-	gchar *best_path;
 	gchar *needle;
-	const gchar *home_dir;
 	gsize best_len;
 	gsize needle_len;
-	gsize home_dir_len;
 	GtkTreeIter best_iter;
 	enum {
 		TREE_CASE_NONE,
@@ -632,24 +629,20 @@ static gboolean tree_foreach_callback(GtkTreeModel *model, GtkTreePath *path,
 	gtk_tree_model_get(model, iter,
 			DOCUMENTS_FILENAME, &name,
 			DOCUMENTS_DOCUMENT, &doc, -1);
+
 	if (doc) /* skip documents */
 		goto finally;
-	dirname = get_project_folder(name);
+
+	dirname = get_doc_folder(name);
 	if (dirname)
-	{
-		g_free(name);
-		name = dirname;
-	}
+		SETPTR(name, dirname);
+
 	diff = pathcmp(name, data->needle);
 	name_len = strlen(name);
-	if (diff == 0 ||
-		( /* do not split home dir "~", give it a separate tree node */
-			(utils_filename_has_prefix(data->needle, data->home_dir) ||
-			 utils_filename_has_prefix(name, data->home_dir)) &&
-			diff < data->home_dir_len
-		)
-	)
+
+	if (diff == 0)
 		goto finally;
+
 	if (data->best_len < diff)
 	{
 		gint best_case;
@@ -688,20 +681,14 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 	gint name_diff = 0;
 	gboolean has_parent;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
-	TreeForeachData data = {NULL, NULL, NULL, 0, 0, 0, {0}, TREE_CASE_NONE};
+	TreeForeachData data = {NULL, 0, 0, {0}, TREE_CASE_NONE};
 
 	path = g_path_get_dirname(DOC_FILENAME(doc));
 
 	/* find best opened dir */
-	data.needle = get_project_folder(path);
-	if (NULL == data.needle)
-		data.needle = path;
-	else
-		name_diff = strlen(path) - strlen(data.needle);
+	data.needle = get_doc_folder(path);
 	data.needle_len = strlen(data.needle);
-	data.home_dir = g_get_home_dir();
-	if (!EMPTY(data.home_dir))
-		data.home_dir_len = strlen(data.home_dir);
+	name_diff = strlen(path) - data.needle_len;
 	gtk_tree_model_foreach(model, tree_foreach_callback, (gpointer)&data);
 
 	switch (data.best_case)
