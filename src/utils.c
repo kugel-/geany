@@ -2166,7 +2166,7 @@ gchar **utils_strv_shorten_file_list(gchar **file_names, gssize num)
 	gsize prefix_len, lcs_len;
 
 	/* We don't dereference file_names if num == 0. */
-	g_return_val_if_fail(num != 0 && file_names == NULL, NULL);
+	g_return_val_if_fail(num == 0 || file_names != NULL, NULL);
 
 	/* The return value shall have exactly the same size as the input. If the input is a
 	 * GStrv (last element is NULL), the output will follow suit. */
