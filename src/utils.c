@@ -2056,8 +2056,6 @@ gchar **utils_strv_join(gchar **first, gchar **second)
  */
 static gchar *utils_strv_find_common_prefix(gchar **strv, gssize num)
 {
-	gchar *prefix;
-
 	if (!NZV(strv))
 		return NULL;
 
