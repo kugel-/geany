@@ -2153,7 +2153,7 @@ static gchar *utils_strv_find_lcs(gchar **strv, gssize strv_len)
  * @return @transfer{full} A newly-allocated array of transformed paths strings, terminated by
             @c NULL. Use @c g_strfreev() to free it.
  *
- * @since 1.31 (API 232)
+ * @since 1.31 (API 239)
  */
 GEANY_API_SYMBOL
 gchar **utils_strv_shorten_file_list(gchar **file_names, gssize file_names_len)
