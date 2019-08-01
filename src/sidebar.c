@@ -437,7 +437,8 @@ static void unfold_iter(GtkTreeIter *iter)
 	gtk_tree_path_free(path);
 }
 
-static gchar *parent_dir_name(GtkTreeIter *parent, gchar *path)
+
+static gchar *parent_dir_name(GtkTreeIter *parent, const gchar *path)
 {
 	gsize parent_len = 0;
 	gchar *dirname;
@@ -472,6 +473,7 @@ static gchar *parent_dir_name(GtkTreeIter *parent, gchar *path)
 
 	return dirname;
 }
+
 
 static void tree_copy_item(GtkTreeIter *parent, GtkTreeIter *parent_old, GtkTreeIter *parent_new)
 {
@@ -520,11 +522,8 @@ static void tree_copy_recursive(GtkTreeIter *parent_old, GtkTreeIter *parent_new
 	gint i;
 	GtkTreeIter child;
 	GtkTreeIter parent;
-	GtkTreePath *path;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
 
-	path = gtk_tree_model_get_path(model, parent_old);
-	gtk_tree_path_free(path);
 	tree_copy_item(&parent, parent_old, parent_new);
 	i = gtk_tree_model_iter_n_children(model, parent_old) - 1;
 	while (i >= 0 && gtk_tree_model_iter_nth_child(model, &child, parent_old, i))
@@ -535,7 +534,7 @@ static void tree_copy_recursive(GtkTreeIter *parent_old, GtkTreeIter *parent_new
 }
 
 
-static void tree_add_new_dir(GtkTreeIter *child, GtkTreeIter *parent, gchar *file)
+static void tree_add_new_dir(GtkTreeIter *child, GtkTreeIter *parent, const gchar *file)
 {
 	static GIcon *dir_icon = NULL;
 	gchar *dirname = parent_dir_name(parent, file);
@@ -736,8 +735,8 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 			break;
 		}
 	}
-	if (data.needle != path)
-		g_free(data.needle);
+
+	g_free(data.needle);
 	g_free(path);
 
 	return data.best_case != TREE_CASE_EQUALS;
