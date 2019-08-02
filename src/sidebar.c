@@ -680,6 +680,7 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 	gboolean has_parent;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
 	TreeForeachData data = {NULL, 0, 0, {0}, TREE_CASE_NONE};
+	gboolean new_row;
 
 	path = g_path_get_dirname(DOC_FILENAME(doc));
 
@@ -694,12 +695,15 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 		case TREE_CASE_EQUALS:
 		{
 			*parent = data.best_iter;
+			/* dir already open */
+			new_row = FALSE;
 			break;
 		}
 		case TREE_CASE_CHLID_OF:
 		{
 			/* This dir is longer than existing so just add child */
 			tree_add_new_dir(parent, &data.best_iter, path);
+			new_row = TRUE;
 			break;
 		}
 		case TREE_CASE_PARENT_OF:
@@ -710,6 +714,7 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 			tree_add_new_dir(parent, has_parent ? &iter : NULL, path);
 			tree_copy_recursive(&data.best_iter, parent);
 			gtk_tree_store_remove(store_openfiles, &data.best_iter);
+			new_row = TRUE;
 			break;
 		}
 		case TREE_CASE_HAVE_SAME_PARENT:
@@ -727,11 +732,13 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 			tree_add_new_dir(parent, &parent_buf, path);
 
 			g_free(newpath);
+			new_row = TRUE;
 			break;
 		}
 		default:
 		{
 			tree_add_new_dir(parent, NULL, path);
+			new_row = TRUE;
 			break;
 		}
 	}
@@ -739,7 +746,7 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 	g_free(data.needle);
 	g_free(path);
 
-	return data.best_case != TREE_CASE_EQUALS;
+	return new_row;
 }
 
 
@@ -751,14 +758,16 @@ void sidebar_openfiles_add(GeanyDocument *doc)
 	gchar *basename;
 	const GdkColor *color = document_get_status_color(doc);
 	static GIcon *file_icon = NULL;
+	gboolean new_row;
 
 	if (documents_show_paths != SHOW_PATHS_NONE)
 	{
 		/* check if new parent */
 		GtkTreeIter parent;
-		if (get_doc_parent(doc, &parent))
-			unfold_iter(&parent);
+		new_row = get_doc_parent(doc, &parent);
 		gtk_tree_store_append(store_openfiles, iter, &parent);
+		if (new_row)
+			unfold_iter(&parent);
 	}
 	else
 	{
