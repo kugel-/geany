@@ -802,27 +802,51 @@ void sidebar_openfiles_add(GeanyDocument *doc)
 
 static void openfiles_remove(GeanyDocument *doc)
 {
-	GtkTreeIter *iter = &doc->priv->iter;
+	GtkTreeIter iter = doc->priv->iter;
 	GtkTreeIter parent;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
 
-	if (gtk_tree_model_iter_parent(model, &parent, iter) &&
-	    gtk_tree_model_iter_n_children(model, &parent) == 1)
+	if (documents_show_paths == SHOW_PATHS_NONE)
 	{
-		GtkTreeIter buf = parent;
-
-		/* walk on top and close all orphaned parents */
-		while (gtk_tree_model_iter_parent(model, &parent, &buf) &&
-		       gtk_tree_model_iter_n_children(model, &parent) == 1)
-		{
-			buf = parent;
-		}
-		gtk_tree_store_remove(store_openfiles, &buf);
+		gtk_tree_store_remove(store_openfiles, &iter);
 		return;
 	}
-	gtk_tree_store_remove(store_openfiles, iter);
-}
 
+	/* walk on top and close all orphaned parents */
+	while (gtk_tree_model_iter_parent(model, &parent, &iter)
+	    && gtk_tree_model_iter_n_children(model, &parent) == 1)
+	{
+		iter = parent;
+	}
+	gtk_tree_store_remove(store_openfiles, &iter);
+
+	/* If, after removing, there is a single silbling left and it represents
+	 * a directory, it can be merged with the parent directory row,
+	 * essentially to reverse the effect of TREE_CASE_PARENT_OF and TREE_CASE_HAVE_SAME_PARENT
+	 * in get_doc_parent(). */
+	if (gtk_tree_store_iter_is_valid(store_openfiles, &parent)
+	 && gtk_tree_model_iter_n_children(model, &parent) == 1)
+	{
+		GtkTreeIter child, pparent;
+		GeanyDocument *other_doc;
+
+		gtk_tree_model_iter_nth_child(model, &child, &parent, 0);
+		gtk_tree_model_get(model, &child, DOCUMENTS_DOCUMENT, &other_doc, -1);
+		if (!other_doc && gtk_tree_model_iter_parent(model, &pparent, &parent))
+		{
+			GtkTreePath *path, *new_path;
+			gboolean is_expanded;
+
+			path = gtk_tree_model_get_path(GTK_TREE_MODEL(store_openfiles), &child);
+			is_expanded = gtk_tree_view_row_expanded(GTK_TREE_VIEW(tv.tree_openfiles), path);
+			tree_reparent(&child, &pparent);
+			if (is_expanded)
+				unfold_iter(&child);
+			gtk_tree_store_remove(store_openfiles, &parent);
+			gtk_tree_path_free(path);
+		}
+	}
+}
 
 void sidebar_openfiles_update(GeanyDocument *doc)
 {
