@@ -475,7 +475,7 @@ static gchar *parent_dir_name(GtkTreeIter *parent, const gchar *path)
 }
 
 
-static void tree_copy_item(GtkTreeIter *parent, GtkTreeIter *parent_old, GtkTreeIter *parent_new)
+static void tree_copy_node(GtkTreeIter *new_node, GtkTreeIter *node, GtkTreeIter *parent_new)
 {
 	GIcon *icon;
 	gchar *filename;
@@ -484,23 +484,21 @@ static void tree_copy_item(GtkTreeIter *parent, GtkTreeIter *parent_old, GtkTree
 	GeanyDocument *doc;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
 
-	gtk_tree_store_append(store_openfiles, parent, parent_new);
-	gtk_tree_model_get(model,                parent_old,
+	gtk_tree_store_append(store_openfiles, new_node, parent_new);
+	gtk_tree_model_get(model,                node,
 	                   DOCUMENTS_ICON,      &icon,
 	                   DOCUMENTS_SHORTNAME, &shortname,
 	                   DOCUMENTS_DOCUMENT,  &doc,
 	                   DOCUMENTS_COLOR,     &color,
 	                   DOCUMENTS_FILENAME,  &filename,
 	                   -1);
-	/* Copy magick private member */
+
 	if (doc)
-		doc->priv->iter = *parent;
+		doc->priv->iter = *new_node;
 	else if (parent_new)
-	{
-		g_free(shortname);
-		shortname = parent_dir_name(parent_new, filename);
-	}
-	gtk_tree_store_set(store_openfiles,     parent,
+		SETPTR(shortname, parent_dir_name(parent_new, filename));
+
+	gtk_tree_store_set(store_openfiles,     new_node,
 	                   DOCUMENTS_ICON,      icon,
 	                   DOCUMENTS_SHORTNAME, shortname,
 	                   DOCUMENTS_DOCUMENT,  doc,
@@ -514,23 +512,40 @@ static void tree_copy_item(GtkTreeIter *parent, GtkTreeIter *parent_old, GtkTree
 }
 
 
-/*
- * Recursively copy all nodes from old parent to new parent
- * */
-static void tree_copy_recursive(GtkTreeIter *parent_old, GtkTreeIter *parent_new)
+/* Helper that implements the recursive part of tree_reparent() */
+static void tree_reparent_recurse(GtkTreeIter *node, GtkTreeIter *parent_new, GtkTreeIter *new_node)
 {
-	gint i;
-	GtkTreeIter child;
-	GtkTreeIter parent;
 	GtkTreeModel *model = GTK_TREE_MODEL(store_openfiles);
+	GtkTreeIter child;
 
-	tree_copy_item(&parent, parent_old, parent_new);
-	i = gtk_tree_model_iter_n_children(model, parent_old) - 1;
-	while (i >= 0 && gtk_tree_model_iter_nth_child(model, &child, parent_old, i))
+	/* Start by copying the node itself. It becomes parent_new for the children to be copied. */
+	tree_copy_node(new_node, node, parent_new);
+	if (gtk_tree_model_iter_nth_child(model, &child, node, 0))
 	{
-		tree_copy_recursive(&child, &parent);
-		i--;
+		do {
+			GtkTreeIter new_child;
+			tree_reparent_recurse(&child, new_node, &new_child);
+		}
+		while (gtk_tree_model_iter_next(model, &child));
 	}
+}
+
+
+/*
+ * Copy node and all of its children to a new parent, and then remove the old node.
+ *
+ * It is done by reparenting the node itself to the new parent, creating a copy of it,
+ * and then recursively reparenting all children to the copy of the node.
+ *
+ * Finally, the new location will be written back to node so it's readily available,
+ * e.g. to unfold it.
+ * */
+static void tree_reparent(GtkTreeIter *node, GtkTreeIter *parent_new)
+{
+	GtkTreeIter new_node;
+	tree_reparent_recurse(node, parent_new, &new_node);
+	gtk_tree_store_remove(store_openfiles, node);
+	*node = new_node;
 }
 
 
@@ -712,8 +727,7 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 			 * of existing, so reparent existing dir.  */
 			has_parent = gtk_tree_model_iter_parent(model, &iter, &data.best_iter);
 			tree_add_new_dir(parent, has_parent ? &iter : NULL, path);
-			tree_copy_recursive(&data.best_iter, parent);
-			gtk_tree_store_remove(store_openfiles, &data.best_iter);
+			tree_reparent(&data.best_iter, parent);
 			new_row = TRUE;
 			break;
 		}
@@ -721,15 +735,14 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 		{
 			/* Even more complicated logic. Both dirs have same
 			 * parent, so create new parent and reparent them */
-			GtkTreeIter parent_buf;
+			GtkTreeIter new_parent;
 			gchar *newpath = g_strndup(path, data.best_len + name_diff);
 
 			has_parent = gtk_tree_model_iter_parent(model, &iter, &data.best_iter);
-			tree_add_new_dir(&parent_buf, has_parent ? &iter : NULL, newpath);
-			tree_copy_recursive(&data.best_iter, &parent_buf);
-			unfold_iter(&parent_buf);
-			gtk_tree_store_remove(store_openfiles, &data.best_iter);
-			tree_add_new_dir(parent, &parent_buf, path);
+			tree_add_new_dir(&new_parent, has_parent ? &iter : NULL, newpath);
+			tree_reparent(&data.best_iter, &new_parent);
+			tree_add_new_dir(parent, &new_parent, path);
+			unfold_iter(&new_parent);
 
 			g_free(newpath);
 			new_row = TRUE;
