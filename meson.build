@@ -21,6 +21,14 @@ glib = deps[0]
 def_cflags  = [ '-DHAVE_CONFIG_H=1', '-DGTK' ]
 def_cflags += '-Wno-deprecated-declarations'
 
+# some -Dxxx also should be available to plugins
+prefix = get_option('prefix')
+def_cflags += '-DGEANY_PREFIX="@0@"'.format(get_option('prefix'))
+foreach d : [ 'includedir', 'libdir', 'libexecdir', 'datadir', 'localedir' ]
+  def_cflags += '-DGEANY_@0@="@1@"'.format(d.underscorify().to_upper(), join_paths(prefix, get_option(d)))
+endforeach
+def_cflags += '-DGEANY_DOCDIR="@0@"'.format(join_paths(prefix, get_option('datadir'), 'doc'))
+
 geany_cflags = def_cflags
 have_gcc4_visibility = cc.has_argument('-fvisibility=hidden')
 geany_cflags += '-DGEANY_PRIVATE'
@@ -34,13 +42,16 @@ geany_cflags += '-DGEANY_API_SYMBOL=GEANY_EXPORT_SYMBOL'
 geany_cflags += '-DHAVE_REGCOMP' # Should always be 1, required for CTags.
 geany_cflags += '-DHAVE_PLUGINS' # TODO: configurable
 
+
 cdata = configuration_data()
 check_headers = [
   'dlfcn.h',
+  'errno.h',
   'fcntl.h',
   'fnmatch.h',
   'glob.h',
   'inttypes.h',
+  'limits.h',
   'locale.h',
   'memory.h',
   'stdint.h',
@@ -92,20 +103,8 @@ cdata.set_quoted('PACKAGE_STRING', 'Geany ' + meson.project_version())
 cdata.set_quoted('PACKAGE_VERSION', meson.project_version())
 cdata.set('GETTEXT_PACKAGE', 'PACKAGE')
 cdata.set('ENABLE_NLS', 1)
-
-prefix = get_option('prefix')
-cdata.set_quoted('GEANY_PREFIX', get_option('prefix'))
-cdata.set('prefix', get_option('prefix'))
-foreach d : [ 'includedir', 'libdir', 'libexecdir', 'datadir', 'localedir' ]
-  cdata.set_quoted('GEANY_' + d.underscorify().to_upper(), join_paths(prefix, get_option(d)))
-  cdata.set(d, join_paths(prefix, get_option(d)))
-endforeach
-cdata.set_quoted('GEANY_DOCDIR', join_paths(prefix, get_option('datadir'), 'doc'))
-# extra vars for geany.pc
-cdata.set('exec_prefix', cdata.get('prefix'))
-cdata.set('datarootdir', cdata.get('datadir'))
-cdata.set('DEPENDENCIES', deps_for_pc)
-cdata.set('VERSION', meson.project_version())
+cdata.set('USE_STDBOOL_H', 1)
+cdata.set('CTAGS_LIB', 1)
 
 git = find_program('git')
 ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
@@ -121,7 +120,7 @@ configure_file(input: 'geany.pc.in',
                output: 'geany.pc',
                configuration: cdata)
 
-ictags_main = include_directories('ctags/main')
+ictags = include_directories('ctags/main', 'ctags/parsers')
 itagmanager = include_directories('src/tagmanager')
 iscintilla = include_directories('scintilla/include')
 
@@ -182,6 +181,8 @@ scintilla = static_library('scintilla',
     'scintilla/lexlib/CharacterCategory.h',
     'scintilla/lexlib/CharacterSet.cxx',
     'scintilla/lexlib/CharacterSet.h',
+    'scintilla/lexlib/DefaultLexer.cxx',
+    'scintilla/lexlib/DefaultLexer.h',
     'scintilla/lexlib/LexAccessor.h',
     'scintilla/lexlib/LexerBase.cxx',
     'scintilla/lexlib/LexerBase.h',
@@ -217,6 +218,8 @@ scintilla = static_library('scintilla',
     'scintilla/src/CharClassify.h',
     'scintilla/src/ContractionState.cxx',
     'scintilla/src/ContractionState.h',
+    'scintilla/src/DBCS.cxx',
+    'scintilla/src/DBCS.h',
     'scintilla/src/Decoration.cxx',
     'scintilla/src/Decoration.h',
     'scintilla/src/Document.cxx',
@@ -227,11 +230,13 @@ scintilla = static_library('scintilla',
     'scintilla/src/EditModel.h',
     'scintilla/src/EditView.cxx',
     'scintilla/src/EditView.h',
+    'scintilla/src/ElapsedPeriod.h',
     'scintilla/src/ExternalLexer.cxx',
     'scintilla/src/ExternalLexer.h',
     'scintilla/src/FontQuality.h',
     'scintilla/src/Indicator.cxx',
     'scintilla/src/Indicator.h',
+    'scintilla/src/IntegerRectangle.h',
     'scintilla/src/KeyMap.cxx',
     'scintilla/src/KeyMap.h',
     'scintilla/src/LineMarker.cxx',
@@ -260,6 +265,7 @@ scintilla = static_library('scintilla',
     'scintilla/src/UniConversion.cxx',
     'scintilla/src/UniConversion.h',
     'scintilla/src/UnicodeFromUTF8.h',
+    'scintilla/src/UniqueString.cxx',
     'scintilla/src/UniqueString.h',
     'scintilla/src/ViewStyle.cxx',
     'scintilla/src/ViewStyle.h',
@@ -275,20 +281,20 @@ scintilla = static_library('scintilla',
 dep_scintilla = declare_dependency(link_with: scintilla,
                                    include_directories: include_directories('scintilla/include'))
 
-ctags_parsers = static_library('ctags_parsers',
+ctags = static_library('ctags',
     'ctags/parsers/abaqus.c',
     'ctags/parsers/abc.c',
-    'ctags/parsers/actionscript.c',
     'ctags/parsers/asciidoc.c',
     'ctags/parsers/asm.c',
     'ctags/parsers/basic.c',
     'ctags/parsers/c.c',
     'ctags/parsers/cobol.c',
-    'ctags/parsers/conf.c',
+    'ctags/parsers/iniconf.c',
     'ctags/parsers/css.c',
     'ctags/parsers/diff.c',
     'ctags/parsers/docbook.c',
     'ctags/parsers/erlang.c',
+    'ctags/parsers/flex.c',
     'ctags/parsers/fortran.c',
     'ctags/parsers/go.c',
     'ctags/parsers/haskell.c',
@@ -296,7 +302,6 @@ ctags_parsers = static_library('ctags_parsers',
     'ctags/parsers/html.c',
     'ctags/parsers/jscript.c',
     'ctags/parsers/json.c',
-    'ctags/parsers/latex.c',
     'ctags/parsers/lua.c',
     'ctags/parsers/make.c',
     'ctags/parsers/markdown.c',
@@ -309,43 +314,103 @@ ctags_parsers = static_library('ctags_parsers',
     'ctags/parsers/powershell.c',
     'ctags/parsers/python.c',
     'ctags/parsers/r.c',
-    'ctags/parsers/rest.c',
+    'ctags/parsers/rst.c',
     'ctags/parsers/ruby.c',
     'ctags/parsers/rust.c',
     'ctags/parsers/sh.c',
     'ctags/parsers/sql.c',
     'ctags/parsers/tcl.c',
+    'ctags/parsers/tex.c',
     'ctags/parsers/txt2tags.c',
     'ctags/parsers/verilog.c',
     'ctags/parsers/vhdl.c',
-    include_directories: [ictags_main],
-    c_args: geany_cflags,
-)
-
-ctags = static_library('ctags',
     'ctags/main/args.c',
+    'ctags/main/args.h',
+    'ctags/main/ctags.h',
+    'ctags/main/ctags-api.c',
+    'ctags/main/ctags-api.h',
+    'ctags/main/debug.h',
+    'ctags/main/debug.c',
+    'ctags/main/dependency.h',
+    'ctags/main/dependency.c',
+    'ctags/main/e_msoft.h',
     'ctags/main/entry.c',
+    'ctags/main/entry.h',
+    'ctags/main/error.c',
+    'ctags/main/error.h',
+    'ctags/main/field.c',
+    'ctags/main/field.h',
+    'ctags/main/flags.c',
+    'ctags/main/flags.h',
+    'ctags/main/fmt.c',
+    'ctags/main/fmt.h',
+    'ctags/main/gcc-attr.h',
+    'ctags/main/general.h',
+    'ctags/main/htable.c',
+    'ctags/main/htable.h',
+    'ctags/main/inline.h',
     'ctags/main/keyword.c',
+    'ctags/main/keyword.h',
+    'ctags/main/kind.c',
+    'ctags/main/kind.h',
     'ctags/main/lcpp.c',
+    'ctags/main/lcpp.h',
     'ctags/main/lregex.c',
+    'ctags/main/lxcmd.c',
+    'ctags/main/lxpath.c',
     'ctags/main/main.c',
+    'ctags/main/main.h',
+    'ctags/main/mbcs.h',
     'ctags/main/mio.c',
+    'ctags/main/mio.h',
     'ctags/main/nestlevel.c',
+    'ctags/main/nestlevel.h',
+    'ctags/main/numarray.c',
+    'ctags/main/numarray.h',
+    'ctags/main/objpool.c',
+    'ctags/main/objpool.h',
     'ctags/main/options.c',
+    'ctags/main/options.h',
+    'ctags/main/output-ctags.c',
+    'ctags/main/output.h',
     'ctags/main/parse.c',
+    'ctags/main/parse.h',
+    'ctags/main/parsers.h',
+    'ctags/main/pcoproc.c',
+    'ctags/main/pcoproc.h',
+    'ctags/main/promise.c',
+    'ctags/main/promise.h',
+    'ctags/main/ptag.c',
+    'ctags/main/ptag.h',
+    'ctags/main/ptrarray.c',
+    'ctags/main/ptrarray.h',
     'ctags/main/read.c',
+    'ctags/main/read.h',
+    'ctags/main/repoinfo.c',
+    'ctags/main/repoinfo.h',
     'ctags/main/routines.c',
+    'ctags/main/routines.h',
+    'ctags/main/selectors.c',
+    'ctags/main/selectors.h',
     'ctags/main/sort.c',
+    'ctags/main/sort.h',
     'ctags/main/strlist.c',
+    'ctags/main/strlist.h',
+    'ctags/main/trace.h',
+    'ctags/main/trashbox.c',
+    'ctags/main/trashbox.h',
+    'ctags/main/types.h',
     'ctags/main/vstring.c',
+    'ctags/main/vstring.h',
+    'ctags/main/xtag.h',
     'ctags/main/xtag.c',
     c_args: geany_cflags,
-    dependencies: [glib]
+    dependencies: deps,
+    include_directories: [ictags]
 )
-dep_ctags = declare_dependency(link_with: [ctags, ctags_parsers], include_directories: [ictags_main])
+dep_ctags = declare_dependency(link_with: [ctags], include_directories: [ictags])
 
 tagmanager = static_library('tagmanager',
-    'src/tagmanager/tm_ctags_wrappers.c',
     'src/tagmanager/tm_tag.c',
     'src/tagmanager/tm_parser.c',
     'src/tagmanager/tm_workspace.c',
