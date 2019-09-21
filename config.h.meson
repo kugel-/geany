@@ -1,0 +1,235 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* compile ctags as a library. */
+#mesondefine CTAGS_LIB
+
+/* Use AutoPackage? */
+#mesondefine ENABLE_BINRELOC
+
+/* always defined to indicate that i18n is enabled */
+#mesondefine ENABLE_NLS
+
+/* Gettext package. */
+#mesondefine GETTEXT_PACKAGE
+
+/* Define to 1 if you have the `bind_textdomain_codeset' function. */
+#mesondefine HAVE_BIND_TEXTDOMAIN_CODESET
+
+/* Define to 1 if you have the Mac OS X function CFLocaleCopyCurrent in the
+   CoreFoundation framework. */
+#mesondefine HAVE_CFLOCALECOPYCURRENT
+
+/* Define to 1 if you have the Mac OS X function CFPreferencesCopyAppValue in
+   the CoreFoundation framework. */
+#mesondefine HAVE_CFPREFERENCESCOPYAPPVALUE
+
+/* Define to 1 if you have the `chsize' function. */
+#mesondefine HAVE_CHSIZE
+
+/* define if the compiler supports basic C++11 syntax */
+#mesondefine HAVE_CXX11
+
+/* Define to 1 if you have the `dcgettext' function. */
+#mesondefine HAVE_DCGETTEXT
+
+/* Define to 1 if you have the declaration of `_NSGetEnviron', and to 0 if you
+   don't. */
+#mesondefine HAVE_DECL__NSGETENVIRON
+
+/* Define to 1 if you have the declaration of `__environ', and to 0 if you
+   don't. */
+#mesondefine HAVE_DECL___ENVIRON
+
+/* Define to 1 if you have the <direct.h> header file. */
+#mesondefine HAVE_DIRECT_H
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#mesondefine HAVE_DLFCN_H
+
+/* Define to 1 if you have the <errno.h> header file. */
+#mesondefine HAVE_ERRNO_H
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#mesondefine HAVE_FCNTL_H
+
+/* Define to 1 if you have the `fgetpos' function. */
+#mesondefine HAVE_FGETPOS
+
+/* Define to 1 if you have the `fnmatch' function. */
+#mesondefine HAVE_FNMATCH
+
+/* Define to 1 if you have the <fnmatch.h> header file. */
+#mesondefine HAVE_FNMATCH_H
+
+/* Define to 1 if you have the `ftruncate' function. */
+#mesondefine HAVE_FTRUNCATE
+
+/* Define if the GNU gettext() function is already present or preinstalled. */
+#mesondefine HAVE_GETTEXT
+
+/* Define to 1 if you have the <glob.h> header file. */
+#mesondefine HAVE_GLOB_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#mesondefine HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <io.h> header file. */
+#mesondefine HAVE_IO_H
+
+/* Define if your <locale.h> file defines LC_MESSAGES. */
+#mesondefine HAVE_LC_MESSAGES
+
+/* Define to 1 if you have the <limits.h> header file. */
+#mesondefine HAVE_LIMITS_H
+
+/* Define to 1 if you have the <locale.h> header file. */
+#mesondefine HAVE_LOCALE_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#mesondefine HAVE_MEMORY_H
+
+/* Define to 1 if you have the `mkstemp' function. */
+#mesondefine HAVE_MKSTEMP
+
+/* Define if plugins are enabled. */
+#mesondefine HAVE_PLUGINS
+
+/* Should always be 1, required for CTags. */
+#mesondefine HAVE_REGCOMP
+
+/* Define if you want to detect a running instance */
+#mesondefine HAVE_SOCKET
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#mesondefine HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#mesondefine HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strcasecmp' function. */
+#mesondefine HAVE_STRCASECMP
+
+/* Define to 1 if you have the `strerror' function. */
+#mesondefine HAVE_STRERROR
+
+/* Define to 1 if you have the `stricmp' function. */
+#mesondefine HAVE_STRICMP
+
+/* Define to 1 if you have the <strings.h> header file. */
+#mesondefine HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#mesondefine HAVE_STRING_H
+
+/* Define to 1 if you have the `strncasecmp' function. */
+#mesondefine HAVE_STRNCASECMP
+
+/* Define to 1 if you have the `strnicmp' function. */
+#mesondefine HAVE_STRNICMP
+
+/* Define to 1 if you have the `strstr' function. */
+#mesondefine HAVE_STRSTR
+
+/* Define to 1 if you have the <sys/dir.h> header file. */
+#mesondefine HAVE_SYS_DIR_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#mesondefine HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#mesondefine HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#mesondefine HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the `truncate' function. */
+#mesondefine HAVE_TRUNCATE
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#mesondefine HAVE_UNISTD_H
+
+/* Define if you want VTE support */
+#mesondefine HAVE_VTE
+
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#mesondefine LT_OBJDIR
+
+/* Name of package */
+#mesondefine PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#mesondefine PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#mesondefine PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#mesondefine PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#mesondefine PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#mesondefine PACKAGE_URL
+
+/* Define to the version of this package. */
+#mesondefine PACKAGE_VERSION
+
+/* git revision hash */
+#mesondefine REVISION
+
+/* Define to 1 if you have the ANSI C header files. */
+#mesondefine STDC_HEADERS
+
+/* Define to 1 if your <sys/time.h> declares `struct tm'. */
+#mesondefine TM_IN_SYS_TIME
+
+/* whether or not to use <stdbool.h>. */
+#mesondefine USE_STDBOOL_H
+
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+
+
+/* Version number of package */
+#mesondefine VERSION
+
+/* Path to a loadable libvte */
+#mesondefine VTE_MODULE_PATH
+
+/* we are cross compiling for WIN32 */
+#mesondefine WIN32
+
+/* Define to 1 if on MINIX. */
+#mesondefine _MINIX
+
+/* Define to 2 if the system does not provide POSIX.1 features except with
+   this defined. */
+#mesondefine _POSIX_1_SOURCE
+
+/* Define to 1 if you need to in order for `stat' and other things to work. */
+#mesondefine _POSIX_SOURCE
+
+/* Define to `long int' if <sys/types.h> does not define. */
+#mesondefine off_t
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#mesondefine size_t
