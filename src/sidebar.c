@@ -622,7 +622,7 @@ typedef struct TreeForeachData {
 	enum {
 		TREE_CASE_NONE,
 		TREE_CASE_EQUALS,
-		TREE_CASE_CHLID_OF,
+		TREE_CASE_CHILD_OF,
 		TREE_CASE_PARENT_OF,
 		TREE_CASE_HAVE_SAME_PARENT
 	} best_case;
@@ -667,7 +667,7 @@ static gboolean tree_foreach_callback(GtkTreeModel *model, GtkTreePath *path,
 			best_case = TREE_CASE_EQUALS;
 		/* second case: split current dir. File is from deeper level */
 		else if (name_len == diff && tree)
-			best_case = TREE_CASE_CHLID_OF;
+			best_case = TREE_CASE_CHILD_OF;
 		/* third case: split parent dir. File is from one of existing level */
 		else if (data->needle_len == diff && tree)
 			best_case = TREE_CASE_PARENT_OF;
@@ -714,7 +714,7 @@ static gboolean get_doc_parent(GeanyDocument *doc, GtkTreeIter *parent)
 			new_row = FALSE;
 			break;
 		}
-		case TREE_CASE_CHLID_OF:
+		case TREE_CASE_CHILD_OF:
 		{
 			/* This dir is longer than existing so just add child */
 			tree_add_new_dir(parent, &data.best_iter, path);
