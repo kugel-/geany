@@ -1,0 +1,2 @@
+option('vte', type : 'feature', value : 'enabled', description : 'enable if you want virtual terminal support')
+option('plugins', type : 'feature', value : 'enabled', description : 'enable if you want plugin support')
