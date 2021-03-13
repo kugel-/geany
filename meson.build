@@ -68,8 +68,8 @@ cdata.set_quoted('PACKAGE_STRING', 'Geany ' + meson.project_version())
 cdata.set_quoted('PACKAGE_VERSION', meson.project_version())
 cdata.set('GETTEXT_PACKAGE', 'PACKAGE')
 cdata.set('ENABLE_NLS', true)
-cdata.set('HAVE_VTE', get_option('vte').enabled())
-cdata.set('HAVE_PLUGINS', get_option('plugins').enabled())
+cdata.set('HAVE_VTE', get_option('vte'))
+cdata.set('HAVE_PLUGINS', get_option('plugins'))
 
 git = find_program('git')
 ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
@@ -86,7 +86,7 @@ configure_file(input: 'geany.pc.in',
                configuration: cdata)
 
 # CFLAGS for basic stuff that only depends on libc
-basic_cflags  = [ '-DHAVE_CONFIG_H=1' ]
+basic_cflags  = [ '-DHAVE_CONFIG_H=1', '-O2' ]
 if cdata.get('HAVE_GNU_GET_LIBC_VERSION')
     basic_cflags += '-D_GNU_SOURCE'
 endif
