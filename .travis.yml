@@ -1,7 +1,7 @@
 # we use both C and C++, so advertize C++
 language: cpp
 cache: ccache
-dist: trusty
+dist: bionic
 compiler:
   - gcc
 env:
@@ -11,6 +11,7 @@ env:
   - GTK2=yes BINRELOC=yes
   - GTK2=no MINGW=yes
   - GTK2=yes MINGW=yes
+  - MESON=yes
 before_install:
   - sudo apt-get update -qq
 install:
@@ -32,6 +33,9 @@ script:
       arg=-3; [ "$GTK2" = yes ] && arg=-2;
       unset CC CXX;
       sh ./scripts/cross-build-mingw.sh $arg;
+    elif [ -n "$MESON" ]; then
+      meson _build
+      ninja -C _build
     else
       CONFIGURE_FLAGS="--enable-gtk2=$GTK2 --enable-binreloc=$BINRELOC";
       mkdir _build                        &&
