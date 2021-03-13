@@ -1,7 +1,8 @@
-project('geany', 'c', 'cpp', version: '1.32')
+project('geany', 'c', 'cpp', version: '1.38')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
+prefix = get_option('prefix')
 
 deps_in = [
 	['glib-2.0',    '2.32'],
@@ -18,37 +19,11 @@ endforeach
 
 glib = deps[0]
 
-def_cflags  = [ '-DHAVE_CONFIG_H=1', '-DGTK' ]
-def_cflags += '-Wno-deprecated-declarations'
-
-# some -Dxxx also should be available to plugins
-prefix = get_option('prefix')
-def_cflags += '-DGEANY_PREFIX="@0@"'.format(get_option('prefix'))
-foreach d : [ 'includedir', 'libdir', 'libexecdir', 'datadir', 'localedir' ]
-  def_cflags += '-DGEANY_@0@="@1@"'.format(d.underscorify().to_upper(), join_paths(prefix, get_option(d)))
-endforeach
-def_cflags += '-DGEANY_DOCDIR="@0@"'.format(join_paths(prefix, get_option('datadir'), 'doc'))
-
-geany_cflags = def_cflags
-have_gcc4_visibility = cc.has_argument('-fvisibility=hidden')
-geany_cflags += '-DGEANY_PRIVATE'
-if target_machine.system() == 'windows'
-  geany_cflags += '-DGEANY_EXPORT_SYMBOL="__declspec(dllexport)"'
-elif have_gcc4_visibility
-  geany_cflags += '-fvisibility=hidden'
-  geany_cflags += '-DGEANY_EXPORT_SYMBOL=__attribute__((visibility("default")))'
-endif
-geany_cflags += '-DGEANY_API_SYMBOL=GEANY_EXPORT_SYMBOL'
-geany_cflags += '-DHAVE_REGCOMP' # Should always be 1, required for CTags.
-geany_cflags += '-DHAVE_PLUGINS' # TODO: configurable
-
-
 cdata = configuration_data()
 check_headers = [
   'dlfcn.h',
   'errno.h',
   'fcntl.h',
-  'fnmatch.h',
   'glob.h',
   'inttypes.h',
   'limits.h',
@@ -58,6 +33,7 @@ check_headers = [
   'stdlib.h',
   'strings.h',
   'string.h',
+  'stdbool.h',
   'sys/stat.h',
   'sys/time.h',
   'sys/types.h',
@@ -65,35 +41,24 @@ check_headers = [
 ]
 
 check_functions = [
-# check token ('HAVE_BIND_TEXTDOMAIN_CODESET',)
-# check token ('HAVE_CFLOCALECOPYCURRENT',)
-# check token ('HAVE_CFPREFERENCESCOPYAPPVALUE',)
-# check token ('HAVE_CXX11',)
-  ['HAVE_DCGETTEXT', 'dcgettext', '#include <libintl.h>'],
-  ['HAVE_FGETPOS', 'fgetpos', '#include <stdio.h>'],
-# check token ('HAVE_FNMATCH',)
-  ['HAVE_FTRUNCATE', 'ftruncate', '#include<unistd.h>'],
-# check token ('HAVE_GETTEXT',)
-# check token ('HAVE_LC_MESSAGES',)
-# check token ('HAVE_MKSTEMP',)
-# check token ('HAVE_PLUGINS',)
-  ['HAVE_SOCKET', 'socket', '#include<sys/socket.h>'],
-  ['HAVE_STRERROR', 'strerror', '#include<string.h>'],
-  ['HAVE_STRSTR', 'strstr', '#include<string.h>'],
-# check token ('HAVE_VTE',)
+  ['gnu_get_libc_version', '#include<gnu/libc-version.h>'],
+  ['fnmatch', '#include <fnmatch.h>'],
+  ['ftruncate', '#include <unistd.h>'],
+  ['mkstemp', '#include <stdlib.h>'],
+  ['regcomp', '#include <regex.h>'],
+  ['socket', '#include <sys/socket.h>'],
+  ['strerror', '#include <string.h>'],
+  ['strstr', '#include <string.h>'],
 ]
 
 foreach h : check_headers
-  if cc.has_header(h)
-    define = 'HAVE_' + h.underscorify().to_upper()
-    cdata.set(define, 1)
-  endif
+  define = 'HAVE_' + h.underscorify().to_upper()
+  cdata.set(define, cc.has_header(h))
 endforeach
 
 foreach f : check_functions
-  if cc.has_function(f.get(1), prefix : f.get(2))
-    cdata.set(f.get(0), 1)
-  endif
+  define = 'HAVE_' + f.get(0).underscorify().to_upper()
+  cdata.set(define, cc.has_function(f.get(0), prefix : f.get(1)))
 endforeach
 
 cdata.set_quoted('PACKAGE', 'geany')
@@ -102,9 +67,9 @@ cdata.set_quoted('PACKAGE_NAME','Geany')
 cdata.set_quoted('PACKAGE_STRING', 'Geany ' + meson.project_version())
 cdata.set_quoted('PACKAGE_VERSION', meson.project_version())
 cdata.set('GETTEXT_PACKAGE', 'PACKAGE')
-cdata.set('ENABLE_NLS', 1)
-cdata.set('USE_STDBOOL_H', 1)
-cdata.set('CTAGS_LIB', 1)
+cdata.set('ENABLE_NLS', true)
+cdata.set('HAVE_VTE', get_option('vte').enabled())
+cdata.set('HAVE_PLUGINS', get_option('plugins').enabled())
 
 git = find_program('git')
 ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
@@ -120,53 +85,40 @@ configure_file(input: 'geany.pc.in',
                output: 'geany.pc',
                configuration: cdata)
 
+# CFLAGS for basic stuff that only depends on libc
+basic_cflags  = [ '-DHAVE_CONFIG_H=1' ]
+if cdata.get('HAVE_GNU_GET_LIBC_VERSION')
+    basic_cflags += '-D_GNU_SOURCE'
+endif
+
+# CFLAGS common between Geany and bundled plugins
+def_cflags = basic_cflags + [ '-DGTK' ]
+def_cflags += '-Wno-deprecated-declarations'
+def_cflags += '-DGEANY_PREFIX="@0@"'.format(get_option('prefix'))
+foreach d : [ 'includedir', 'libdir', 'libexecdir', 'datadir', 'localedir' ]
+  def_cflags += '-DGEANY_@0@="@1@"'.format(d.underscorify().to_upper(), join_paths(prefix, get_option(d)))
+endforeach
+def_cflags += '-DGEANY_DOCDIR="@0@"'.format(join_paths(prefix, get_option('datadir'), 'doc'))
+
+# CFLAGS for everything else, i.e. most of Geany
+geany_cflags = def_cflags
+have_gcc4_visibility = cc.has_argument('-fvisibility=hidden')
+geany_cflags += '-DGEANY_PRIVATE'
+if target_machine.system() == 'windows'
+  geany_cflags += '-DGEANY_EXPORT_SYMBOL="__declspec(dllexport)"'
+elif have_gcc4_visibility
+  geany_cflags += '-fvisibility=hidden'
+  geany_cflags += '-DGEANY_EXPORT_SYMBOL=__attribute__((visibility("default")))'
+endif
+geany_cflags += '-DGEANY_API_SYMBOL=GEANY_EXPORT_SYMBOL'
+
+iregex = include_directories('ctags/gnu_regex')
+ifnmatch = include_directories('ctags/fnmatch')
 ictags = include_directories('ctags/main', 'ctags/parsers')
 itagmanager = include_directories('src/tagmanager')
 iscintilla = include_directories('scintilla/include')
 
 scintilla = static_library('scintilla',
-    'scintilla/lexers/LexAbaqus.cxx',
-    'scintilla/lexers/LexAda.cxx',
-    'scintilla/lexers/LexAsm.cxx',
-    'scintilla/lexers/LexBash.cxx',
-    'scintilla/lexers/LexBasic.cxx',
-    'scintilla/lexers/LexBatch.cxx',
-    'scintilla/lexers/LexCOBOL.cxx',
-    'scintilla/lexers/LexCPP.cxx',
-    'scintilla/lexers/LexCSS.cxx',
-    'scintilla/lexers/LexCaml.cxx',
-    'scintilla/lexers/LexCmake.cxx',
-    'scintilla/lexers/LexCoffeeScript.cxx',
-    'scintilla/lexers/LexD.cxx',
-    'scintilla/lexers/LexDiff.cxx',
-    'scintilla/lexers/LexErlang.cxx',
-    'scintilla/lexers/LexForth.cxx',
-    'scintilla/lexers/LexFortran.cxx',
-    'scintilla/lexers/LexHTML.cxx',
-    'scintilla/lexers/LexHaskell.cxx',
-    'scintilla/lexers/LexLaTeX.cxx',
-    'scintilla/lexers/LexLisp.cxx',
-    'scintilla/lexers/LexLua.cxx',
-    'scintilla/lexers/LexMake.cxx',
-    'scintilla/lexers/LexMarkdown.cxx',
-    'scintilla/lexers/LexMatlab.cxx',
-    'scintilla/lexers/LexNsis.cxx',
-    'scintilla/lexers/LexNull.cxx',
-    'scintilla/lexers/LexPascal.cxx',
-    'scintilla/lexers/LexPerl.cxx',
-    'scintilla/lexers/LexPowerShell.cxx',
-    'scintilla/lexers/LexProps.cxx',
-    'scintilla/lexers/LexPython.cxx',
-    'scintilla/lexers/LexPO.cxx',
-    'scintilla/lexers/LexR.cxx',
-    'scintilla/lexers/LexRuby.cxx',
-    'scintilla/lexers/LexRust.cxx',
-    'scintilla/lexers/LexSQL.cxx',
-    'scintilla/lexers/LexTCL.cxx',
-    'scintilla/lexers/LexTxt2tags.cxx',
-    'scintilla/lexers/LexVHDL.cxx',
-    'scintilla/lexers/LexVerilog.cxx',
-    'scintilla/lexers/LexYAML.cxx',
     'scintilla/gtk/Converter.h',
     'scintilla/gtk/PlatGTK.cxx',
     'scintilla/gtk/ScintillaGTK.cxx',
@@ -177,6 +129,7 @@ scintilla = static_library('scintilla',
     'scintilla/gtk/scintilla-marshal.h',
     'scintilla/lexlib/Accessor.cxx',
     'scintilla/lexlib/Accessor.h',
+    'scintilla/lexlib/CatalogueModules.h',
     'scintilla/lexlib/CharacterCategory.cxx',
     'scintilla/lexlib/CharacterCategory.h',
     'scintilla/lexlib/CharacterSet.cxx',
@@ -271,6 +224,49 @@ scintilla = static_library('scintilla',
     'scintilla/src/ViewStyle.h',
     'scintilla/src/XPM.cxx',
     'scintilla/src/XPM.h',
+    'scintilla/lexers/LexAbaqus.cxx',
+    'scintilla/lexers/LexAda.cxx',
+    'scintilla/lexers/LexAsm.cxx',
+    'scintilla/lexers/LexBash.cxx',
+    'scintilla/lexers/LexBasic.cxx',
+    'scintilla/lexers/LexBatch.cxx',
+    'scintilla/lexers/LexCOBOL.cxx',
+    'scintilla/lexers/LexCPP.cxx',
+    'scintilla/lexers/LexCSS.cxx',
+    'scintilla/lexers/LexCaml.cxx',
+    'scintilla/lexers/LexCmake.cxx',
+    'scintilla/lexers/LexCoffeeScript.cxx',
+    'scintilla/lexers/LexD.cxx',
+    'scintilla/lexers/LexDiff.cxx',
+    'scintilla/lexers/LexErlang.cxx',
+    'scintilla/lexers/LexForth.cxx',
+    'scintilla/lexers/LexFortran.cxx',
+    'scintilla/lexers/LexHTML.cxx',
+    'scintilla/lexers/LexHaskell.cxx',
+    'scintilla/lexers/LexLaTeX.cxx',
+    'scintilla/lexers/LexLisp.cxx',
+    'scintilla/lexers/LexLua.cxx',
+    'scintilla/lexers/LexMake.cxx',
+    'scintilla/lexers/LexMarkdown.cxx',
+    'scintilla/lexers/LexMatlab.cxx',
+    'scintilla/lexers/LexNsis.cxx',
+    'scintilla/lexers/LexNull.cxx',
+    'scintilla/lexers/LexPascal.cxx',
+    'scintilla/lexers/LexPerl.cxx',
+    'scintilla/lexers/LexPowerShell.cxx',
+    'scintilla/lexers/LexProps.cxx',
+    'scintilla/lexers/LexPython.cxx',
+    'scintilla/lexers/LexPO.cxx',
+    'scintilla/lexers/LexR.cxx',
+    'scintilla/lexers/LexRuby.cxx',
+    'scintilla/lexers/LexRust.cxx',
+    'scintilla/lexers/LexSmalltalk.cxx',
+    'scintilla/lexers/LexSQL.cxx',
+    'scintilla/lexers/LexTCL.cxx',
+    'scintilla/lexers/LexTxt2tags.cxx',
+    'scintilla/lexers/LexVHDL.cxx',
+    'scintilla/lexers/LexVerilog.cxx',
+    'scintilla/lexers/LexYAML.cxx',
     cpp_args: geany_cflags + [ '-Wno-non-virtual-dtor', '-DNDEBUG', '-DSCI_LEXER', '-DNO_CXX11_REGEX' ],
     dependencies: deps,
     include_directories: [iscintilla,
@@ -281,86 +277,79 @@ scintilla = static_library('scintilla',
 dep_scintilla = declare_dependency(link_with: scintilla,
                                    include_directories: include_directories('scintilla/include'))
 
+if cdata.get('HAVE_REGCOMP')
+    dep_regex = dependency('', required: false)
+else
+    # use regcomp bundled with ctags
+    regex = static_library('regex',
+        'ctags/gnu_regex/regex.c',
+        'ctags/gnu_regex/regex.h',
+        c_args: basic_cflags
+    )
+    dep_regex = declare_dependency(link_with: [regex], include_directories: [iregex])
+endif
+
+if cdata.get('HAVE_FNMATCH')
+    dep_fnmatch = dependency('', required: false)
+else
+    # use fnmatch bundled with ctags
+    fnmatch = static_library('fnmatch',
+        'ctags/fnmatch/fnmatch.c',
+        'ctags/fnmatch/fnmatch.h',
+        c_args: basic_cflags
+    )
+    dep_fnmatch = declare_dependency(link_with: [fnmatch], include_directories: [ifnmatch])
+endif
+
 ctags = static_library('ctags',
-    'ctags/parsers/abaqus.c',
-    'ctags/parsers/abc.c',
-    'ctags/parsers/asciidoc.c',
-    'ctags/parsers/asm.c',
-    'ctags/parsers/basic.c',
-    'ctags/parsers/c.c',
-    'ctags/parsers/cobol.c',
-    'ctags/parsers/iniconf.c',
-    'ctags/parsers/css.c',
-    'ctags/parsers/diff.c',
-    'ctags/parsers/docbook.c',
-    'ctags/parsers/erlang.c',
-    'ctags/parsers/flex.c',
-    'ctags/parsers/fortran.c',
-    'ctags/parsers/go.c',
-    'ctags/parsers/haskell.c',
-    'ctags/parsers/haxe.c',
-    'ctags/parsers/html.c',
-    'ctags/parsers/jscript.c',
-    'ctags/parsers/json.c',
-    'ctags/parsers/lua.c',
-    'ctags/parsers/make.c',
-    'ctags/parsers/markdown.c',
-    'ctags/parsers/matlab.c',
-    'ctags/parsers/nsis.c',
-    'ctags/parsers/objc.c',
-    'ctags/parsers/pascal.c',
-    'ctags/parsers/perl.c',
-    'ctags/parsers/php.c',
-    'ctags/parsers/powershell.c',
-    'ctags/parsers/python.c',
-    'ctags/parsers/r.c',
-    'ctags/parsers/rst.c',
-    'ctags/parsers/ruby.c',
-    'ctags/parsers/rust.c',
-    'ctags/parsers/sh.c',
-    'ctags/parsers/sql.c',
-    'ctags/parsers/tcl.c',
-    'ctags/parsers/tex.c',
-    'ctags/parsers/txt2tags.c',
-    'ctags/parsers/verilog.c',
-    'ctags/parsers/vhdl.c',
     'ctags/main/args.c',
-    'ctags/main/args.h',
+    'ctags/main/args_p.h',
+    'ctags/main/colprint.c',
+    'ctags/main/colprint_p.h',
     'ctags/main/ctags.h',
-    'ctags/main/ctags-api.c',
-    'ctags/main/ctags-api.h',
-    'ctags/main/debug.h',
     'ctags/main/debug.c',
-    'ctags/main/dependency.h',
+    'ctags/main/debug.h',
     'ctags/main/dependency.c',
+    'ctags/main/dependency.h',
+    'ctags/main/dependency_p.h',
     'ctags/main/e_msoft.h',
     'ctags/main/entry.c',
     'ctags/main/entry.h',
+    'ctags/main/entry_p.h',
+    'ctags/main/entry_private.c',
     'ctags/main/error.c',
-    'ctags/main/error.h',
+    'ctags/main/error_p.h',
     'ctags/main/field.c',
     'ctags/main/field.h',
+    'ctags/main/field_p.h',
     'ctags/main/flags.c',
-    'ctags/main/flags.h',
+    'ctags/main/flags_p.h',
     'ctags/main/fmt.c',
-    'ctags/main/fmt.h',
+    'ctags/main/fmt_p.h',
     'ctags/main/gcc-attr.h',
     'ctags/main/general.h',
+    'ctags/main/gvars.h',
     'ctags/main/htable.c',
     'ctags/main/htable.h',
     'ctags/main/inline.h',
+    'ctags/main/interactive_p.h',
     'ctags/main/keyword.c',
     'ctags/main/keyword.h',
+    'ctags/main/keyword_p.h',
     'ctags/main/kind.c',
     'ctags/main/kind.h',
-    'ctags/main/lcpp.c',
-    'ctags/main/lcpp.h',
+    'ctags/main/kind_p.h',
     'ctags/main/lregex.c',
-    'ctags/main/lxcmd.c',
+    'ctags/main/lregex.h',
+    'ctags/main/lregex_p.h',
     'ctags/main/lxpath.c',
+    'ctags/main/lxpath.h',
+    'ctags/main/lxpath_p.h',
     'ctags/main/main.c',
-    'ctags/main/main.h',
+    'ctags/main/main_p.h',
+    'ctags/main/mbcs.c',
     'ctags/main/mbcs.h',
+    'ctags/main/mbcs_p.h',
     'ctags/main/mio.c',
     'ctags/main/mio.h',
     'ctags/main/nestlevel.c',
@@ -371,50 +360,128 @@ ctags = static_library('ctags',
     'ctags/main/objpool.h',
     'ctags/main/options.c',
     'ctags/main/options.h',
-    'ctags/main/output-ctags.c',
-    'ctags/main/output.h',
+    'ctags/main/options_p.h',
+    'ctags/main/param.c',
+    'ctags/main/param.h',
+    'ctags/main/param_p.h',
     'ctags/main/parse.c',
     'ctags/main/parse.h',
-    'ctags/main/parsers.h',
-    'ctags/main/pcoproc.c',
-    'ctags/main/pcoproc.h',
+    'ctags/main/parse_p.h',
+    'ctags/main/parsers_p.h',
+    'ctags/main/portable-dirent_p.h',
+    'ctags/main/portable-scandir.c',
     'ctags/main/promise.c',
     'ctags/main/promise.h',
+    'ctags/main/promise_p.h',
     'ctags/main/ptag.c',
-    'ctags/main/ptag.h',
+    'ctags/main/ptag_p.h',
     'ctags/main/ptrarray.c',
     'ctags/main/ptrarray.h',
+    'ctags/main/rbtree.c',
+    'ctags/main/rbtree.h',
     'ctags/main/read.c',
     'ctags/main/read.h',
+    'ctags/main/read_p.h',
     'ctags/main/repoinfo.c',
     'ctags/main/repoinfo.h',
     'ctags/main/routines.c',
     'ctags/main/routines.h',
+    'ctags/main/routines_p.h',
+    'ctags/main/seccomp.c',
     'ctags/main/selectors.c',
     'ctags/main/selectors.h',
     'ctags/main/sort.c',
-    'ctags/main/sort.h',
+    'ctags/main/sort_p.h',
+    'ctags/main/stats.c',
+    'ctags/main/stats_p.h',
     'ctags/main/strlist.c',
     'ctags/main/strlist.h',
+    'ctags/main/subparser.h',
+    'ctags/main/subparser_p.h',
+    'ctags/main/tokeninfo.c',
+    'ctags/main/tokeninfo.h',
+    'ctags/main/trace.c',
     'ctags/main/trace.h',
     'ctags/main/trashbox.c',
     'ctags/main/trashbox.h',
+    'ctags/main/trashbox_p.h',
     'ctags/main/types.h',
+    'ctags/main/unwindi.c',
+    'ctags/main/unwindi.h',
     'ctags/main/vstring.c',
     'ctags/main/vstring.h',
-    'ctags/main/xtag.h',
+    'ctags/main/writer-ctags.c',
+    'ctags/main/writer-etags.c',
+    'ctags/main/writer-json.c',
+    'ctags/main/writer-xref.c',
+    'ctags/main/writer.c',
+    'ctags/main/writer_p.h',
     'ctags/main/xtag.c',
-    c_args: geany_cflags,
-    dependencies: deps,
+    'ctags/main/xtag.h',
+    'ctags/main/xtag_p.h',
+    'ctags/parsers/geany_abaqus.c',
+    'ctags/parsers/geany_abc.c',
+    'ctags/parsers/geany_asciidoc.c',
+    'ctags/parsers/geany_asm.c',
+    'ctags/parsers/geany_basic.c',
+    'ctags/parsers/geany_bibtex.c',
+    'ctags/parsers/geany_c.c',
+    'ctags/parsers/geany_cobol.c',
+    'ctags/parsers/geany_iniconf.c',
+    'ctags/parsers/geany_css.c',
+    'ctags/parsers/geany_diff.c',
+    'ctags/parsers/geany_docbook.c',
+    'ctags/parsers/geany_erlang.c',
+    'ctags/parsers/geany_flex.c',
+    'ctags/parsers/geany_fortran.c',
+    'ctags/parsers/geany_go.c',
+    'ctags/parsers/geany_haskell.c',
+    'ctags/parsers/geany_haxe.c',
+    'ctags/parsers/geany_html.c',
+    'ctags/parsers/geany_jscript.c',
+    'ctags/parsers/geany_json.c',
+    'ctags/parsers/geany_lcpp.c',
+    'ctags/parsers/geany_lcpp.h',
+    'ctags/parsers/geany_lua.c',
+    'ctags/parsers/geany_make.c',
+    'ctags/parsers/geany_markdown.c',
+    'ctags/parsers/geany_matlab.c',
+    'ctags/parsers/geany_nsis.c',
+    'ctags/parsers/geany_objc.c',
+    'ctags/parsers/geany_pascal.c',
+    'ctags/parsers/geany_perl.c',
+    'ctags/parsers/geany_php.c',
+    'ctags/parsers/geany_powershell.c',
+    'ctags/parsers/geany_python.c',
+    'ctags/parsers/geany_r.c',
+    'ctags/parsers/geany_rst.c',
+    'ctags/parsers/geany_ruby.c',
+    'ctags/parsers/geany_rust.c',
+    'ctags/parsers/geany_sh.c',
+    'ctags/parsers/geany_sql.c',
+    'ctags/parsers/geany_tcl.c',
+    'ctags/parsers/geany_tex.c',
+    'ctags/parsers/geany_txt2tags.c',
+    'ctags/parsers/geany_verilog.c',
+    'ctags/parsers/geany_vhdl.c',
+    c_args: geany_cflags + [ '-DEXTERNAL_PARSER_LIST_FILE="src/tagmanager/tm_parsers.h"' ],
+    dependencies: deps + [dep_fnmatch],
     include_directories: [ictags]
 )
 dep_ctags = declare_dependency(link_with: [ctags], include_directories: [ictags])
 
 tagmanager = static_library('tagmanager',
-    'src/tagmanager/tm_tag.c',
+    'src/tagmanager/tm_ctags.h',
+    'src/tagmanager/tm_ctags.c',
+    'src/tagmanager/tm_parser.h',
     'src/tagmanager/tm_parser.c',
-    'src/tagmanager/tm_workspace.c',
+    'src/tagmanager/tm_parsers.h',
+    'src/tagmanager/tm_source_file.h',
     'src/tagmanager/tm_source_file.c',
+    'src/tagmanager/tm_tag.h',
+    'src/tagmanager/tm_tag.c',
+    'src/tagmanager/tm_workspace.h',
+    'src/tagmanager/tm_workspace.c',
     c_args: geany_cflags,
     dependencies: [dep_ctags, glib])
 dep_tagmanager = declare_dependency(link_with: tagmanager, include_directories: [itagmanager])
@@ -428,48 +495,86 @@ gen_src = custom_target('gen-signallist',
 
 libgeany = shared_library('geany',
     'src/about.c',
+    'src/about.h',
+    'src/app.h',
     'src/build.c',
+    'src/build.h',
     'src/callbacks.c',
+    'src/callbacks.h',
     'src/dialogs.c',
+    'src/dialogs.h',
     'src/document.c',
+    'src/document.h',
     'src/editor.c',
+    'src/editor.h',
     'src/encodings.c',
+    'src/encodings.h',
     'src/filetypes.c',
-    'src/gb.c',
+    'src/filetypes.h',
     'src/geanyentryaction.c',
+    'src/geanyentryaction.h',
     'src/geanymenubuttonaction.c',
+    'src/geanymenubuttonaction.h',
     'src/geanyobject.c',
+    'src/geanyobject.h',
     'src/geanywraplabel.c',
+    'src/geanywraplabel.h',
+    'src/gtkcompat.h',
     'src/highlighting.c',
+    'src/highlighting.h',
+    'src/highlightingmappings.h',
     'src/keybindings.c',
+    'src/keybindings.h',
     'src/keyfile.c',
-    'src/libmain.c',
+    'src/keyfile.h',
     'src/log.c',
-    'src/main.c',
+    'src/log.h',
+    'src/libmain.c',
+    'src/main.h',
+    'src/geany.h',
     'src/msgwindow.c',
+    'src/msgwindow.h',
     'src/navqueue.c',
+    'src/navqueue.h',
     'src/notebook.c',
-    'src/osx.c',
+    'src/notebook.h',
     'src/plugins.c',
+    'src/plugins.h',
     'src/pluginutils.c',
-    'src/prefix.c',
+    'src/pluginutils.h',
     'src/prefs.c',
+    'src/prefs.h',
     'src/printing.c',
+    'src/printing.h',
     'src/project.c',
+    'src/project.h',
     'src/sciwrappers.c',
+    'src/sciwrappers.h',
     'src/search.c',
-    'src/sidebar.c',
+    'src/search.h',
     'src/socket.c',
+    'src/socket.h',
     'src/spawn.c',
+    'src/spawn.h',
     'src/stash.c',
+    'src/stash.h',
+    'src/support.h',
     'src/symbols.c',
+    'src/symbols.h',
     'src/templates.c',
+    'src/templates.h',
     'src/toolbar.c',
+    'src/toolbar.h',
     'src/tools.c',
+    'src/tools.h',
+    'src/sidebar.c',
+    'src/sidebar.h',
     'src/ui_utils.c',
+    'src/ui_utils.h',
     'src/utils.c',
+    'src/utils.h',
     'src/vte.c',
-    'src/win32.c',
+    'src/vte.h',
     gen_src,
     soversion: '0',
     c_args: geany_cflags,
