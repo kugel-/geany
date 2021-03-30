@@ -71,6 +71,19 @@ cdata.set('ENABLE_NLS', true)
 cdata.set('HAVE_VTE', get_option('vte'))
 cdata.set('HAVE_PLUGINS', get_option('plugins'))
 
+# mainly for geany.pc
+cdata.set('DEPENDENCIES', deps_for_pc)
+cdata.set('prefix', get_option('prefix'))
+cdata.set('libdir', get_option('libdir'))
+cdata.set('includedir', get_option('includedir'))
+cdata.set('datadir', get_option('datadir'))
+cdata.set('localedir', get_option('localedir'))
+# meson does not support the next two but we don't have a use-case
+# for setting either differently than the fallback
+cdata.set('exec_prefix', get_option('prefix'))
+cdata.set('datarootdir', get_option('datadir'))
+
+
 git = find_program('git')
 ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
 cdata.set_quoted('REVISION', ret.stdout().strip())
