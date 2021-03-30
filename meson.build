@@ -598,7 +598,7 @@ libgeany = shared_library('geany',
 executable('geany', 'src/main.c',
             link_with: libgeany,
             c_args: geany_cflags,
-            dependencies: [dep_ctags] + deps,
+            dependencies: deps,
             build_rpath: meson.build_root(),
             install_rpath: get_option('libdir'),
             install: true)
