@@ -1,7 +1,3 @@
-
-cc = meson.get_compiler('c')
-cxx = meson.get_compiler('cpp')
-
 plugin_inc = [include_directories('..', '../src', '../src/tagmanager')]
 plugin_inc += iscintilla
 
@@ -12,8 +8,6 @@ plugins += 'Export'
 plugins += 'SaveActions'
 plugins += 'FileBrowser'
 plugins += 'SplitWindow'
-
-#, 'Demoproxy', 'Classbuilder', 'HTMLChars', 
 
 foreach plugin : plugins
     id = plugin.to_lower()
