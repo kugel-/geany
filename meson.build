@@ -600,7 +600,7 @@ executable('geany', 'src/main.c',
             c_args: geany_cflags,
             dependencies: [dep_ctags] + deps,
             build_rpath: meson.build_root(),
-            install_rpath: join_paths(prefix, 'lib'),
+            install_rpath: get_option('libdir'),
             install: true)
 
 
