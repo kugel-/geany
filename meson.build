@@ -624,7 +624,7 @@ extra_data = [['COPYING', 'GPL-2']]
 if host_machine.system() == 'windows'
 extra_data += [['AUTHORS', 'Authors.txt']]
 extra_data += [['ChangeLog', 'Changelog.txt']]
-extra_data += [['COPYING', 'Copying.txt']]
+#extra_data += [['COPYING', 'Copying.txt']]
 extra_data += [['README', 'Readme.txt']]
 extra_data += [['NEWS', 'News.txt']]
 extra_data += [['THANKS', 'Thanks.txt']]
