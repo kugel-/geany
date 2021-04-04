@@ -72,18 +72,18 @@ cdata.set('HAVE_VTE', get_option('vte'))
 cdata.set('HAVE_PLUGINS', get_option('plugins'))
 cdata.set('GEANY_DATA_DIR', join_paths(prefix, get_option('datadir'), 'geany'))
 
-# mainly for geany.pc
-cdata.set('DEPENDENCIES', deps_for_pc)
-cdata.set('prefix', get_option('prefix'))
-cdata.set('libdir', get_option('libdir'))
-cdata.set('includedir', get_option('includedir'))
-cdata.set('datadir', get_option('datadir'))
-cdata.set('localedir', get_option('localedir'))
-# meson does not support the next two but we don't have a use-case
-# for setting either differently than the fallback
-cdata.set('exec_prefix', get_option('prefix'))
-cdata.set('datarootdir', get_option('datadir'))
-
+# for geany.pc (adapted from GTK+)
+pcconf = configuration_data()
+pcconf.set('DEPENDENCIES', deps_for_pc)
+pcconf.set('VERSION', meson.project_version())
+pcconf.set('prefix', get_option('prefix'))
+pcconf.set('libdir', join_paths('${exec_prefix}', get_option('libdir')))
+pcconf.set('includedir', join_paths('${prefix}', get_option('includedir')))
+pcconf.set('datarootdir', join_paths('${prefix}', get_option('datadir')))
+# actually constant, just match autconf
+pcconf.set('exec_prefix', '${prefix}')
+pcconf.set('datadir', '${datarootdir}')
+pcconf.set('localedir', join_paths('${datarootdir}', 'locale'))
 
 git = find_program('git')
 ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
@@ -97,7 +97,7 @@ configure_file(input: 'geany.pc.in',
                install: true,
                install_dir: join_paths(prefix, 'lib', 'pkgconfig'),
                output: 'geany.pc',
-               configuration: cdata)
+               configuration: pcconf)
 
 # CFLAGS for basic stuff that only depends on libc
 basic_cflags  = [ '-DHAVE_CONFIG_H=1', '-O2' ]
