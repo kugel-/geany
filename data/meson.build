@@ -1,9 +1,7 @@
-geany_datadir = join_paths(get_option('datadir'), 'geany')
-
-install_subdir('filedefs',     install_dir: geany_datadir)
-install_subdir('templates',    install_dir: geany_datadir)
-install_subdir('tags',         install_dir: geany_datadir)
-install_subdir('colorschemes', install_dir: geany_datadir)
+install_subdir('filedefs',     install_dir: cdata.get('GEANY_DATA_DIR'))
+install_subdir('templates',    install_dir: cdata.get('GEANY_DATA_DIR'))
+install_subdir('tags',         install_dir: cdata.get('GEANY_DATA_DIR'))
+install_subdir('colorschemes', install_dir: cdata.get('GEANY_DATA_DIR'))
 
 misc = [
     'filetype_extensions.conf',
@@ -14,4 +12,4 @@ misc = [
     'geany-3.20.css',
     'geany.css',
 ]
-install_data(sources: misc, install_dir: geany_datadir)
+install_data(sources: misc, install_dir: cdata.get('GEANY_DATA_DIR'))

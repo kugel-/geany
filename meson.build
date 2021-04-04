@@ -70,6 +70,7 @@ cdata.set('GETTEXT_PACKAGE', 'PACKAGE')
 cdata.set('ENABLE_NLS', true)
 cdata.set('HAVE_VTE', get_option('vte'))
 cdata.set('HAVE_PLUGINS', get_option('plugins'))
+cdata.set('GEANY_DATA_DIR', join_paths(prefix, get_option('datadir'), 'geany'))
 
 # mainly for geany.pc
 cdata.set('DEPENDENCIES', deps_for_pc)
@@ -617,6 +618,7 @@ i18n.merge_file(
 
 subdir('po')
 subdir('data')
+subdir('doc')
 subdir('plugins')
 
 sh = find_program('sh')
