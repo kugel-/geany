@@ -132,6 +132,15 @@ ictags = include_directories('ctags/main', 'ctags/parsers')
 itagmanager = include_directories('src/tagmanager')
 iscintilla = include_directories('scintilla/include')
 
+install_headers(
+    'scintilla/include/Compat.h',
+    'scintilla/include/SciLexer.h',
+    'scintilla/include/Scintilla.h',
+    'scintilla/include/Scintilla.iface',
+    'scintilla/include/ScintillaWidget.h',
+    'scintilla/include/Sci_Position.h',
+    subdir: 'geany/scintilla')
+
 scintilla = static_library('scintilla',
     'scintilla/gtk/Converter.h',
     'scintilla/gtk/PlatGTK.cxx',
@@ -484,6 +493,13 @@ ctags = static_library('ctags',
 )
 dep_ctags = declare_dependency(link_with: [ctags], include_directories: [ictags])
 
+install_headers(
+    'src/tagmanager/tm_source_file.h',
+    'src/tagmanager/tm_tag.h',
+    'src/tagmanager/tm_workspace.h',
+    'src/tagmanager/tm_parser.h',
+    subdir: 'geany/tagmanager'
+)
 tagmanager = static_library('tagmanager',
     'src/tagmanager/tm_ctags.h',
     'src/tagmanager/tm_ctags.c',
@@ -506,6 +522,39 @@ gen_src = custom_target('gen-signallist',
                         input : [ 'scripts/gen-signallist.sh', 'data/geany.glade' ],
                         output : [ 'signallist.i' ],
                         command : [sh, '@INPUT0@', '@INPUT1@', '@OUTPUT@' ])
+
+install_headers(
+    'plugins/geanyfunctions.h',
+    'plugins/geanyplugin.h',
+    'src/app.h',
+    'src/build.h',
+    'src/dialogs.h',
+    'src/document.h',
+    'src/editor.h',
+    'src/encodings.h',
+    'src/filetypes.h',
+    'src/geany.h',
+    'src/gtkcompat.h',
+    'src/highlighting.h',
+    'src/keybindings.h',
+    'src/main.h',
+    'src/msgwindow.h',
+    'src/navqueue.h',
+    'src/plugindata.h',
+    'src/pluginutils.h',
+    'src/prefs.h',
+    'src/project.h',
+    'src/sciwrappers.h',
+    'src/search.h',
+    'src/spawn.h',
+    'src/stash.h',
+    'src/support.h',
+    'src/symbols.h',
+    'src/templates.h',
+    'src/toolbar.h',
+    'src/ui_utils.h',
+    'src/utils.h',
+    subdir: 'geany')
 
 libgeany = shared_library('geany',
     'src/about.c',
