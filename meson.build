@@ -73,8 +73,8 @@ cdata.set('HAVE_VTE', get_option('vte'))
 cdata.set('HAVE_PLUGINS', get_option('plugins'))
 cdata.set('GEANY_DATA_DIR', join_paths(prefix, get_option('datadir'), 'geany'))
 cdata.set('GEANY_DOC_DIR', join_paths(prefix, get_option('datadir'), 'doc', 'geany'))
-cdata.set('top_srcdir', meson.project_source_root())
-cdata.set('top_builddir', meson.project_build_root())
+cdata.set('top_srcdir', meson.source_root())
+cdata.set('top_builddir', meson.build_root())
 
 # for geany.pc (adapted from GTK+)
 pcconf = cdata
