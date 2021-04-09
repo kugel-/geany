@@ -16,7 +16,7 @@ foreach plugin : plugins
                   link_with: libgeany,
                   include_directories: plugin_inc,
                   c_args: [def_cflags, '-DG_LOG_DOMAIN="'+plugin+'"'],
-                  dependencies: deps,
+                  dependencies: [deps, dep_libgeany],
                   install_dir: join_paths(prefix, get_option('libdir'), 'geany'),
                   install: not skip_install)
 endforeach

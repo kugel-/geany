@@ -72,6 +72,9 @@ cdata.set('ENABLE_NLS', true)
 cdata.set('HAVE_VTE', get_option('vte'))
 cdata.set('HAVE_PLUGINS', get_option('plugins'))
 cdata.set('GEANY_DATA_DIR', join_paths(prefix, get_option('datadir'), 'geany'))
+cdata.set('GEANY_DOC_DIR', join_paths(prefix, get_option('datadir'), 'doc', 'geany'))
+cdata.set('top_srcdir', meson.project_source_root())
+cdata.set('top_builddir', meson.project_build_root())
 
 # for geany.pc (adapted from GTK+)
 pcconf = cdata
@@ -85,9 +88,22 @@ pcconf.set('exec_prefix', '${prefix}')
 pcconf.set('datadir', '${datarootdir}')
 pcconf.set('localedir', join_paths('${datarootdir}', 'locale'))
 
-git = find_program('git')
-ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
-cdata.set_quoted('REVISION', ret.stdout().strip())
+# needed programs
+sh = find_program('sh')
+cp = find_program('cp')
+ln = find_program('ln')
+# python is not strictly required but present anyway (due to meson)
+python = find_program('python3', 'python')
+# These two are truly optional
+rst2html = find_program('rst2html', required: false)
+rst2pdf = find_program('rst2pdf', required: false)
+git = find_program('git', required: false)
+if git.found()
+	ret = run_command(git, 'rev-parse', '--short', '--revs-only', 'HEAD')
+	cdata.set_quoted('REVISION', ret.stdout().strip())
+else
+	cdata.set_quoted('REVISION', '-1')
+endif
 
 configure_file(input : 'config.h.meson',
   output : 'config.h',
@@ -131,6 +147,7 @@ ifnmatch = include_directories('ctags/fnmatch')
 ictags = include_directories('ctags/main', 'ctags/parsers')
 itagmanager = include_directories('src/tagmanager')
 iscintilla = include_directories('scintilla/include')
+igeany = include_directories('src')
 
 install_headers(
     'scintilla/include/Compat.h',
@@ -517,7 +534,6 @@ tagmanager = static_library('tagmanager',
 dep_tagmanager = declare_dependency(link_with: tagmanager, include_directories: [itagmanager])
 
 # Generate signallist.i
-sh = find_program('sh')
 gen_src = custom_target('gen-signallist',
                         input : [ 'scripts/gen-signallist.sh', 'data/geany.glade' ],
                         output : [ 'signallist.i' ],
@@ -644,6 +660,7 @@ libgeany = shared_library('geany',
     include_directories: [iscintilla],
     dependencies: [dep_tagmanager, dep_ctags, dep_scintilla] + deps,
     install: true)
+dep_libgeany = declare_dependency(link_with: libgeany, include_directories: [igeany])
 
 executable('geany', 'src/main.c',
             link_with: libgeany,
@@ -670,7 +687,6 @@ subdir('data')
 subdir('doc')
 subdir('plugins')
 
-sh = find_program('sh')
 extra_data = [['COPYING', 'GPL-2']]
 if host_machine.system() == 'windows'
 extra_data += [['AUTHORS', 'Authors.txt']]
