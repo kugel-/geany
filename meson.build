@@ -686,6 +686,7 @@ subdir('po')
 subdir('data')
 subdir('doc')
 subdir('plugins')
+subdir('tests')
 
 extra_data = [['COPYING', 'GPL-2']]
 if host_machine.system() == 'windows'
