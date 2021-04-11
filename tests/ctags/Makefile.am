@@ -351,6 +351,6 @@ check_processing_order_sources = \
 EXTRA_DIST += $(check_processing_order_sources)
 .PHONY: check-processing-order
 check-processing-order: $(check_processing_order_sources)
-	srcdir="$(srcdir)" top_builddir="$(top_builddir)" \
+	$(AM_TESTS_ENVIRONMENT) \
 	$(srcdir)/runner.sh $(top_builddir)/src/geany$(EXEEXT) --result $(check_processing_order_sources:%=$(srcdir)/%)
 check-local: check-processing-order

@@ -18,10 +18,10 @@ install:
   - test -z "$MINGW" || sudo apt-get install -y mingw-w64-tools g++-mingw-w64-i686 gcc-mingw-w64-i686 binutils-mingw-w64-i686
   # fix broken pkg-config-crosswrapper, see https://bugs.launchpad.net/ubuntu/+source/mingw-w64/+bug/1327242
   - test -z "$MINGW" || sudo sed -e 's/PKG_CONFIG_PATH=/&$PKG_CONFIG_PATH:/' -i /usr/bin/i686-w64-mingw32-pkg-config
-  - sudo apt-get install -y python-docutils rst2pdf
+  - sudo apt-get install -y python3-docutils rst2pdf
   # try not to install doxygen-latex because we don't need it and it's huge
   - sudo apt-get install -y --no-install-recommends doxygen
-  - sudo apt-get install -y python-lxml
+  - sudo apt-get install -y python3-lxml
 before_script:
   - export CFLAGS="-g -O2 -Werror=pointer-arith -Werror=implicit-function-declaration"
 script:
