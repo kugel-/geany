@@ -685,6 +685,7 @@ i18n.merge_file(
 subdir('po')
 subdir('data')
 subdir('doc')
+subdir('icons')
 subdir('plugins')
 subdir('tests')
 
