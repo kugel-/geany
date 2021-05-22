@@ -111,7 +111,7 @@ configure_file(input : 'config.h.meson',
 
 configure_file(input: 'geany.pc.in',
                install: true,
-               install_dir: join_paths(prefix, 'lib', 'pkgconfig'),
+               install_dir: join_paths(prefix, get_option('libdir'), 'pkgconfig'),
                output: 'geany.pc',
                configuration: pcconf)
 
@@ -123,7 +123,10 @@ endif
 
 # CFLAGS common between Geany and bundled plugins
 def_cflags = basic_cflags + [ '-DGTK' ]
+# we're using lots of deprecated stuff with gtk3 (often because there is no proper alternative!)
 def_cflags += '-Wno-deprecated-declarations'
+def_cflags += '-DGDK_DISABLE_DEPRECATION_WARNINGS'
+def_cflags += '-DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_32'
 def_cflags += '-DGEANY_PREFIX="@0@"'.format(get_option('prefix'))
 foreach d : [ 'includedir', 'libdir', 'libexecdir', 'datadir', 'localedir' ]
   def_cflags += '-DGEANY_@0@="@1@"'.format(d.underscorify().to_upper(), join_paths(prefix, get_option(d)))
