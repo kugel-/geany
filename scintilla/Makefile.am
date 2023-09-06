@@ -110,6 +110,7 @@ gtk/ScintillaGTKAccessible.cxx         \
 gtk/ScintillaGTKAccessible.h           \
 gtk/scintilla-marshal.c                \
 gtk/scintilla-marshal.h                \
+gtk/Wrappers.h                         \
 src/AutoComplete.cxx                   \
 src/AutoComplete.h                     \
 src/CallTip.cxx                        \
