@@ -120,6 +120,8 @@ src/CaseFolder.cxx                     \
 src/CaseFolder.h                       \
 src/CellBuffer.cxx                     \
 src/CellBuffer.h                       \
+src/ChangeHistory.cxx                  \
+src/ChangeHistory.h                    \
 src/CharacterCategoryMap.cxx           \
 src/CharacterCategoryMap.h             \
 src/CharacterType.cxx                  \
