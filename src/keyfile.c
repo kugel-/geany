@@ -43,6 +43,7 @@
 #include "keybindings.h"
 #include "main.h"
 #include "msgwindow.h"
+#include "notebook.h"
 #include "prefs.h"
 #include "printing.h"
 #include "project.h"
@@ -1345,7 +1346,7 @@ static gboolean open_session_file(gchar **tmp, guint len)
 	{
 		GeanyFiletype *ft = filetypes_lookup_by_name(ft_name);
 		GeanyDocument *doc = document_open_file_full(
-			NULL, locale_filename, pos, ro, ft, encoding);
+			NULL, locale_filename, pos, ro, ft, encoding, notebook_get_primary());
 
 		if (doc)
 		{

@@ -47,6 +47,7 @@
 #include "keybindings.h"
 #include "main.h"
 #include "navqueue.h"
+#include "notebook.h"
 #include "pluginextension.h"
 #include "prefs.h"
 #include "projectprivate.h"
@@ -1088,6 +1089,7 @@ static void update_margins(ScintillaObject *sci)
 static gboolean on_editor_notify(G_GNUC_UNUSED GObject *object, GeanyEditor *editor,
 								 SCNotification *nt, G_GNUC_UNUSED gpointer data)
 {
+	/* NOTE: sci might be invalid for some notifications on when quitting Geany */
 	ScintillaObject *sci = editor->sci;
 	GeanyDocument *doc = editor->document;
 
@@ -1185,7 +1187,8 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *object, GeanyEditor *edi
 		case SCN_URIDROPPED:
 			if (nt->text != NULL)
 			{
-				document_open_file_list(nt->text, strlen(nt->text));
+				GtkNotebook *notebook = document_get_notebook(doc);
+				document_open_file_list(nt->text, strlen(nt->text), notebook);
 			}
 			break;
 
